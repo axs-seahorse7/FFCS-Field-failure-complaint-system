@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Reset & Root ── */
+*, *::before, *::after { box-sizing: border-box; }
+.pg-root * { font-family: 'Inter', sans-serif !important; }
+.pg-root { background: #f5f6fa !important; }
+
+/* ── Sidebar ── */
+.pg-sider { box-shadow: 2px 0 8px rgba(0,0,0,0.06) !important; }
+.pg-sider .ant-layout-sider-children { display: flex; flex-direction: column; }
+
+/* ── Nav Menu ── */
+.pg-nav .ant-menu-item {
+  margin: 3px 10px !important;
+  border-radius: 10px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.18s ease !important;
+  padding-left: 14px !important;
+}
+.pg-nav .ant-menu-item:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+.pg-nav .ant-menu-item-selected {
+  background: #fff1f0 !important;
+  color: #e53935 !important;
+  font-weight: 600 !important;
+  border: 1px solid #fecaca !important;
+}
+.pg-nav .ant-menu-item-selected .anticon { color: #e53935 !important; }
+.pg-nav .ant-menu-item .anticon { font-size: 16px !important; color: inherit !important; }
+.pg-nav .ant-menu-item-group-title {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  padding: 16px 20px 6px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* ── Stat / KPI Cards ── */
+.pg-kpi {
+  border-radius: 14px !important;
+  transition: transform 0.18s, box-shadow 0.18s !important;
+}
+.pg-kpi:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+}
+
+/* ── Section Cards ── */
+.pg-section-card {
+  background: #ffffff !important;
+  border: 1px solid #e8ecf0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+  overflow: hidden;
+}
+.pg-section-card-header {
+  background: #fafbfc !important;
+  border-bottom: 1px solid #f0f2f5 !important;
+  padding: 16px 20px !important;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.pg-section-card-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  display: flex; align-items: center; gap: 8px;
+}
+.pg-section-card-body { padding: 20px !important; }
+
+/* ── Tables ── */
+.pg-table .ant-table { font-size: 13px !important; background: transparent !important; }
+.pg-table .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  border-bottom: 1.5px solid #e8ecf0 !important;
+  padding: 12px 16px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  white-space: nowrap !important;
+}
+.pg-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f4f6f8 !important;
+  color: #334155 !important;
+  padding: 12px 16px !important;
+  font-size: 13px !important;
+}
+.pg-table .ant-table-tbody > tr:hover > td { background: #f8fafc !important; }
+.pg-table .ant-table-tbody > tr:nth-child(even) > td { background: #fafbfc !important; }
+
+/* ── Inputs / Selects ── */
+.pg-filter-input .ant-input,
+.pg-filter-input { background: #fff !important; border-color: #e2e8f0 !important; border-radius: 10px !important; font-size: 13px !important; color: #334155 !important; }
+.pg-filter-input .ant-input-prefix { color: #94a3b8 !important; }
+.pg-filter-input:focus-within { border-color: #e53935 !important; box-shadow: 0 0 0 3px rgba(229,57,53,0.08) !important; }
+
+.pg-select .ant-select-selector { background: #fff !important; border-color: #e2e8f0 !important; border-radius: 10px !important; font-size: 13px !important; color: #334155 !important; min-height: 38px !important; align-items: center !important; }
+.pg-select.ant-select-focused .ant-select-selector { border-color: #e53935 !important; box-shadow: 0 0 0 3px rgba(229,57,53,0.08) !important; }
+.pg-select .ant-select-arrow { color: #94a3b8 !important; }
+.pg-select .ant-select-selection-placeholder { color: #94a3b8 !important; font-size: 13px !important; }
+
+/* ── Pagination ── */
+.pg-table .ant-pagination { margin: 16px 0 0 !important; }
+.pg-table .ant-pagination-item { background: #fff !important; border-color: #e2e8f0 !important; border-radius: 8px !important; font-size: 13px !important; }
+.pg-table .ant-pagination-item a { color: #475569 !important; }
+.pg-table .ant-pagination-item-active { background: #e53935 !important; border-color: #e53935 !important; }
+.pg-table .ant-pagination-item-active a { color: #fff !important; }
+.pg-table .ant-pagination-prev button, .pg-table .ant-pagination-next button { border-radius: 8px !important; }
+
+/* ── Tabs ── */
+.pg-tabs .ant-tabs-tab { font-size: 13px !important; font-weight: 500 !important; color: #64748b !important; padding: 10px 4px !important; }
+.pg-tabs .ant-tabs-tab-active .ant-tabs-tab-btn { color: #e53935 !important; font-weight: 600 !important; }
+.pg-tabs .ant-tabs-ink-bar { background: #e53935 !important; }
+
+/* ── DatePicker ── */
+.pg-datepicker .ant-picker { border-radius: 10px !important; border-color: #e2e8f0 !important; font-size: 13px !important; min-height: 38px !important; }
+.pg-datepicker .ant-picker-focused { border-color: #e53935 !important; box-shadow: 0 0 0 3px rgba(229,57,53,0.08) !important; }
+
+/* ── Modal ── */
+.pg-modal .ant-modal-content { border-radius: 16px !important; border: 1px solid #e8ecf0 !important; box-shadow: 0 20px 60px rgba(0,0,0,0.12) !important; }
+.pg-modal .ant-modal-header { border-bottom: 1px solid #f0f2f5 !important; background: #fafbfc !important; border-radius: 16px 16px 0 0 !important; padding: 16px 24px !important; }
+.pg-modal .ant-modal-title { font-size: 16px !important; font-weight: 700 !important; color: #1e293b !important; }
+.pg-modal .ant-modal-body { padding: 24px !important; }
+
+/* ── Tooltip (Recharts) ── */
+.pg-tooltip { background: #1e293b !important; border: none !important; border-radius: 10px !important; padding: 10px 14px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important; }
+.pg-tooltip-label { color: #94a3b8 !important; font-size: 12px !important; margin-bottom: 6px !important; font-family: 'JetBrains Mono', monospace !important; }
+.pg-tooltip-row { font-size: 13px !important; font-weight: 600 !important; }
+
+/* ── Spin ── */
+.ant-spin-dot-item { background-color: #e53935 !important; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Recharts axis text ── */
+.recharts-cartesian-axis-tick-value { font-size: 12px !important; fill: #94a3b8 !important; font-family: 'JetBrains Mono', monospace !important; }
+.recharts-legend-item-text { font-size: 13px !important; color: #64748b !important; }
+
+/* ── Drawer ── */
+.ant-drawer-header { background: #fafbfc !important; border-bottom: 1px solid #f0f2f5 !important; }
+.ant-drawer-title { font-size: 16px !important; font-weight: 700 !important; color: #1e293b !important; }
+.ant-drawer-body { background: #fff !important; padding: 20px !important; }
+
+/* ── Utility ── */
+.font-mono { font-family: 'JetBrains Mono', monospace !important; }
