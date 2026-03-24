@@ -14,10 +14,35 @@ const userSchema = new mongoose.Schema({
     otp: { 
         type: String, 
     },
+
     otpExpiresAt: {
         type: Date,
     },
+    status: {
+        type: String,
+        enum: ["active", "pending", "suspended"],
+        default: "pending"
+    },
+    stats:{
+        totalComplaints: {
+            type: Number,
+            default: 0
+        },
+        pendingComplaints: {
+            type: Number,
+            default: 0
+        },
+        resolvedComplaints: {
+            type: Number,
+            default: 0
+        },
+    },
     isBlocked: {
+        type: Boolean,
+        default: false
+    },
+
+    isDeleted: {
         type: Boolean,
         default: false
     }

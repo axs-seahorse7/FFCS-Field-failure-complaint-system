@@ -151,12 +151,20 @@ export function Empty({ text = "No data available" }) {
 /* ── Filter Bar ── */
 export function FilterBar({ children }) {
   return (
-    <div style={{
-      display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
-      padding: "14px 16px", background: "#fff",
-      border: "1px solid #e8ecf0", borderRadius: 12,
-      marginBottom: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 12, // slightly more breathing room
+        padding: "10px 14px", // reduced height
+        background: "#fff",
+        border: "1px solid #e8ecf0",
+        borderRadius: 10,
+        marginBottom: 16,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+      }}
+    >
       {children}
     </div>
   );

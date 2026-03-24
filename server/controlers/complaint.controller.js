@@ -1,5 +1,6 @@
 // controllers/complaint.controller.js
 import Complaint from "../Database/models/Forms/complaint.model.js";
+import User from "../Database/models/User-Models/user.models.js";
 import mongoose from "mongoose";
 
 /* ═══════════════════════════════════════════════════════
@@ -64,7 +65,7 @@ export const getComplaints = async (req, res) => {
 
     // Non-admins only see their own complaints
     if (req.user.role !== "admin") {
-      query.createdBy = req.user._id;
+      query.createdBy = req.user.userId;
     }
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -92,7 +93,13 @@ export const createComplaint = async (req, res) => {
     // Block check is already done in verifyToken middleware
     const complaint = await Complaint.create({
       ...req.body,
-      createdBy: req.user._id,
+      createdBy: req.user.userId,
+    });
+    
+    await User.findByIdAndUpdate(req.user.userId, {$inc: {
+        "stats.totalComplaints": 1,
+        "stats.pendingComplaints": 1
+      }
     });
     return res.status(201).json({ data: complaint });
   } catch (err) {
@@ -107,19 +114,53 @@ export const createComplaint = async (req, res) => {
 export const updateComplaintStatus = async (req, res) => {
   try {
     const { id, status } = req.body;
-    if (!id || !status) return res.status(400).json({ message: "id and status required" });
 
-    const VALID = ["Open","Active","Pending","Resolved","Closed"];
-    if (!VALID.includes(status)) return res.status(400).json({ message: "Invalid status" });
+    if (!id || !status) {
+      return res.status(400).json({ message: "id and status required" });
+    }
 
-    const complaint = await Complaint.findByIdAndUpdate(
-      id,
-      { status, updatedBy: req.user._id },
-      { new: true }
-    );
-    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
+    const VALID = ["Open", "Active", "Pending", "Resolved", "Closed"];
+    if (!VALID.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // 🔹 Get complaint FIRST
+    const complaint = await Complaint.findById(id);
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    const prevStatus = complaint.status;
+
+    // 🔹 Update complaint
+    complaint.status = status;
+    complaint.updatedBy = req.user.userId;
+    complaint.updatedAt = new Date();
+    await complaint.save();
+
+    // 🔹 Update creator stats (NOT admin)
+    const creator = await User.findById(complaint.createdBy);
+
+    if (creator) {
+      creator.stats = creator.stats || {
+        resolvedComplaints: 0,
+        pendingComplaints: 0
+      };
+
+      // Only update on transition
+      if (prevStatus !== "Resolved" && status === "Resolved") {
+        creator.stats.resolvedComplaints += 1;
+        creator.stats.pendingComplaints = Math.max(
+          0,
+          creator.stats.pendingComplaints - 1
+        );
+      }
+
+      await creator.save();
+    }
 
     return res.json({ data: complaint });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -249,7 +290,7 @@ export const getMonthlyTrend = async (req, res) => {
       const found = raw.find(r => r._id.year === year && r._id.month === month);
       const defects = found?.count || 0;
       result.push({
-        m: MONTH_LABELS[month - 1],
+        m: `${year}-${String(month).padStart(2, "0")}`,
         defects,
         ppm: monthlyProduction > 0 ? Math.round((defects / monthlyProduction) * 1_000_000) : 0,
       });
@@ -450,7 +491,7 @@ export const getPpmTrend = async (req, res) => {
       const defects = found?.count || 0;
       const units   = MONTHLY_UNITS_SHIPPED[idx] || 0;
       result.push({
-        m: MONTH_LABELS[month - 1],
+        m: `${year}-${String(month).padStart(2, "0")}`,
         defects,
         units,
         ppm: units > 0 ? Math.round((defects / units) * 1_000_000) : 0,
@@ -468,17 +509,48 @@ export const getPpmTrend = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const getDailyTrend = async (req, res) => {
   try {
-    const from = new Date(); from.setDate(from.getDate() - 30); from.setHours(0,0,0,0);
+    const now = new Date();
+
+    const from = new Date();
+    from.setDate(now.getDate() - 29);
+    from.setHours(0, 0, 0, 0);
+
     const raw = await Complaint.aggregate([
       { $match: { createdAt: { $gte: from } } },
-      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-      { $project: { d: "$_id", count: 1, _id: 0 } }
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
     ]);
-    return res.json({ data: raw });
-  } catch (err) { return res.status(500).json({ message: err.message }); }
-};
 
+    // ✅ Fill missing days
+    const result = [];
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+
+      const dateStr = d.toISOString().slice(0, 10);
+
+      const found = raw.find(r => r._id === dateStr);
+
+      result.push({
+        d: dateStr,
+        count: found?.count || 0, // ✅ KEY FIX
+      });
+    }
+
+    return res.json({ data: result });
+
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 /* ═══════════════════════════════════════════════════════
    GET /complaints/by-status
 ═══════════════════════════════════════════════════════ */
@@ -661,3 +733,40 @@ export const getAging = async (req, res) => {
     return res.json({ data: buckets });
   } catch (err) { return res.status(500).json({ message: err.message }); }
 };
+
+
+/* ═══════════════════════════════════════════════════════
+   GET /complaints/commodity-vs-category
+   Used by: DefectVsCommodityChart (stacked bar)
+   Groups complaints by commodity (IDU/ODU), then stacks defect categories.
+   Returns array of: { _id: "IDU", "Mechanical": 12, "Electrical": 8, ... }
+═══════════════════════════════════════════════════════ */
+// export const getCommodityVsCategory = async (req, res) => {
+//   try {
+//     const raw = await Complaint.aggregate([
+//       {
+//         $group: {
+//           _id:   { comm: "$commodity", cat: "$defectCategory" },
+//           count: { $sum: 1 },
+//         }
+//       }
+//     ]);
+ 
+//     const map = {};
+//     raw.forEach(({ _id: { comm, cat }, count }) => {
+//       const key = comm || "OTHER";
+//       if (!map[key]) map[key] = { _id: key };
+//       map[key][cat || "Unknown"] = (map[key][cat || "Unknown"] || 0) + count;
+//     });
+ 
+//     return res.json({
+//       data: Object.values(map).sort((a, b) => {
+//         const sa = Object.values(a).reduce((s, v) => s + (typeof v === "number" ? v : 0), 0);
+//         const sb = Object.values(b).reduce((s, v) => s + (typeof v === "number" ? v : 0), 0);
+//         return sb - sa;
+//       })
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ message: err.message });
+//   }
+// };

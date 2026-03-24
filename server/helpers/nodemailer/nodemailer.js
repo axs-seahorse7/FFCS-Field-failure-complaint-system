@@ -5,7 +5,7 @@ const getMailerConfig = () => {
 
 	if (isProduction) {
 		return {
-			host: process.env.SMTP_HOST_PROD || process.env.SMTP_HOST,
+			host: process.env.SMTP_HOST ||process.env.SMTP_HOST_PROD || "smtp.gmail.com",
 			port: Number(process.env.SMTP_PORT_PROD || process.env.SMTP_PORT || 587),
 			secure: String(process.env.SMTP_SECURE_PROD || process.env.SMTP_SECURE || "false") === "true",
 			auth: {
@@ -43,27 +43,21 @@ const createTransporter = () => {
 	});
 };
 
-export const sendOtpEmail = async ({ to, otp }) => {
+export const sendEmail = async ({ to, subject, html }) => {
 	const transporter = createTransporter();
 	const { from } = getMailerConfig();
+	
 
 	const mailOptions = {
 		from,
 		to,
-		subject: "Your Login OTP is for Testing",
-		html: `
-			<div style="font-family: Arial, sans-serif; line-height: 1.5;">
-				<h2>Login Verification</h2>
-				<p>Please verify your login by entering the OTP, this is for testing purposes only.</p>
-
-				<p>Your OTP is:</p>
-				<p style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">${otp}</p>
-				<p>This OTP is valid for 5 minutes.</p>
-			</div>
-		`,
+		subject,
+		html
 	};
 
 	return transporter.sendMail(mailOptions);
 };
+
+
 
 export default createTransporter;

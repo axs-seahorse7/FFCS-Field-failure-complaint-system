@@ -42,9 +42,10 @@ const SECTION_META = {
 };
 
 export default function AdminDashboard({ userEmail }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [active, setActive]       = useState("overview");
   const [toasts, setToasts]       = useState([]);
+  const user = JSON.parse(localStorage.getItem("User"));
 
   const addToast = useCallback((msg, type = "success") => {
     const id = Date.now();
@@ -78,7 +79,7 @@ export default function AdminDashboard({ userEmail }) {
 
   const userMenu = {
     items: [
-      { key: "email", label: <span style={{ color: "#64748b", fontSize: 13 }}>{userEmail || "admin@pg.com"}</span>, disabled: true },
+      { key: "email", label: <span style={{ color: "#64748b", fontSize: 13 }}>{user?.email || "admin@pg.com"}</span>, disabled: true },
       { type: "divider" },
       { key: "logout", icon: <LogoutOutlined />, label: "Logout", danger: true, onClick: handleLogout },
     ]
@@ -109,20 +110,18 @@ export default function AdminDashboard({ userEmail }) {
           borderBottom: "1px solid #f0f2f5",
           display: "flex", alignItems: "center", gap: 12,
           transition: "padding 0.2s",
-          background: "#fff",
+          background: "#ECE7D1",
         }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: "linear-gradient(135deg, #e53935, #b71c1c)",
+            width: 30, height: 30, borderRadius: 10, flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(229,57,53,0.3)",
           }}>
-            <span style={{ color: "#fff", fontWeight: 900, fontSize: 13, letterSpacing: 0.5 }}>PG</span>
+            <img src="/pg-logo-Photoroom (1).png" alt="" />
           </div>
           {!collapsed && (
             <div>
-              <div style={{ color: "#1e293b", fontWeight: 800, fontSize: 15, lineHeight: 1.2 }}>PG GROUP</div>
-              <div style={{ color: "#e53935", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", letterSpacing: 2, textTransform: "uppercase", marginTop: 1 }}>ADMIN CONSOLE</div>
+              <div style={{ color: "#1e293b", fontWeight: 800, fontSize: 15, lineHeight: 1.2 }}>PG <span className="text-red-700"> GROUP</span> </div>
+              <div style={{ color: "#e53935", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginTop: 1 }}>ADMIN CONSOLE</div>
             </div>
           )}
         </div>
@@ -138,8 +137,8 @@ export default function AdminDashboard({ userEmail }) {
             mode="inline"
             selectedKeys={[active]}
             onClick={({ key }) => { if (key !== "divider") setActive(key); }}
-            className="pg-nav"
-            style={{ background: "transparent", border: "none" }}
+            className="pg-nav "
+            style={{ background: "transparent", border: "none", paddingRight: 12 }}
             items={NAV_ITEMS.filter(i => i.key !== undefined || i.type === "divider").map(i =>
               i.type === "divider"
                 ? { type: "divider", key: "div1" }
@@ -200,11 +199,11 @@ export default function AdminDashboard({ userEmail }) {
               onClick={() => setCollapsed(c => !c)}
               style={{ color: "#64748b", fontSize: 18, width: 38, height: 38 }}
             />
-            <div>
-              <div style={{ color: "#1e293b", fontWeight: 700, fontSize: 16, lineHeight: 1.2 }}>
-                {meta.icon} {meta.label}
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.6 }}>
+              <div style={{ color: "#1e293b", fontWeight: 700, fontSize: 16, }}>
+                {meta.label}
               </div>
-              <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 1 }}>{meta.desc}</div>
+              <div style={{ color: "#94a3b8", fontSize: 14,  }}>{meta.desc}</div>
             </div>
           </div>
 

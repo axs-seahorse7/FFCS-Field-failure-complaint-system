@@ -1,26 +1,31 @@
-// controllers/user.controller.js
 import User from "../Database/models/User-Models/user.models.js";
 import Complaint from "../Database/models/Forms/complaint.model.js";
+import { accountApprovedTemplate } from "../helpers/HTML-templates-Mail/AccountApprovedTemp.js";
+import {sendEmail} from '../helpers/nodemailer/nodemailer.js'
+import bcrypt from "bcryptjs";
+
+/* ───────────────── Helpers ───────────────── */
+
+const sanitize = (user) => {
+  const obj = user.toObject ? user.toObject() : { ...user };
+  delete obj.password;
+  return obj;
+};
+
+const bad = (res, msg) => res.status(400).json({ success: false, message: msg });
+const notFound = (res) => res.status(404).json({ success: false, message: "User not found" });
 
 /* ═══════════════════════════════════════════════════════
-   GET /users
-   Query params: search, role, isBlocked, page, limit
+   GET /users (kept OLD logic + improved structure)
 ═══════════════════════════════════════════════════════ */
 export const getUsers = async (req, res) => {
   try {
-    const {
-      search,
-      role,
-      isBlocked,
-      page  = 1,
-      limit = 200,
-    } = req.query;
+    const { search, role, isBlocked, page = 1, limit = 200 } = req.query;
 
     const query = {};
 
-    if (role)       query.role = role;
+    if (role) query.role = role;
 
-    // isBlocked can come as "true"/"false" string from query params
     if (isBlocked !== undefined && isBlocked !== "") {
       query.isBlocked = isBlocked === "true";
     }
@@ -31,23 +36,25 @@ export const getUsers = async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    // Get users
     const users = await User.find(query)
-      .select("-otp -otpExpiresAt")
+      .select("-password -otp -otpExpiresAt")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
       .lean();
 
-    // Attach complaint count for each user
+    // Complaint count (kept from old)
     const userIds = users.map(u => u._id);
+
     const complaintCounts = await Complaint.aggregate([
       { $match: { createdBy: { $in: userIds } } },
       { $group: { _id: "$createdBy", count: { $sum: 1 } } },
     ]);
 
     const countMap = {};
-    complaintCounts.forEach(c => { countMap[c._id.toString()] = c.count; });
+    complaintCounts.forEach(c => {
+      countMap[c._id.toString()] = c.count;
+    });
 
     const data = users.map(u => ({
       ...u,
@@ -56,117 +63,201 @@ export const getUsers = async (req, res) => {
 
     const total = await User.countDocuments(query);
 
-    return res.json({ data, total, page: Number(page), limit: Number(limit) });
+    res.json({
+      success: true,
+      data,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("[getUsers]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 /* ═══════════════════════════════════════════════════════
-   POST /users/block
-   Body: { id }
+   BLOCK USER (merged validation)
 ═══════════════════════════════════════════════════════ */
 export const blockUser = async (req, res) => {
   try {
     const { id } = req.body;
-    if (!id) return res.status(400).json({ message: "User id required" });
+    if (!id) return bad(res, "User ID is required");
 
-    // Prevent admins from blocking themselves
     if (id === req.user.userId.toString()) {
-      return res.status(400).json({ message: "You cannot block yourself" });
+      return bad(res, "You cannot block yourself");
     }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { isBlocked: true, blockedAt: new Date() },
-      { new: true }
-    ).select("-otp -otpExpiresAt");
+    const user = await User.findById(id);
+    if (!user) return notFound(res);
+    if (user.isBlocked) return bad(res, "User already blocked");
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    user.isBlocked = true;
+    user.blockedAt = new Date();
+    await user.save();
 
-    return res.json({ data: user, message: "User blocked successfully" });
+    res.json({
+      success: true,
+      message: "User blocked successfully",
+      user: sanitize(user),
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("[blockUser]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 /* ═══════════════════════════════════════════════════════
-   POST /users/unblock
-   Body: { id }
+   UNBLOCK USER
 ═══════════════════════════════════════════════════════ */
 export const unblockUser = async (req, res) => {
   try {
     const { id } = req.body;
-    if (!id) return res.status(400).json({ message: "User id required" });
+    if (!id) return bad(res, "User ID is required");
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { isBlocked: false, $unset: { blockedAt: "" } },
-      { new: true }
-    ).select("-otp -otpExpiresAt");
+    const user = await User.findById(id);
+    if (!user) return notFound(res);
+    if (!user.isBlocked) return bad(res, "User is not blocked");
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    user.isBlocked = false;
+    user.blockedAt = undefined;
+    await user.save();
 
-    return res.json({ data: user, message: "User unblocked successfully" });
+    res.json({
+      success: true,
+      message: "User unblocked successfully",
+      user: sanitize(user),
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("[unblockUser]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 /* ═══════════════════════════════════════════════════════
-   POST /users/delete
-   Body: { id }
-   Also deletes all complaints created by that user (optional, configure as needed)
+   DELETE USER (kept old + improved)
 ═══════════════════════════════════════════════════════ */
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.body;
-    if (!id) return res.status(400).json({ message: "User id required" });
+    if (!id) return bad(res, "User ID is required");
 
     if (id === req.user.userId.toString()) {
-      return res.status(400).json({ message: "You cannot delete yourself" });
+      return bad(res, "You cannot delete yourself");
     }
 
     const user = await User.findByIdAndDelete(id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return notFound(res);
 
-    // Optionally: delete their complaints too
-    // await Complaint.deleteMany({ createdBy: id });
-
-    return res.json({ message: "User deleted successfully" });
+    res.json({
+      success: true,
+      message: "User deleted successfully",
+      deletedId: id,
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("[deleteUser]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 /* ═══════════════════════════════════════════════════════
-   POST /users/role
-   Body: { id, role }
+   CHANGE ROLE (NEW secure version replaces old)
 ═══════════════════════════════════════════════════════ */
 export const changeRole = async (req, res) => {
   try {
-    const { id, role } = req.body;
-    if (!id || !role) return res.status(400).json({ message: "id and role required" });
+    const { id, role, password } = req.body;
+
+    if (!id) return bad(res, "User ID is required");
+    if (!role) return bad(res, "Role is required");
+    if (!password) return bad(res, "Admin password required");
 
     const VALID_ROLES = ["admin", "user"];
     if (!VALID_ROLES.includes(role)) {
-      return res.status(400).json({ message: `Role must be one of: ${VALID_ROLES.join(", ")}` });
+      return bad(res, `Role must be one of: ${VALID_ROLES.join(", ")}`);
     }
 
-    if (id === req.user.userId.toString() && role !== "admin") {
-      return res.status(400).json({ message: "Cannot demote your own admin account" });
+    const admin = await User.findById(req.user.userId).select("+password");
+    if (!admin) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const match = await bcrypt.compare(password, admin.password);
+    if (!match) return res.status(401).json({ success: false, message: "Incorrect password" });
+
+    const target = await User.findById(id);
+    if (!target) return notFound(res);
+
+    if(target.isSystemRole){
+      return bad(res, "Cannot change role of system Administrator");
     }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { role },
-      { new: true }
-    ).select("-otp -otpExpiresAt");
+    if (target.isBlocked) {
+      return bad(res, "Cannot change role of blocked user");
+    }
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (target.role === role) {
+      return bad(res, `User already has role "${role}"`);
+    }
 
-    return res.json({ data: user, message: `Role updated to "${role}"` });
+    target.role = role;
+    await target.save();
+
+    res.json({
+      success: true,
+      message: `Role updated to "${role}"`,
+      user: sanitize(target),
+    });
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    console.error("[changeRole]", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/* ═══════════════════════════════════════════════════════
+   NEW FEATURE → CHANGE USER STATUS
+═══════════════════════════════════════════════════════ */
+export const changeUserStatus = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id) return bad(res, "User ID is required");
+    if (!status) return bad(res, "Status is required");
+
+    const VALID_STATUSES = ["active", "pending", "suspended"];
+    if (!VALID_STATUSES.includes(status)) {
+      return bad(res, `Invalid status`);
+    }
+
+    const user = await User.findById(id);
+    if (!user) return notFound(res);
+
+    if (user.isBlocked) {
+      return bad(res, "Cannot change status of blocked user");
+    }
+
+    if (user.status === status) {
+      return bad(res, `User already "${status}"`);
+    }
+
+    user.status = status;
+    await user.save();
+
+    if(status === "active"){
+      const html = accountApprovedTemplate({email: user.email})
+
+      await sendEmail({
+        to: user.email,
+        subject: "Your account has been approved!",
+        html
+      })
+   
+  }
+
+    res.json({
+      success: true,
+      message: `Status updated to "${status}"`,
+      user: sanitize(user),
+    });
+  } catch (err) {
+    console.error("[changeUserStatus]", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };

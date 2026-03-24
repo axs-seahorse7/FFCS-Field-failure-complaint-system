@@ -2,6 +2,7 @@ import e from "express";
 import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
+import Production from "../Database/models/Production/productions.model.js";
 
 const router = e.Router();
 
@@ -23,7 +24,6 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
     }
     
 });
-
 
 router.get("/get-complaint", isAuthenticated, async (req, res) => {
     try {
@@ -79,5 +79,76 @@ router.get("/users", isAuthenticated, async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
+
+router.post("/production", isAuthenticated, async (req, res) => {
+    try {
+        const { customer, commodity, month, production } = req.body;
+
+        //  Check if record already exists
+        const existing = await Production.findOne({ customer, commodity, month });
+
+        if (existing) {
+            return res.status(400).json({
+                message: "Production already entered for this month",
+                success: false
+            });
+        }
+
+        const newProduction = new Production({
+            customer,
+            commodity,
+            month,
+            production
+        });
+
+        await newProduction.save();
+
+        res.status(201).json({
+            message: "Production snapshot created",
+            success: true
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error", success: false });
+    }
+});
+
+router.put("/production/:id", isAuthenticated, async (req, res) => {
+    try {
+        const { fieldComplaint, warrantyComplaint } = req.body;
+
+        const record = await Production.findById(req.params.id);
+
+        if (!record) {
+            return res.status(404).json({
+                message: "Production record not found",
+                success: false
+            });
+        }
+
+        //  Only update complaints
+        if (fieldComplaint !== undefined) {
+            record.fieldComplaint = fieldComplaint;
+        }
+
+        if (warrantyComplaint !== undefined) {
+            record.warrantyComplaint = warrantyComplaint;
+        }
+
+        await record.save();
+
+        res.status(200).json({
+            message: "Complaints updated (snapshot preserved)",
+            success: true
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error", success: false });
+    }
+});
+
 
 export default router;

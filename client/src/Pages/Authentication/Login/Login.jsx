@@ -90,26 +90,57 @@ export default function Login() {
   };
 
   const handleOtpSubmit = async (e) => {
-    e.preventDefault(); setError("");
-    if (otp.join("").length < 6) { setError("Please enter all 6 digits of your OTP."); return; }
-    setLoading(true);
-    try {
-      const response = await api.post("/auth/verify-otp", { email, otp: otp.join("") });
-      const token = response?.data?.token;
-      if (token) document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
-      const role = response?.data?.role;
-      if (role) document.cookie = `role=${encodeURIComponent(role)}; path=/; max-age=3600; samesite=lax`;
-      setLoading(false);
+  e.preventDefault();
+  setError("");
+
+  if (otp.join("").length < 6) {
+    setError("Please enter all 6 digits of your OTP.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await api.post("/auth/verify-otp", {
+      email,
+      otp: otp.join(""),
+    });
+
+    const { token, role } = response?.data;
+
+    // ✅ Only set cookies if token exists (ACTIVE USER)
+    if (token) {
+      document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
+      document.cookie = `role=${encodeURIComponent(role)}; path=/; max-age=3600; samesite=lax`;
+
       setSuccess("Login successful.");
+
       setTimeout(() => {
-        if (response?.data?.role === "admin") navigate("/dashboard", { replace: true });
-        else navigate("/complaints", { replace: true });
+        if (role === "admin") {
+          navigate("/dashboard", { replace: true });
+        } else {
+          navigate("/complaints", { replace: true });
+        }
       }, 500);
-    } catch (err) {
-      setLoading(false);
-      setError(err?.response?.data?.message || "Invalid OTP. Please try again.");
     }
-  };
+
+  } catch (err) {
+    setLoading(false);
+
+    const message = err?.response?.data?.message;
+
+    //  HANDLE PENDING USER
+    if (err?.response?.status === 403) {
+      navigate("/account/pending", { replace: true });
+      return;
+    }
+
+    //  Other errors
+    setError(message || "Invalid OTP. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleResend = () => {
     if (!canResend) return;
