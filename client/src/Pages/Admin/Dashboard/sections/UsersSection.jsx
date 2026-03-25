@@ -515,7 +515,7 @@ export default function UsersSection({ addToast }) {
 
             {/* Detail rows */}
             {[
-              ["User ID",  selected._id,                                             true],
+              // ["User ID",  selected._id,                                             true],
               ["Email",    selected.email,                                            true],
               ["Role",     selected.role || "user",                                  false],
               ["Status",   selected.isBlocked ? "Blocked" : (selected.status || "active"), false],

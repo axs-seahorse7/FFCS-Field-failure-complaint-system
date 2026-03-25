@@ -85,15 +85,14 @@ function getRisk(ppm) {
   return { label: "OK", color: "success" };
 }
 
-export default function CustomersSection({ addToast }) {
+export default function CustomersSection({ addToast, filterDate }) {
   const [preview, setPreview] = useState(null);
 
-  const { data: customers, loading } = useApi("/complaints/by-customer");
-  const { data: custVsStatus }       = useApi("/complaints/customer-vs-status");
-  const { data: custVsCat }          = useApi("/complaints/customer-vs-category");
+  const { data: customers, loading } = useApi(`/complaints/by-customer?year=${filterDate}`);
+  const { data: custVsStatus }       = useApi(`/complaints/customer-vs-status?year=${filterDate}`);
+  const { data: custVsCat }          = useApi(`/complaints/customer-vs-category?year=${filterDate}`);
 
   const sortedByCount = useMemo(() => (customers || []).sort((a, b) => b.count - a.count), [customers]);
-  console.log("customers data", customers, custVsStatus, custVsCat);
   const filteredCustVsStatus = useMemo(() =>
     (custVsStatus || []).sort((a, b) =>
       STATUS_ORDER.reduce((s, st) => s + (b[st] || 0), 0) -

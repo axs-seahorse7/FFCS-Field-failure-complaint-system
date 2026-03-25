@@ -77,7 +77,7 @@ const PpmPreview = ({ production, warrantyComplaint }) => {
 /* ════════════════════════════════════════
    MAIN COMPONENT
 ════════════════════════════════════════ */
-export default function ProductionEntryForm({ addToast }) {
+export default function ProductionEntryForm({ addToast, filterDate }) {
   /* ── Form state ── */
   const [form, setForm] = useState({
     customer: "",
@@ -92,8 +92,7 @@ export default function ProductionEntryForm({ addToast }) {
   const [editRow,    setEditRow]    = useState({});
 
   /* ── API ── */
-  const { data: records, loading, refetch } = useApi("/production/list");
-
+  const { data: records, loading, refetch } = useApi(`/production/list?year=${filterDate}`);
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))
   , [records]);

@@ -89,16 +89,15 @@ const renderDoaLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent })
   );
 };
 
-export default function WarrantySection({ addToast }) {
+export default function WarrantySection({ addToast, filterDate }) {
   const [preview, setPreview] = useState(null);
 
-  const { data: doaData,       loading: doaLoading  } = useApi("/complaints/by-doa");
-  const { data: ppmTrend,      loading: ppmLoading  } = useApi("/complaints/ppm-trend");
-  const { data: byCommodity,   loading: commLoading } = useApi("/complaints/by-commodity");
-  const { data: commVsCat                            } = useApi("/complaints/commodity-vs-category");
-  const { data: byReplacement, loading: replLoading } = useApi("/complaints/by-replacement");
-  const { data: stats                                } = useApi("/complaints/stats");
-
+  const { data: doaData,       loading: doaLoading  } = useApi(`/complaints/by-doa?year=${filterDate}`);
+  const { data: ppmTrend,      loading: ppmLoading  } = useApi(`/complaints/ppm-trend?year=${filterDate}`);
+  const { data: byCommodity,   loading: commLoading } = useApi(`/complaints/by-commodity?year=${filterDate}`);
+  const { data: commVsCat                            } = useApi(`/complaints/commodity-vs-category?year=${filterDate}`);
+  const { data: byReplacement, loading: replLoading } = useApi(`/complaints/by-replacement?year=${filterDate}`);
+  const { data: stats                                } = useApi(`/complaints/stats?year=${filterDate}`);
   const commSorted = [...(byCommodity || [])].sort((a, b) => b.count - a.count);
   const doaPieData = [...(doaData || [])].sort((a, b) => b.count - a.count);
   const replSorted = [...(byReplacement || [])].sort((a, b) => b.count - a.count);

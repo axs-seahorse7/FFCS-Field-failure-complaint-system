@@ -130,14 +130,14 @@ export default function AdminDashboard({ userEmail }) {
     const props = { addToast, filters: appliedFilters };
     switch (active) {
       case "overview":  return <OverviewSection  {...props} />;
-      case "defects":   return <DefectsSection   {...props} />;
-      case "customers": return <CustomersSection {...props} />;
-      case "warranty":  return <WarrantySection  {...props} />;
+      case "defects":   return <DefectsSection filterDate={appliedFilters.year}  {...props} />;
+      case "customers": return <CustomersSection filterDate={appliedFilters.year} {...props} />;
+      case "warranty":  return <WarrantySection filterDate={appliedFilters.year}  {...props} />;
       // case "actions":   return <ActionsSection   {...props} />;
-      case "register":  return <RegisterSection  {...props} />;
-      case "manage":    return <ManageSection    {...props} />;
-      case "users":     return <UsersSection     {...props} />;
-      case "production": return <ProductionEntryForm {...props} />;
+      case "register":  return <RegisterSection filterDate={appliedFilters.year}  {...props} />;
+      case "manage":    return <ManageSection filterDate={appliedFilters.year}    {...props} />;
+      case "users":     return <UsersSection filterDate={appliedFilters.year}    {...props} />;
+      case "production": return <ProductionEntryForm filterDate={appliedFilters.year} {...props} />;
       default: return null;
     }
   };

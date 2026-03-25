@@ -268,7 +268,6 @@ export default function OverviewSection({ addToast, filters = {} }) {
   const { data: aging,       loading: agingL     } = useApi("/complaints/aging",            yearFilters);
   const { data: production,  loading: prodL      } = useApi("/complaints/production-stats", yearFilters);
   const { data: catVsCust                         } = useApi("/complaints/customer-vs-category", yearFilters);
-
   /* ── Memos ── */
   const statusData     = useMemo(() => (byStatus || []).map(s => ({ name: s._id, value: s.count })), [byStatus]);
   const statusTotal    = useMemo(() => statusData.reduce((s, d) => s + d.value, 0), [statusData]);
@@ -459,23 +458,28 @@ const DoaHalfDonut = ({ h = 250 }) => {
 };
   /* Daily Bar — vertical, values shown */
   const DailyBar = ({ h = 340 }) => {
-    const data = (daily || []).slice(-30);
-    if (!data.length || data.every(d => !d.count)) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} margin={{ top: 20, right: 16, bottom: 20, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="d" tick={{ fontSize: 9, fill: "#94a3b8" }} interval={4} tickFormatter={fmtDay}
-            angle={-35} textAnchor="end" height={36} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
-          <ReTooltip content={<ChartTooltip />} />
-          <Bar dataKey="count" name="Daily Complaints" fill="#3b82f6" radius={[4, 4, 0, 0]} shape={<Shadow3DBar fill="#3b82f6" />}>
-            <LabelList dataKey="count" position="top" style={{ fontSize: 9, fill: "#475569", fontWeight: 600 }} formatter={v => v > 0 ? v : ""} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
+  const today = new Date();
+
+const data = (daily || []).filter(d => {
+  const date = new Date(d.d);
+  const diff = (today - date) / (1000 * 60 * 60 * 24);
+  return diff >= 0 && diff <= 30;
+});
+
+  const hasData = data.some(d => d.count > 0);
+  if (!data.length || !hasData) return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <BarChart data={data}>
+        <XAxis dataKey="d" />
+        <YAxis />
+        <Tooltip />
+        <Bar dataKey="count" fill="#3b82f6" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* New vs Resolved */
   const AreaTrend = ({ h = 220 }) => {

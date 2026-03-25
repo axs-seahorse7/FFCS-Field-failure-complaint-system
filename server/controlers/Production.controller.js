@@ -68,24 +68,48 @@ export const createProduction = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const listProduction = async (req, res) => {
   try {
-    const { customer, commodity, from, to } = req.query;
+    const { customer, commodity, year } = req.query;
+    console.log("List filter:", { customer, commodity, year });
     const query = {};
 
-    if (customer)  query.customer  = customer;
+    if (customer) query.customer = customer;
     if (commodity) query.commodity = commodity;
-    if (from || to) {
-      query.month = {};
-      if (from) query.month.$gte = new Date(from);
-      if (to)   query.month.$lte = new Date(to);
+
+    if (year) {
+      const start = new Date(Date.UTC(year, 0, 1));   // Jan 1, 00:00 UTC
+      const end   = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)); // Dec 31 end UTC
+
+      query.month = { $gte: start, $lte: end };
     }
 
-    const data = await Production.find(query).sort({ month: -1, customer: 1 }).lean();
+    const data = await Production.aggregate([
+      {
+        $match: {
+          ...(customer && { customer }),
+          ...(commodity && { commodity }),
+        }
+      },
+      {
+        $addFields: {
+          year: { $year: "$month" }
+        }
+      },
+      {
+        $match: {
+          ...(year && { year: Number(year) })
+        }
+      },
+      {
+        $sort: { month: -1 }
+      }
+    ]);
+
     return res.json({ data });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
-
 /* ═══════════════════════════════════════════════════════
    POST /production/update
    Body: { id, production?, fieldComplaint?, warrantyComplaint? }
@@ -138,6 +162,7 @@ export const deleteProduction = async (req, res) => {
 export const getProductionStats = async (req, res) => {
   try {
     const { customer, commodity, year } = req.query;
+    console.log("Stats filter:", { customer, commodity, year });
     const match = {};
 
     if (customer)  match.customer  = customer;

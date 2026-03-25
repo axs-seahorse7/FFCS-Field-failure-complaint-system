@@ -116,20 +116,20 @@ const TreemapContent = ({ x, y, width, height, name, value, index }) => {
   );
 };
 
-export default function DefectsSection({ addToast }) {
+export default function DefectsSection({ addToast, filterDate }) {
   const [customer, setCustomer] = useState("");
   const [preview,  setPreview]  = useState(null);
 
-  const params = useMemo(() => { const p = {}; if (customer) p.customerName = customer; return p; }, [customer]);
+  const params = useMemo(() => { const p = {}; if (customer) p.customerName = customer; if (filterDate) p.year = filterDate; return p; }, [customer, filterDate]);
 
-  const { data: byCategory,    loading: catLoading    } = useApi("/complaints/by-category",          params);
-  const { data: byPart,        loading: partLoading    } = useApi("/complaints/by-part",              params);
-  const { data: topDefects,    loading: defLoading     } = useApi("/complaints/top-defects",          params);
-  const { data: catVsPart                              } = useApi("/complaints/category-vs-part",     params);
-  const { data: monthly,       loading: monthlyLoading } = useApi("/complaints/monthly",              params);
-  const { data: custVsCategory                         } = useApi("/complaints/customer-vs-category", params);
-  const { data: commodityVsCat                         } = useApi("/complaints/commodity-vs-category",params);
-  const { data: byCommodity,   loading: commLoading    } = useApi("/complaints/by-commodity",         params);
+  const { data: byCategory,    loading: catLoading    } = useApi(`complaints/by-category`,          params);
+  const { data: byPart,        loading: partLoading    } = useApi(`/complaints/by-part`,              params);
+  const { data: topDefects,    loading: defLoading     } = useApi(`/complaints/top-defects`,          params);
+  const { data: catVsPart                              } = useApi(`/complaints/category-vs-part`,     params);
+  const { data: monthly,       loading: monthlyLoading } = useApi(`/complaints/monthly`,              params);
+  const { data: custVsCategory                         } = useApi(`/complaints/customer-vs-category`, params);
+  const { data: commodityVsCat                         } = useApi(`/complaints/commodity-vs-category`,params);
+  const { data: byCommodity,   loading: commLoading    } = useApi(`/complaints/by-commodity`,         params);
 
   const sortedParts    = useMemo(() => (byPart     || []).sort((a, b) => b.count - a.count).slice(0, 12), [byPart]);
   const sortedDefects  = useMemo(() => (topDefects || []).sort((a, b) => b.count - a.count).slice(0, 10), [topDefects]);

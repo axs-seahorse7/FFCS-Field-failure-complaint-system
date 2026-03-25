@@ -387,48 +387,70 @@ export const getDailyTrend = async (req, res) => {
     let from, to;
 
     if (year) {
-      // If selected year is current year → last 30 days capped to year
-      // If historical year → last 30 days of that year (Dec 2–31)
-      const yearEnd = new Date(`${year}-12-31T23:59:59.999Z`);
+      const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
       to   = yearEnd < now ? yearEnd : now;
+
       from = new Date(to);
-      from.setDate(to.getDate() - 29);
-      // Clamp to year start
-      const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
+      from.setUTCDate(to.getUTCDate() - 29);
+
+      const yearStart = new Date(Date.UTC(year, 0, 1));
       if (from < yearStart) from = yearStart;
+
     } else {
-      to   = now;
-      from = new Date(now);
-      from.setDate(now.getDate() - 29);
+      to   = new Date();
+      from = new Date();
+      from.setUTCDate(to.getUTCDate() - 29);
     }
 
-    // Explicit from/to override
+    // Override
     if (req.query.from) from = new Date(req.query.from);
     if (req.query.to)   to   = new Date(req.query.to);
 
-    from.setHours(0, 0, 0, 0);
+    // ✅ Normalize BOTH
+    from.setUTCHours(0, 0, 0, 0);
+    to.setUTCHours(23, 59, 59, 999);
 
     const raw = await Complaint.aggregate([
-      { $match: { createdAt: { $gte: from, $lte: to } } },
+      {
+        $match: {
+          createdAt: { $gte: from, $lte: to }
+        }
+      },
       {
         $group: {
-          _id:   { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          _id: {
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$createdAt",
+              timezone: "Asia/Kolkata" // ✅ FIX
+            }
+          },
           count: { $sum: 1 }
         }
       },
       { $sort: { _id: 1 } }
     ]);
 
+    // ✅ Convert to map (FAST)
+    const map = {};
+    raw.forEach(r => {
+      map[r._id] = r.count;
+    });
+
     const result = [];
     const cursor = new Date(from);
+
     while (cursor <= to) {
-      const dateStr = cursor.toISOString().slice(0, 10);
-      const found   = raw.find(r => r._id === dateStr);
-      result.push({ d: dateStr, count: found?.count || 0 });
-      cursor.setDate(cursor.getDate() + 1);
+      const dateStr = cursor.toLocaleDateString("en-CA"); // YYYY-MM-DD
+      result.push({
+        d: dateStr,
+        count: map[dateStr] || 0
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
     return res.json({ data: result });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
