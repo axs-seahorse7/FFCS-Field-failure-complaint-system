@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../../services/axios-interceptore/api.js"; // your axios instance
+import SkeletonDashboard from "../Skeleto-Loader/SkeletonDashboard.jsx";
 
 const ProtectedRoute = ({ allowedRole }) => {
     const [loading, setLoading] = useState(true);
@@ -26,7 +27,7 @@ const ProtectedRoute = ({ allowedRole }) => {
         checkAuth();
     }, []);
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return <SkeletonDashboard />;
 
     if (!isAuth) {
         return <Navigate to="/" replace />;
