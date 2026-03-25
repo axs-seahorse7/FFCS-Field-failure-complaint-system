@@ -7,6 +7,7 @@ import ComplaintForm from "./Pages/Form/ComplaintForm.jsx";
 import ComplaintDashboard from "./Pages/User/Dashboard/ComplaintDashboard.jsx";
 import AdminDashboard from "./Pages/Admin/Dashboard/AdminDashboard.jsx";
 import AccountPending from "./Pages/Authentication/Pending/AccountPending.jsx";
+import ProductionEntryForm from "./Pages/Admin/Production-Entry-Form/ProductionForm.jsx";
 
 function App() {
  
@@ -19,6 +20,7 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRole="admin" />}>
             <Route path="/dashboard"  element={<AdminDashboard />} />
+            <Route path="/dashboard/production-entry" element={<ProductionEntryForm />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRole="user" />}>

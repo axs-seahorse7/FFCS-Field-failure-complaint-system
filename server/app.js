@@ -17,6 +17,7 @@ import createTransporter from "./helpers/nodemailer/nodemailer.js";
 import User from "./Database/models/User-Models/user.models.js";
 import complaitRoutes from "./routes/complaint.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import productionRoutes from "./routes/production.routes.js";
 
 
 
@@ -69,6 +70,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", indexroutes);
 app.use("/api", complaitRoutes);
 app.use("/api", userRoutes);
+app.use("/api/production", productionRoutes);
 
 
 const startServer = async () => {

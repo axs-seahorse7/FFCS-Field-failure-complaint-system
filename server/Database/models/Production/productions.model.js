@@ -54,11 +54,27 @@ const productionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-productionSchema.pre("save", function (next) {
+productionSchema.pre("save", function () {
   if (this.isModified("production") || this.isModified("warrantyComplaint")) {
-    this.warrantyPPM = this.production > 0 ? (this.warrantyComplaint / this.production) * 1e6 : 0;
+    this.warrantyPPM =
+      this.production > 0
+        ? (this.warrantyComplaint / this.production) * 1e6
+        : 0;
   }
-  next();
+});
+
+productionSchema.pre("findOneAndUpdate", function () {
+  const update = this.getUpdate();
+
+  if (update.production || update.warrantyComplaint) {
+    const production = update.production ?? 0;
+    const warrantyComplaint = update.warrantyComplaint ?? 0;
+
+    this.set({
+      warrantyPPM:
+        production > 0 ? (warrantyComplaint / production) * 1e6 : 0,
+    });
+  }
 });
 
 const Production = mongoose.model("Production", productionSchema);
