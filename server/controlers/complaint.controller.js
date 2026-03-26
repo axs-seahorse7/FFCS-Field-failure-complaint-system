@@ -2,7 +2,6 @@
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
-import mongoose from "mongoose";
 
 /* ═══════════════════════════════════════════════════════
    HELPER — build date match from query params
@@ -10,31 +9,29 @@ import mongoose from "mongoose";
    Priority: explicit from/to overrides year
 ═══════════════════════════════════════════════════════ */
 function buildDateMatch(query) {
-  const { year, from, to } = query;
+  const { year, from, to, customerName } = query;
 
-  // If explicit date range provided, use it
+  const match = {};
+
   if (from || to) {
-    const range = {};
-    if (from) range.$gte = new Date(from);
-    if (to)   range.$lte = new Date(to);
-    return { complaintDate: range };
-  }
-
-  // If year selected, filter Jan 1 – Dec 31 of that year
-  if (year) {
+    match.complaintDate = {};
+    if (from) match.complaintDate.$gte = new Date(from);
+    if (to)   match.complaintDate.$lte = new Date(to);
+  } else if (year) {
     const y = Number(year);
-    return {
-      complaintDate: {
-        $gte: new Date(`${y}-01-01T00:00:00.000Z`),
-        $lte: new Date(`${y}-12-31T23:59:59.999Z`),
-      }
+    match.complaintDate = {
+      $gte: new Date(`${y}-01-01T00:00:00.000Z`),
+      $lte: new Date(`${y}-12-31T23:59:59.999Z`),
     };
   }
 
-  // Default: no date filter (all time)
-  return {};
-}
+  // 🔥 KEY CHANGE: treat customerName as brand
+  if (customerName) {
+    match.brand = customerName;
+  }
 
+  return match;
+}
 /* ═══════════════════════════════════════════════════════
    HELPER — month label array
 ═══════════════════════════════════════════════════════ */
@@ -462,6 +459,7 @@ export const getDailyTrend = async (req, res) => {
 export const getByStatus = async (req, res) => {
   try {
     const dateMatch = buildDateMatch(req.query);
+
     const data = await Complaint.aggregate([
       { $match: dateMatch },
       { $group: { _id: "$status", count: { $sum: 1 } } },

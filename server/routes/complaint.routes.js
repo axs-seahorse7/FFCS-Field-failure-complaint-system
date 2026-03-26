@@ -11,8 +11,16 @@ import {
   getByReplacement, getByCreatedUser, getByUpdatedUser, getAging, getProductionStats,
 } from "../controlers/complaint.controller.js";
 import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
+import multer from "multer";
+import { bulkUploadComplaints } from "../controlers/bulkUploadComplaint.js";
 
 const router = express.Router();
+
+
+
+const upload = multer({ storage: multer.memoryStorage() });
+router.post("/bulk-upload", upload.single("file"), bulkUploadComplaints);
+
 
 /* ── User ── */
 router.get("/get-complaint",  isAuthenticated, getComplaints);

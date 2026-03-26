@@ -8,7 +8,7 @@ import {
   DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined,
   ThunderboltOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   LogoutOutlined, FileTextOutlined, SettingOutlined, UserSwitchOutlined,
-  FilterOutlined, CloseOutlined, ReloadOutlined, CalendarOutlined,
+  FilterOutlined, CloseOutlined, ReloadOutlined, CalendarOutlined, UploadOutlined,
 } from "@ant-design/icons";
 import OverviewSection   from "./sections/OverviewSection";
 import DefectsSection    from "./sections/DefectsSection";
@@ -20,6 +20,7 @@ import ManageSection     from "./sections/ManageSection";
 import UsersSection      from "./sections/UsersSection";
 import Toast             from "./components/Toast";
 import ProductionEntryForm from "../Production-Entry-Form/ProductionForm";
+import BulkUpload from "./insert-bulk-complaint/BulkUpload";
 import "./dashboard.css";
 
 const { Sider, Content, Header } = Layout;
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
   { key: "manage",     icon: <SettingOutlined />,       label: "Manage Complaints" },
   { key: "users",      icon: <UserSwitchOutlined />,    label: "Manage Users" },
   { key: "production", icon: <FileTextOutlined />,      label: "Manage Production" },
+  { key: "bulk-upload", icon: <UploadOutlined />,       label: "Bulk Upload" },
 ];
 
 const SECTION_META = {
@@ -53,6 +55,7 @@ const SECTION_META = {
   manage:    { label: "Manage Complaints",    desc: "Update status, delete, search" },
   users:     { label: "Manage Users",         desc: "Block, unblock, roles & activity" },
   production:     { label: "Manage Production",         desc: "Create, update, and delete production records" },
+  "bulk-upload": { label: "Bulk Upload",         desc: "Upload complaints in bulk" },
 };
 
 export default function AdminDashboard({ userEmail }) {
@@ -129,7 +132,7 @@ export default function AdminDashboard({ userEmail }) {
   const renderSection = () => {
     const props = { addToast, filters: appliedFilters };
     switch (active) {
-      case "overview":  return <OverviewSection  {...props} />;
+      case "overview":  return <OverviewSection filterDate={appliedFilters.year}  {...props} />;
       case "defects":   return <DefectsSection filterDate={appliedFilters.year}  {...props} />;
       case "customers": return <CustomersSection filterDate={appliedFilters.year} {...props} />;
       case "warranty":  return <WarrantySection filterDate={appliedFilters.year}  {...props} />;
@@ -138,6 +141,7 @@ export default function AdminDashboard({ userEmail }) {
       case "manage":    return <ManageSection filterDate={appliedFilters.year}    {...props} />;
       case "users":     return <UsersSection filterDate={appliedFilters.year}    {...props} />;
       case "production": return <ProductionEntryForm filterDate={appliedFilters.year} {...props} />;
+      case "bulk-upload": return <BulkUpload {...props} />;
       default: return null;
     }
   };
@@ -241,7 +245,7 @@ export default function AdminDashboard({ userEmail }) {
 
         {/* ── Header ── */}
         <Header style={{
-          background: "#ffffff", padding: "0 20px", height: 54,
+          background: "linear-gradient(to right, #f0f2f5, #e8ecf0)", padding: "0 20px", height: 54,
           borderBottom: "1px solid #e8ecf0",
           boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
           display: "flex", alignItems: "center", justifyContent: "space-between",

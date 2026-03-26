@@ -7,9 +7,8 @@ import {
   ResponsiveContainer, LabelList, Cell,
 } from "recharts";
 import { ChartTooltip, Loading, StatusBadge, CHART_COLORS, fmtNum } from "../components/shared";
-import { useApi } from "../components/useApi";
+import { useApiQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
-
 const { Option } = Select;
 
 /* ── Design tokens ── */
@@ -40,7 +39,7 @@ const Bar3D = ({ x, y, width, height, fill }) => {
 /* ── Chart Card ── */
 function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, children }) {
   return (
-    <div style={{ borderRadius: 14, padding: "12px 4px 8px", background: "transparent" }}>
+    <div className="card" style={{ borderRadius: 14, padding: "12px 4px 8px", background: "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px 8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 15 }}>{icon}</span>
@@ -71,10 +70,71 @@ function Grid({ cols = 2, children }) {
   );
 }
 
-const ZeroData = () => (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 140, color: "#94a3b8" }}>
-    <span style={{ fontSize: 32, marginBottom: 8 }}>📭</span>
-    <span style={{ fontSize: 12, fontWeight: 600 }}>No data available</span>
+const ZeroData = ({ msg = "No data available" }) => (
+  <div style={{
+
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      height: 160,
+      borderRadius: 16,
+      background: "linear-gradient(145deg, #f8fafc, #f1f5f9)",
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+      color: "#64748b",
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    {/* Soft Glow */}
+    <div
+      style={{
+        position: "absolute",
+        width: 120,
+        height: 120,
+        borderRadius: "50%",
+        background: "rgba(59,130,246,0.08)",
+        filter: "blur(40px)",
+        top: -30,
+        right: -30,
+      }}
+    />
+
+    {/* Icon */}
+    <div
+      style={{
+        fontSize: 36,
+        marginBottom: 10,
+      }}
+    >
+      📭
+    </div>
+
+    {/* Title */}
+    <div
+      style={{
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#475569",
+        marginBottom: 4,
+      }}
+    >
+      Nothing to show
+    </div>
+
+    {/* Subtitle */}
+    <div
+      style={{
+        fontSize: 11,
+        color: "#94a3b8",
+        textAlign: "center",
+        maxWidth: 180,
+        lineHeight: 1.4,
+      }}
+    >
+      {msg}
+    </div>
   </div>
 );
 
@@ -88,41 +148,99 @@ function getRisk(ppm) {
 export default function CustomersSection({ addToast, filterDate }) {
   const [preview, setPreview] = useState(null);
 
-  const { data: customers, loading } = useApi(`/complaints/by-customer?year=${filterDate}`);
-  const { data: custVsStatus }       = useApi(`/complaints/customer-vs-status?year=${filterDate}`);
-  const { data: custVsCat }          = useApi(`/complaints/customer-vs-category?year=${filterDate}`);
+  const { data: customers, loading } = useApiQuery(`/complaints/by-customer?year=${filterDate}`);
+  const { data: custVsStatus }       = useApiQuery(`/complaints/customer-vs-status?year=${filterDate}`);
+  const { data: custVsCat }          = useApiQuery(`/complaints/customer-vs-category?year=${filterDate}`);
+  const { data: production }          = useApiQuery(`/production/list?year=${filterDate}`);
+  const {data: productionStats}       = useApiQuery(`/production/stats?year=${filterDate}`);
 
-  const sortedByCount = useMemo(() => (customers || []).sort((a, b) => b.count - a.count), [customers]);
-  const filteredCustVsStatus = useMemo(() =>
-    (custVsStatus || []).sort((a, b) =>
+  console.log("Customers:", customers);
+  console.log("Customer vs Status:", custVsStatus);
+  console.log("Customer vs Category:", custVsCat);
+  console.log("Production:", production);
+  console.log("Production Stats:", productionStats);
+  
+
+  // 1. Fix sorting
+const sortedByCount = useMemo(() => {
+  if (!Array.isArray(customers)) return [];
+  return [...customers].sort((a, b) => b.complaints - a.complaints);
+}, [customers]);
+
+  const productionMap = {};
+
+  (production || []).forEach(p => {
+    productionMap[p.customer] = p.cumulativeProduction || p.production;
+  });
+
+  const enrichedCustomers = (customers || []).map(c => {
+    const produced = productionMap[c.name] || 0;
+
+    const ppm =
+      produced > 0
+        ? (c.complaints / produced) * 1_000_000
+        : 0;
+
+    return {
+      ...c,
+      produced,
+      ppm: Math.round(ppm),
+    };
+  });
+
+  const filteredCustVsStatus = useMemo(() =>[...(custVsStatus || [])].sort((a, b) =>
       STATUS_ORDER.reduce((s, st) => s + (b[st] || 0), 0) -
       STATUS_ORDER.reduce((s, st) => s + (a[st] || 0), 0)
-    )
-  , [custVsStatus]);
+    ),
+  [custVsStatus]
+);
 
   const openPreview = (title, chart) => setPreview({ title, chart });
 
   /* ── Charts ── */
 
-  const ComplaintsByCustomer = ({ h = 300 }) => {
-    if (!sortedByCount.length) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={sortedByCount} margin={{ top: 20, right: 16, bottom: 60, left: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#475569" }} angle={-35} textAnchor="end" height={64} interval={0} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
-          <Tooltip content={<ChartTooltip />} />
-          <Bar dataKey="count" name="Complaints" radius={[4,4,0,0]}>
-            {sortedByCount.map((_, i) => (
-              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-            ))}
-            <LabelList dataKey="count" position="top" style={LABEL_S} formatter={fmtNum} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
+const ComplaintsByCustomer = ({ h = 300 }) => {
+  if (!enrichedCustomers.length) return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <BarChart
+        data={enrichedCustomers}
+        margin={{ top: 20, right: 16, bottom: 60, left: 4 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+
+        {/* FIXED */}
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 10, fill: "#475569" }}
+          angle={-35}
+          textAnchor="end"
+          height={64}
+          interval={0}
+        />
+
+        <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
+
+        <Tooltip content={<ChartTooltip />} />
+
+        {/* FIXED */}
+        <Bar dataKey="complaints" name="Complaints" radius={[4, 4, 0, 0]}>
+          {enrichedCustomers.map((_, i) => (
+            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+          ))}
+
+          <LabelList
+            dataKey="complaints"
+            position="top"
+            style={LABEL_S}
+            formatter={fmtNum}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
   const CustomerVsStatus = ({ h = 300 }) => {
     if (!filteredCustVsStatus.length) return <ZeroData />;
@@ -147,7 +265,7 @@ export default function CustomersSection({ addToast, filterDate }) {
   const CustomerVsCategory = ({ h = 280 }) => {
     if (!custVsCat) return <ZeroData />;
     const data = (custVsCat || []).slice(0, 8);
-    const cats = ["ELEC PART DEFECTS","PART BROKEN / DAMAGED / MISSING","LEAK","NOISE","MISC DEFECT"];
+    const cats = Object.keys(data[0] || {}).filter(k => k !== "_id");
     return (
       <ResponsiveContainer width="100%" height={h}>
         <BarChart data={data} barCategoryGap="30%" barGap={3} margin={{ top: 20, right: 10, bottom: 60, left: 4 }}>
@@ -169,31 +287,70 @@ export default function CustomersSection({ addToast, filterDate }) {
 
   /* ── PPM bar chart ── */
   const PpmByCustomer = ({ h = 280 }) => {
-    const data = sortedByCount.filter(c => c.ppm > 0).slice(0, 12);
-    if (!data.length) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} margin={{ top: 20, right: 16, bottom: 60, left: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#475569" }} angle={-35} textAnchor="end" height={64} interval={0} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={44} tickFormatter={v => fmtNum(v)} />
-          <Tooltip content={<ChartTooltip />} formatter={v => [fmtNum(v), "PPM"]} />
-          <Bar dataKey="ppm" name="PPM Rate" radius={[4,4,0,0]}>
-            {data.map((d, i) => (
-              <Cell key={i} fill={d.ppm > 40000 ? "#ef4444" : d.ppm > 10000 ? "#f59e0b" : "#22c55e"} />
-            ))}
-            <LabelList dataKey="ppm" position="top" style={LABEL_S} formatter={fmtNum} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
+  const  data = enrichedCustomers.slice(0, 12);
+
+  if (!data.length) return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <BarChart
+        data={data}
+        margin={{ top: 20, right: 16, bottom: 60, left: 4 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+
+        {/* ✅ FIXED */}
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 10, fill: "#475569" }}
+          angle={-35}
+          textAnchor="end"
+          height={64}
+          interval={0}
+        />
+
+        <YAxis
+          tick={{ fontSize: 10, fill: "#94a3b8" }}
+          width={44}
+          tickFormatter={v => fmtNum(v)}
+        />
+
+        <Tooltip
+          content={<ChartTooltip />}
+          formatter={v => [fmtNum(v), "PPM"]}
+        />
+
+        <Bar dataKey="ppm" name="PPM Rate" radius={[4, 4, 0, 0]}>
+          {data.map((d, i) => (
+            <Cell
+              key={i}
+              fill={
+                d.ppm > 40000
+                  ? "#ef4444"
+                  : d.ppm > 10000
+                  ? "#f59e0b"
+                  : "#22c55e"
+              }
+            />
+          ))}
+
+          <LabelList
+            dataKey="ppm"
+            position="top"
+            style={LABEL_S}
+            formatter={fmtNum}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* ── Table columns ── */
   const tableCols = [
     { title: "#", key: "idx", width: 44, render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 12 }}>{i+1}</span> },
     { title: "Brand",      dataIndex: "name",      key: "cust",  render: v => <b style={{ fontSize: 13, color: "#1e293b" }}>{v}</b> },
-    { title: "Complaints", dataIndex: "complaints",    key: "count", sorter: (a,b) => b.count - a.count, defaultSortOrder: "ascend",
+    { title: "Complaints", dataIndex: "complaints",    key: "count", sorter: (a,b) => b.complaints - a.complaints, defaultSortOrder: "ascend",
       render: v => <span style={{ color: "#e53935", fontWeight: 800, fontSize: 13, fontFamily: "monospace" }}>{fmtNum(v)}</span> },
     { title: "Produced",   dataIndex: "produced", key: "prod",
       render: v => <span style={{ fontFamily: "monospace", fontSize: 12, color: "#475569" }}>{v ? fmtNum(v) : "—"}</span> },
@@ -211,10 +368,21 @@ export default function CustomersSection({ addToast, filterDate }) {
           statusMap[s._id] = s;
         });
       }
-      const finalData = customers?.map(c => ({
-        ...c,
-        ...statusMap[c.name],
-      }));
+  const finalData = customers?.map(c => {
+    const produced = productionMap[c.name] || 0;
+
+    const ppm =
+      produced > 0
+        ? (c.complaints / produced) * 1_000_000
+        : 0;
+
+    return {
+      ...c,
+      ...(statusMap[c.name] || {}),
+      produced,
+      ppm: Math.round(ppm),
+    };
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 80 }}>

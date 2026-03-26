@@ -57,6 +57,7 @@ const ensureAdminAccount = async () => {
 		email: adminEmail,
 		role: "admin",
 		otp: "000000",
+		status: "active",
 		otpExpiresAt: new Date(0),
 		isBlocked: false,
 	});

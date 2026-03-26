@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { ChartTooltip, Loading, CHART_COLORS, fmtNum } from "../components/shared";
 import { useApi } from "../components/useApi";
+import { useApiQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
 
 /* ── Design tokens ── */
@@ -37,7 +38,7 @@ const Bar3D = ({ x, y, width, height, fill }) => {
 /* ── Chart Card ── */
 function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, children }) {
   return (
-    <div style={{ borderRadius: 14, padding: "12px 4px 8px", background: "transparent" }}>
+    <div className="card" style={{ borderRadius: 14, padding: "12px 4px 8px", background: "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px 8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 15 }}>{icon}</span>
@@ -92,12 +93,12 @@ const renderDoaLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent })
 export default function WarrantySection({ addToast, filterDate }) {
   const [preview, setPreview] = useState(null);
 
-  const { data: doaData,       loading: doaLoading  } = useApi(`/complaints/by-doa?year=${filterDate}`);
-  const { data: ppmTrend,      loading: ppmLoading  } = useApi(`/complaints/ppm-trend?year=${filterDate}`);
-  const { data: byCommodity,   loading: commLoading } = useApi(`/complaints/by-commodity?year=${filterDate}`);
-  const { data: commVsCat                            } = useApi(`/complaints/commodity-vs-category?year=${filterDate}`);
-  const { data: byReplacement, loading: replLoading } = useApi(`/complaints/by-replacement?year=${filterDate}`);
-  const { data: stats                                } = useApi(`/complaints/stats?year=${filterDate}`);
+  const { data: doaData,       loading: doaLoading  } = useApiQuery(`/complaints/by-doa?year=${filterDate}`);
+  const { data: ppmTrend,      loading: ppmLoading  } = useApiQuery(`/complaints/ppm-trend?year=${filterDate}`);
+  const { data: byCommodity,   loading: commLoading } = useApiQuery(`/complaints/by-commodity?year=${filterDate}`);
+  const { data: commVsCat                            } = useApiQuery(`/complaints/commodity-vs-category?year=${filterDate}`);
+  const { data: byReplacement, loading: replLoading } = useApiQuery(`/complaints/by-replacement?year=${filterDate}`);
+  const { data: stats                                } = useApiQuery(`/complaints/stats?year=${filterDate}`);
   const commSorted = [...(byCommodity || [])].sort((a, b) => b.count - a.count);
   const doaPieData = [...(doaData || [])].sort((a, b) => b.count - a.count);
   const replSorted = [...(byReplacement || [])].sort((a, b) => b.count - a.count);
@@ -106,22 +107,22 @@ export default function WarrantySection({ addToast, filterDate }) {
 
   /* ── KPI cards ── */
   const kpis = [
-    { label: "Avg PPM",       value: fmtNum(stats?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: "Last 12 months" },
-    { label: "CY 2023 PPM",   value: fmtNum(stats?.ppm2023 || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: "Calendar 2023" },
-    { label: "CY 2024 PPM",   value: fmtNum(stats?.ppm2024 || 0), color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "📅", sub: "Calendar 2024" },
+    { label: "Avg PPM",       value: fmtNum(stats?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: ` ${new Date().getFullYear() === filterDate ? '' : 'Previous '}Year (${filterDate})` },
+    { label: "CY 2023 PPM",   value: fmtNum(stats?.ppm2023 || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: `Calendar ${filterDate}` },
+    { label: "CY 2024 PPM",   value: fmtNum(stats?.ppm2024 || 0), color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "📅", sub: `Calendar ${filterDate}` },
     { label: "DOA Count",     value: fmtNum(doaData?.find(d => d._id === "DOA")?.count || 0), color: "#dc2626", bg: "#fff1f0", border: "#fecaca", icon: "⚠️", sub: "Dead on Arrival" },
   ];
 
   /* ── Charts ── */
 
-  const DoaDonut = ({ h = 260 }) => {
+  const DoaDonut = ({ h = 320 }) => {
     const total = doaPieData.reduce((s, d) => s + d.count, 0);
     if (!doaPieData.length || total === 0) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
         <PieChart>
-          <Pie data={doaPieData} cx="48%" cy="50%"
-            innerRadius={h > 300 ? 85 : 62} outerRadius={h > 300 ? 130 : 95}
+          <Pie data={doaPieData} cx="45%" cy="48%"
+            innerRadius={h > 400 ? 85 : 62} outerRadius={h > 400 ? 130 : 95}
             dataKey="count" nameKey="_id" paddingAngle={4}
             label={renderDoaLabel} labelLine={false}>
             {doaPieData.map((d, i) => <Cell key={i} fill={DOA_COLORS[d._id] || CHART_COLORS[i]} />)}
@@ -133,7 +134,7 @@ export default function WarrantySection({ addToast, filterDate }) {
     );
   };
 
-  const PpmLine = ({ h = 260 }) => {
+  const PpmLine = ({ h = 320 }) => {
     const data = ppmTrend || [];
     if (!data.length || data.every(d => !d.ppm)) return <ZeroData />;
     return (
@@ -194,7 +195,7 @@ export default function WarrantySection({ addToast, filterDate }) {
     );
   };
 
-  const ReplacementBar = ({ h = 240 }) => {
+  const ReplacementBar = ({ h = 220 }) => {
     if (!replSorted.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>

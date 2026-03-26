@@ -9,7 +9,7 @@ import {
   CloseOutlined, ReloadOutlined, CheckCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useApi } from "../Dashboard/components/useApi.js";
+import { useApiQuery } from "../Dashboard/components/useApiQuery.js";
 import api from "../../../services/axios-interceptore/api.js"
 
 const { Option } = Select;
@@ -92,7 +92,7 @@ export default function ProductionEntryForm({ addToast, filterDate }) {
   const [editRow,    setEditRow]    = useState({});
 
   /* ── API ── */
-  const { data: records, loading, refetch } = useApi(`/production/list?year=${filterDate}`);
+  const { data: records, loading, refetch } = useApiQuery(`/production/list?year=${filterDate}`);
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))
   , [records]);

@@ -6,6 +6,7 @@ import SectionCard from "../components/SectionCard";
 import StatusBadge from "../components/StatusBadge";
 import DrilldownModal from "./DrilldownModal.jsx";
 import api from "../../../../services/axios-interceptore/api";
+import { useApiQuery } from "../components/useApiQuery.js";
 import { fmtNum, fmtDate } from "../components/utils";
 
 const { Option } = Select;
@@ -16,22 +17,32 @@ const STATUS_COLORS = {
 };
 
 export default function ManageSection({ addToast }) {
-  const [data, setData]             = useState([]);
-  const [loading, setLoading]       = useState(true);
+  // const [data, setData]             = useState([]);
+  // const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatus]   = useState("");
   const [custFilter, setCust]       = useState("");
   const [selected, setSelected]     = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchData = useCallback(() => {
-    setLoading(true);
-    api.get("/get-complaint")
-      .then(r => { setData(r.data?.complaints || r.data || []); setLoading(false); })
-      .catch(() => { addToast("Failed to load complaints", "error"); setLoading(false); });
-  }, []);
+  const { data = [], loading, refetch } = useApiQuery(
+    "/get-complaint",
+    {},
+    {
+      onError: () => {
+        addToast("Failed to load complaints", "error");
+      }
+    }
+  );
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // const fetchData = useCallback(() => {
+  //   setLoading(true);
+  //   api.get("/get-complaint")
+  //     .then(r => { setData(r.data?.complaints || r.data || []); setLoading(false); })
+  //     .catch(() => { addToast("Failed to load complaints", "error"); setLoading(false); });
+  // }, []);
+
+  // useEffect(() => { fetchData(); }, [fetchData]);
 
   const updateStatus = async (id, status) => {
     setUpdatingId(id);
@@ -57,7 +68,11 @@ export default function ManageSection({ addToast }) {
     }
   };
 
-  const filtered = data.filter(r => {
+  const list = Array.isArray(data)
+    ? data
+    : data?.complaints || [];
+
+  const filtered = list.filter(r => {
     const q = search.toLowerCase();
     if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
     if (statusFilter && r.status !== statusFilter) return false;
@@ -66,7 +81,7 @@ export default function ManageSection({ addToast }) {
   });
 
   // Status-wise counts
-  const statusCounts = STATUSES.reduce((acc, s) => ({ ...acc, [s]: data.filter(r => r.status === s).length }), {});
+  const statusCounts = STATUSES.reduce((acc, s) => ({ ...acc, [s]: list?.filter(r => r.status === s).length }), {});
 
   const columns = [
     { title: "#",            key: "idx",            width: 40,  render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 13 }}>{i + 1}</span> },
@@ -156,7 +171,7 @@ export default function ManageSection({ addToast }) {
           style={{ minWidth: 140 }} className="pg-select">
           {STATUSES.map(s => <Option key={s}>{s}</Option>)}
         </Select>
-        <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}
+        <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}
           style={{ borderRadius: 10, borderColor: "#e2e8f0", color: "#64748b" }}>
           Refresh
         </Button>

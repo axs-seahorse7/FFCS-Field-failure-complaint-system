@@ -162,7 +162,6 @@ export const deleteProduction = async (req, res) => {
 export const getProductionStats = async (req, res) => {
   try {
     const { customer, commodity, year } = req.query;
-    console.log("Stats filter:", { customer, commodity, year });
     const match = {};
 
     if (customer)  match.customer  = customer;

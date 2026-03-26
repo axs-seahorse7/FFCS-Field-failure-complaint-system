@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import api from "../../services/axios-interceptore/api";
 import { useNavigate } from "react-router-dom";
+import { Select } from "antd";
+const { Option } = Select;
+
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -22,7 +25,108 @@ const DEFECTIVE_PARTS = [
   "DRAIN TRAY","INSTALLATION PLATE","H-LOUVER","V-LOUVER","GAS PIPE",
   "WIRE HARNESS","OTHER",
 ];
-const STATUSES = ["Open","Active","Pending","Resolved","Closed"];
+const STATUSES = ["Open"];
+
+const DEFECT_LIST = [
+  "PFC Q1 FAILURE",
+  "IDU PCB NOT WORKING",
+  "ODU PCB NOT WORKING",
+  "Error E6",
+  "E1-IDU FAN MOTOR",
+  "F3-IPM FAULT",
+  "Error EE/E0/E2/E3/E4/E5",
+  "PCB BURNT",
+  "CONNECTION FAILED",
+  "ON OFF SWITCH NG",
+  "PCB - COMP NOT WORK",
+  "PCB - MOTOR NOT WORK",
+  "DISPLAY PCB HALF DIGIT",
+  "DISPLAY PCB NOT WORKING",
+  "REMOTE SENSING ISSUE",
+  "REMOTE HALF DISPLAY",
+  "REMOTE NOT WORKING",
+  "ODU MOTOR NOT WORKING",
+  "IDU MOTOR NOT WORKING",
+  "COMPRESSOR NOISE",
+  "COMPRESSOR NOT STARTING",
+  "COMPRESSOR PUMPING NG",
+  "SWING MOTOR NOT WORKING",
+  "COMPRESSOR TERMINAL BLAST",
+  "SENSOR NOT WORKING",
+  "WRONG WIRING",
+  "E2-PROM FAILED",
+  "WAC PCB NOT WORKING",
+  "WAC DISPLAY PCB HALF DIGIT",
+  "WAC DISPLAY PCB NOT WORKING",
+  "PFC - L BURNT",
+  "MISC DEF",
+  "EVP INTERNAL LEAK",
+  "COND INTERNAL LEAK",
+  "EVP HAIRPIN LEAK",
+  "COND HAIRPIN LEAK",
+  "EVP LEAK",
+  "CONDENSER LEAK",
+  "U-BEND LEAK",
+  "COND HEADER LEAK",
+  "EVP HEADER LEAK",
+  "COND SUPPORT TUBE BRAZING",
+  "SUCTION BRAZING LEAK",
+  "DISCHARGE BRAZING LEAK",
+  "SUCTION CRACKED",
+  "DISCHARGE TUBE LEAK",
+  "CAPILLARY BRAZING LEAK",
+  "PINCH OFF LEAK",
+  "FLAIR NUT LEAK",
+  "LOW / NO GAS",
+  "EVP DAMAGED",
+  "CONDENSER DAMAGED",
+  "LEAK NOT FOUND",
+  "IDU PANEL BROKEN / DAMAGED",
+  "IDU CHASSIS DAMAGED",
+  "CFF BROKEN / DAMAGED",
+  "LOUVER WARPAGE / DAMAGED",
+  "REMOTE MISSING",
+  "ODU DAMAGED",
+  "I-KIT MISSING",
+  "CFF TOUCHING NOISE",
+  "COMPRESSOR TRIPPING",
+  "COMPRESSOR LEAK",
+  "PCB PROTECTION / FAULT",
+  "EVP SUPPORT BROKEN",
+  "IDU MOTOR COVER BROKEN",
+  "VALVE THREAD DAMAGED",
+  "SERVICE VALVE LEAK",
+  "WRONG PART",
+  "INSTALLATION ISSUE",
+  "CHOKE",
+  "LOW / NO COOLING",
+  "FLASHES IN DRAIN LINE",
+  "PART MISSING",
+  "NO FUNCTIONAL DEFECT",
+  "WATER DROPAGE",
+  "MOTOR NOISE",
+  "TUBE / COMP VIBRATION",
+  "FAN OUT / DAMAGED",
+  "AIR FLOW NOISE",
+  "CFF PULL OUT FROM BEARING",
+  "FUSE BURNT",
+  "PCB-REMOTE NOT WORKING",
+  "LOUVER NOISE",
+  "WAC FAN BROKEN",
+  "WAC BASE DAMAGED",
+  "WAC PANEL BROKEN",
+  "WAC BLOWER DAMAGED",
+  "PCB DAMAGED",
+  "WIFI ERROR",
+  "HIGH / LOW RPM",
+  "MOTOR DAMAGED",
+  "ODU STRUCTURAL NOISE",
+  "IDU BURNT",
+  "ODU BURNT",
+  "BEARING BUSH MISSING",
+  "CAPACITOR BURNT / NG",
+  "PART BROKEN / OPEN"
+];
 
 const initialForm = {
   complaintDate: new Date().toISOString().split("T")[0],
@@ -84,11 +188,11 @@ const selectCls =
   "focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-500/10 " +
   "font-['Sora',sans-serif]";
 
-function Select({ id, value, onChange, options, placeholder }) {
+function SelectF({ id, value, onChange, options, placeholder }) {
   return (
     <div className="relative">
       <select id={id} value={value} onChange={onChange} className={selectCls}>
-        <option value="">{placeholder || "-- Select --"}</option>
+        <option hidden value="">{placeholder || "-- Select --"}</option>
         {options.map((o) => (
           <option key={o} value={o}>{o}</option>
         ))}
@@ -165,7 +269,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
         data: form,
       });
       if (res.data?.success) {
-        setMsg({ text: "✅ Complaint saved successfully!", type: "success" });
+        setMsg({ text: " Complaint saved successfully!", type: "success" });
         if (!editId) setTimeout(handleReset, 2000);
       } else {
         setMsg({ text: `❌ ${res.data?.message || "Submission failed."}`, type: "error" });
@@ -294,7 +398,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                     />
                   </Field>
                   <Field label="DOA / Warranty">
-                    <Select
+                    <SelectF
                       value={form.doa}
                       onChange={set("doa")}
                       options={["DOA","IW","OOW"]}
@@ -314,7 +418,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                 {/* Row 2 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Field label="Customer Name" required>
-                    <Select
+                    <SelectF
                       value={form.customerName}
                       onChange={set("customerName")}
                       options={CUSTOMERS}
@@ -325,7 +429,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                     )}
                   </Field>
                   <Field label="Commodity" required>
-                    <Select
+                    <SelectF
                       value={form.commodity}
                       onChange={set("commodity")}
                       options={["IDU","ODU"]}
@@ -336,7 +440,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                     )}
                   </Field>
                   <Field label="Replacement Category">
-                    <Select
+                    <SelectF
                       value={form.replacementCategory}
                       onChange={set("replacementCategory")}
                       options={["PART"]}
@@ -381,7 +485,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                 {/* Row 1 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Field label="Defect Category" required>
-                    <Select
+                    <SelectF
                       value={form.defectCategory}
                       onChange={set("defectCategory")}
                       options={DEFECT_CATEGORIES}
@@ -392,7 +496,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                     )}
                   </Field>
                   <Field label="Defective Part" required>
-                    <Select
+                    <SelectF
                       value={form.defectivePart}
                       onChange={set("defectivePart")}
                       options={DEFECTIVE_PARTS}
@@ -403,7 +507,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                     )}
                   </Field>
                   <Field label="Complaint Status">
-                    <Select
+                    <SelectF
                       value={form.status}
                       onChange={set("status")}
                       options={STATUSES}
@@ -413,27 +517,19 @@ export default function ComplaintForm({  editId, userEmail, }) {
 
                 {/* Row 2 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Symptom" hint="Observed symptom e.g. Unit not cooling">
-                    <input
-                      type="text"
-                      className={inputCls}
-                      placeholder="e.g. Unit not cooling, noisy operation"
-                      value={form.symptom}
-                      onChange={set("symptom")}
-                    />
-                  </Field>
-                  <Field label="Defect Details" required hint="Precise failure description">
-                    <input
-                      type="text"
-                      className={`${inputCls} ${fieldErr("defectDetails")}`}
-                      placeholder="e.g. PFC Q1 FAILURE, PCB BURNT"
+                  <Field required hint="Precise failure description">
+                      <Field label="Complaint Status">
+                    <SelectF
                       value={form.defectDetails}
                       onChange={set("defectDetails")}
+                      options={DEFECT_LIST}
                     />
-                    {touched.defectDetails && !form.defectDetails && (
-                      <p className="text-[10px] text-red-500 mt-0.5">Required</p>
-                    )}
                   </Field>
+
+                      {touched.defectDetails && !form.defectDetails && (
+                        <p className="text-[10px] text-red-500 mt-0.5">Required</p>
+                      )}
+                    </Field>
                 </div>
 
               </div>
@@ -447,7 +543,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                   disabled={loading}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3 rounded-xl
                     bg-[#12172B] hover:bg-[#1a2140] active:scale-[.98]
-                    text-white font-bold text-sm tracking-wide
+                    text-white font-bold text-sm tracking-wide cursor-pointer
                     shadow-lg shadow-slate-900/20 transition-all duration-150
                     disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 >

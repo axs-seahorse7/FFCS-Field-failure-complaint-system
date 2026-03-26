@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { ChartTooltip, Loading, StatusBadge, CHART_COLORS, fmtNum, fmtDate } from "../components/shared";
 import { useApi } from "../components/useApi";
+import { useApiQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
 import api from "../../../../services/axios-interceptore/api.js";
 
@@ -79,11 +80,11 @@ export default function ActionsSection({ addToast }) {
   const [updatingId, setUpdatingId]     = useState(null);
   const [preview, setPreview]           = useState(null);
 
-  const { data: byUser,    loading: userLoading }            = useApi("/complaints/by-created-user");
-  const { data: byUpdater, loading: updLoading }             = useApi("/complaints/by-updated-user");
-  const { data: pending,   loading: pendLoading, refetch }   = useApi("/get-complaint", { status: statusFilter, limit: 100 });
-  const { data: stats }                                      = useApi("/complaints/stats");
-  const { data: aging }                                      = useApi("/complaints/aging");
+  const { data: byUser,    loading: userLoading }            = useApiQuery("/complaints/by-created-user");
+  const { data: byUpdater, loading: updLoading }             = useApiQuery("/complaints/by-updated-user");
+  const { data: pending,   loading: pendLoading, refetch }   = useApiQuery("/get-complaint", { status: statusFilter, limit: 100 });
+  const { data: stats }                                      = useApiQuery("/complaints/stats");
+  const { data: aging }                                      = useApiQuery("/complaints/aging");
 console.log("Aging data:", aging);
   const agingData = useMemo(() => {
     if (aging) return aging;

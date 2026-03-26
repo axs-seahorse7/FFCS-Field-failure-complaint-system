@@ -10,8 +10,19 @@ import {
 import {
   SectionCard, ChartTooltip, Loading, CHART_COLORS, fmtNum,
 } from "../components/shared";
-import { useApi } from "../components/useApi";
+// import { useApi } from "../components/useApi";
+import { useApiQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
+import { MdDonutLarge, MdSettings , MdTrendingUp, MdBarChart, MdTrendingDown, MdBuild, MdCalendarToday, MdAccessTime, MdSearch, MdFactory, MdBolt } from "react-icons/md";
+import { VscActivateBreakpoints } from "react-icons/vsc";
+import { GiSpiderWeb } from "react-icons/gi";
+import { TbWorldUp, TbBuildingFactory  } from "react-icons/tb";
+import { TfiBarChartAlt } from "react-icons/tfi";
+
+
+
+import { RiShieldCheckLine, RiFileList3Line, RiAlarmWarningLine, RiCheckboxCircleLine, RiClockwiseLine, RiTimerLine,  } from "react-icons/ri";
+
 
 const { Option } = Select;
 
@@ -172,7 +183,7 @@ function MiniKpiCard({ label, value, sub, icon, color, loading, pinned, onPin })
 ════════════════════════════════════════ */
 function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, headerExtra, children, minHeight }) {
   return (
-    <div style={{ ...CHART_CARD_STYLE, minHeight: minHeight || "auto" }}>
+    <div className="card" style={{ ...CHART_CARD_STYLE, minHeight: minHeight || "auto" }}>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 8px 8px",
@@ -185,8 +196,8 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, h
         <Space size={4}>
           {headerExtra}
           {onExpand && (
-            <Button type="text" size="small" icon={<ExpandAltOutlined />}
-              onClick={onExpand} style={{ color: "#cbd5e1", fontSize: 12, padding: "0 3px" }} />
+            <Button type="text" size="medium"  icon={<ExpandAltOutlined />}
+              onClick={onExpand} style={{ color: "blue", fontSize: 12, padding: "0 3px" }} />
           )}
         </Space>
       </div>
@@ -235,7 +246,7 @@ function pctLabel(data, field = "value") {
 /* ════════════════════════════════════════
    MAIN COMPONENT
 ════════════════════════════════════════ */
-export default function OverviewSection({ addToast, filters = {} }) {
+export default function OverviewSection({ addToast, filterDate, filters = {} }) {
   const [preview, setPreview]           = useState(null);
   const [kpiPinned, setKpiPinned]       = useState(false);
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
@@ -244,9 +255,9 @@ export default function OverviewSection({ addToast, filters = {} }) {
   /* Year-scoped filters */
   const yearFilters = useMemo(() => ({
     ...filters,
-    from: `${selectedYear}-01-01T00:00:00.000Z`,
-    to:   `${selectedYear}-12-31T23:59:59.999Z`,
-  }), [filters, selectedYear]);
+    from: `${filterDate}-01-01T00:00:00.000Z`,
+    to:   `${filterDate}-12-31T23:59:59.999Z`,
+  }), [filters, filterDate]);
 
   const lastYearFilters = useMemo(() => ({
     ...filters,
@@ -254,20 +265,24 @@ export default function OverviewSection({ addToast, filters = {} }) {
     to:   `${selectedYear - 1}-12-31T23:59:59.999Z`,
   }), [filters, selectedYear]);
 
-  const { data: stats,       loading: statsL   } = useApi("/complaints/stats",             yearFilters);
-  const { data: statsLY,     loading: statsLYL  } = useApi("/complaints/stats",             lastYearFilters);
-  const { data: monthly,     loading: monthlyL  } = useApi("/complaints/monthly",           yearFilters);
-  const { data: daily,       loading: dailyL    } = useApi("/complaints/daily",             yearFilters);
-  const { data: byStatus                         } = useApi("/complaints/by-status",        yearFilters);
-  const { data: byCustomer,  loading: custL      } = useApi("/complaints/by-customer",      yearFilters);
-  const { data: byCategory,  loading: catL       } = useApi("/complaints/by-category",      yearFilters);
-  const { data: byPart,      loading: partL      } = useApi("/complaints/by-part",          yearFilters);
-  const { data: byCommodity, loading: commL      } = useApi("/complaints/by-commodity",     yearFilters);
-  const { data: byDoa,       loading: doaL       } = useApi("/complaints/by-doa",           yearFilters);
-  const { data: ppmTrend,    loading: ppmL       } = useApi("/complaints/ppm-trend",        yearFilters);
-  const { data: aging,       loading: agingL     } = useApi("/complaints/aging",            yearFilters);
-  const { data: production,  loading: prodL      } = useApi("/complaints/production-stats", yearFilters);
-  const { data: catVsCust                         } = useApi("/complaints/customer-vs-category", yearFilters);
+  const { data: stats,       loading: statsL   } = useApiQuery("/complaints/stats",             yearFilters);
+  const { data: statsLY,     loading: statsLYL  } = useApiQuery("/complaints/stats",             lastYearFilters);
+  const { data: monthly,     loading: monthlyL  } = useApiQuery("/complaints/monthly",           yearFilters);
+  const { data: daily,       loading: dailyL    } = useApiQuery("/complaints/daily",             yearFilters);
+  const { data: byStatus                         } = useApiQuery("/complaints/by-status",        yearFilters);
+  const { data: byCustomer,  loading: custL      } = useApiQuery("/complaints/by-customer",      yearFilters);
+  const { data: byCategory,  loading: catL       } = useApiQuery("/complaints/by-category",      yearFilters);
+  const { data: byPart,      loading: partL      } = useApiQuery("/complaints/by-part",          yearFilters);
+  const { data: byCommodity, loading: commL      } = useApiQuery("/complaints/by-commodity",     yearFilters);
+  const { data: byDoa,       loading: doaL       } = useApiQuery("/complaints/by-doa",           yearFilters);
+  const { data: ppmTrend,    loading: ppmL       } = useApiQuery("/complaints/ppm-trend",        yearFilters);
+  const { data: aging,       loading: agingL     } = useApiQuery("/complaints/aging",            yearFilters);
+  const { data: production,  loading: prodL      } = useApiQuery("/complaints/production-stats", yearFilters);
+  const { data: catVsCust                         } = useApiQuery("/complaints/customer-vs-category", yearFilters);
+
+  console.log("by customer:", byCustomer);
+  console.log("cat vs cust:", catVsCust);
+
   /* ── Memos ── */
   const statusData     = useMemo(() => (byStatus || []).map(s => ({ name: s._id, value: s.count })), [byStatus]);
   const statusTotal    = useMemo(() => statusData.reduce((s, d) => s + d.value, 0), [statusData]);
@@ -276,13 +291,26 @@ export default function OverviewSection({ addToast, filters = {} }) {
   const commodityData  = useMemo(() => (byCommodity || []).map(c => ({ name: c._id || "Unknown", value: c.count })), [byCommodity]);
   const doaData        = useMemo(() => (byDoa || []).map(d => ({ name: d._id || "Unknown", value: d.count })), [byDoa]);
   const doaTotal       = useMemo(() => doaData.reduce((s, d) => s + d.value, 0), [doaData]);
-  const radarData      = useMemo(() => (byCustomer || []).slice(0, 7).map(c => ({
-    customer: (c._id || "").slice(0, 8), complaints: c.count || 0, ppm: c.ppm || 0,
-  })), [byCustomer]);
-  const radialData     = useMemo(() => (byCustomer || []).slice(0, 6).map((c, i) => ({
-    name: c._id || "Unknown", value: c.count || 0, fill: RADIAL_COLORS[i],
-  })), [byCustomer]);
 
+  const sortedCustomers = useMemo(() => [...(byCustomer || [])]
+  .sort((a, b) => (b.complaints || 0) - (a.complaints || 0)),
+    [byCustomer]
+  );
+  const radarData = useMemo(() => sortedCustomers.slice(0, 7).map(c => ({
+      customer: (c.name || "Unknown").slice(0, 8),
+      complaints: c.complaints || 0,
+      ppm: c.ppm || 0,
+    })),
+    [sortedCustomers]
+  );
+
+  const radialData = useMemo(() => sortedCustomers.slice(0, 6).map((c, i) => ({
+        name: c.name || "Unknown",
+        value: c.complaints || 0,
+        fill: RADIAL_COLORS[i],
+      })),
+    [sortedCustomers]
+  );
   /* ── Year vs last year comparison ── */
   const yoyData = useMemo(() => {
     const curr = stats?.total || 0;
@@ -303,20 +331,36 @@ export default function OverviewSection({ addToast, filters = {} }) {
   const customerNames = useMemo(() => (byCustomer || []).map(c => c._id), [byCustomer]);
 
   /* defect brand chart data */
-  const defectBrandData = useMemo(() => {
-    if (!catVsCust) return [];
-    // For each customer, get selected category count
-    return (byCustomer || []).slice(0, 12).map(cust => {
-      const row = (catVsCust || []).find(r => r._id === cust._id) || {};
+ const defectBrandData = useMemo(() => {
+  if (!catVsCust) return [];
+
+  //  Convert to lookup map (O(1) access)
+  const lookup = Object.fromEntries(
+    catVsCust.map(r => [r._id, r])
+  );
+
+  return (byCustomer || [])
+    .slice(0, 12)
+    .map(cust => {
+      const row = lookup[cust.name] || {};
+
       let val = 0;
+
       if (defectDropdown === "overall") {
-        val = Object.entries(row).filter(([k]) => k !== "_id").reduce((s, [, v]) => s + v, 0);
+        val = Object.entries(row)
+          .filter(([k]) => k !== "_id")
+          .reduce((s, [, v]) => s + (v || 0), 0);
       } else {
         val = row[defectDropdown] || 0;
       }
-      return { name: cust._id || "Unknown", value: val };
-    }).filter(d => d.value > 0);
-  }, [catVsCust, byCustomer, defectDropdown]);
+
+      return {
+        name: cust.name || "Unknown",
+        value: val,
+      };
+    })
+    .filter(d => d.value > 0);
+}, [catVsCust, byCustomer, defectDropdown]);
 
   const defectBrandTotal = useMemo(() => defectBrandData.reduce((s, d) => s + d.value, 0), [defectBrandData]);
 
@@ -383,82 +427,193 @@ export default function OverviewSection({ addToast, filters = {} }) {
     );
   };
 
-  /* Warranty Donut — percentage */
-// Replace your DoaDonut with this component
-// Drop-in: same props interface { h, doaData, doaTotal, ZeroData, ChartTooltip }
 
-const DOA_COLORS = ["#ef4444", "#f59e0b", "#3b82f6", "#22c55e"];
+
+const DOA_COLORS = { DOA: "#ef4444", IW: "#f59e0b", OOW: "#3b82f6" };
+
+/* ── Needle SVG overlay — sits on top of the Recharts PieChart ── */
+function NeedleOverlay({ angleDeg, h, innerRadius }) {
+  const toRad  = d => (d * Math.PI) / 180;
+  const needleL = innerRadius - 8;
+  const pivotR  = 7;
+
+  /* viewBox is 100 × h so cx=50 means 50% and cy=h*0.8 means 80% — 
+     matching PieChart cx="50%" cy="80%" exactly */
+  const W  = 100;
+  const cx = 50;
+  const cy = h * 0.8;
+
+  const tipX = cx + needleL * Math.cos(toRad(angleDeg));
+  const tipY = cy - needleL * Math.sin(toRad(angleDeg));
+  const lx   = cx + pivotR  * Math.cos(toRad(angleDeg + 90));
+  const ly   = cy - pivotR  * Math.sin(toRad(angleDeg + 90));
+  const rx   = cx + pivotR  * Math.cos(toRad(angleDeg - 90));
+  const ry   = cy - pivotR  * Math.sin(toRad(angleDeg - 90));
+  const tailX = cx + (needleL * 0.18) * Math.cos(toRad(angleDeg + 180));
+  const tailY = cy - (needleL * 0.18) * Math.sin(toRad(angleDeg + 180));
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${h}`}
+      width="100%" height={h}
+      style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
+    >
+      {/* needle body */}
+      <polygon
+        points={`${tipX},${tipY} ${lx},${ly} ${rx},${ry}`}
+        fill="#1e293b" opacity={0.88}
+      />
+      {/* short tail */}
+      <line x1={cx} y1={cy} x2={tailX} y2={tailY}
+        stroke="#1e293b" strokeWidth={2} opacity={0.45} />
+      {/* pivot outer */}
+      <circle cx={cx} cy={cy} r={pivotR}     fill="#1e293b" opacity={0.9} />
+      {/* pivot inner white dot */}
+      <circle cx={cx} cy={cy} r={pivotR - 3} fill="#fff" />
+    </svg>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DoaHalfDonut  — half-donut gauge with needle
+   Uses doaData / doaTotal from outer scope (same as original).
+   Same props: { h }
+════════════════════════════════════════════════════════════════ */
+/* ── Needle SVG overlay ── */
+function NeedleOverlay({ angleDeg, h, innerRadius }) {
+  const toRad   = d => (d * Math.PI) / 180;
+  const needleL = innerRadius - 8;
+  const pivotR  = 7;
+  const W  = 100;
+  const cx = 50;
+  const cy = h * 0.8;
+
+  const tipX  = cx + needleL * Math.cos(toRad(angleDeg));
+  const tipY  = cy - needleL * Math.sin(toRad(angleDeg));
+  const lx    = cx + pivotR  * Math.cos(toRad(angleDeg + 90));
+  const ly    = cy - pivotR  * Math.sin(toRad(angleDeg + 90));
+  const rx    = cx + pivotR  * Math.cos(toRad(angleDeg - 90));
+  const ry    = cy - pivotR  * Math.sin(toRad(angleDeg - 90));
+  const tailX = cx + (needleL * 0.18) * Math.cos(toRad(angleDeg + 180));
+  const tailY = cy - (needleL * 0.18) * Math.sin(toRad(angleDeg + 180));
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${h}`}
+      width="100%" height={h}
+      style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}
+    >
+      <polygon
+        points={`${tipX},${tipY} ${lx},${ly} ${rx},${ry}`}
+        fill="#1e293b" opacity={0.88}
+      />
+      <line x1={cx} y1={cy} x2={tailX} y2={tailY}
+        stroke="#1e293b" strokeWidth={2} opacity={0.45} />
+      <circle cx={cx} cy={cy} r={pivotR}     fill="#1e293b" opacity={0.9} />
+      <circle cx={cx} cy={cy} r={pivotR - 3} fill="#fff" />
+    </svg>
+  );
+}
 
 const DoaHalfDonut = ({ h = 250 }) => {
-  const data = doaData || [];
+  const data  = doaData || [];
   const total = data.reduce((s, d) => s + d.value, 0);
+  const [hov, setHov] = useState(null);
 
   if (!data.length || total === 0) return <ZeroData />;
 
+  const outerR = h > 300 ? 115 : 85;
+  const innerR = h > 300 ? 70  : 52;
+
+  const DOA_COLOR = { DOA: "#ef4444", IW: "#f59e0b", OOW: "#3b82f6" };
+
+  /* ── Sort descending so Recharts draws largest segment first (leftmost) ── */
+  const sorted = [...data].sort((a, b) => b.value - a.value);
+
+  /* ── Compute each segment's start/end fraction in draw order ── */
+  let cum = 0;
+  const segMeta = sorted.map(d => {
+    const frac  = total > 0 ? d.value / total : 0;
+    const start = cum;
+    const end   = cum + frac;
+    const mid   = (start + end) / 2;   // midpoint fraction 0..1
+    cum += frac;
+    return { name: d.name, value: d.value, frac, mid };
+  });
+
+  /* ── Largest segment is always first after sort ── */
+  const largestMid = segMeta[0]?.mid ?? 0.5;
+
+  /* ── Convert fraction → SVG angle
+       Recharts: startAngle=180 (left) endAngle=0 (right)
+       fraction 0 → angle 180°, fraction 1 → angle 0°
+       So: angle = 180 - fraction * 180                    ── */
+  const needleAngle = 180 - largestMid * 180;
+
   return (
-    <ResponsiveContainer width="100%" height={h}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="80%"              // push down to make half visible
-          startAngle={180}      // half donut
-          endAngle={0}
-          innerRadius={h > 300 ? 70 : 50}
-          outerRadius={h > 300 ? 110 : 80}
-          dataKey="value"
-          nameKey="name"
-          paddingAngle={3}
-        >
-          {data.map((d, i) => (
-            <Cell
-              key={i}
-              fill={
-                {
-                  DOA: "#ef4444",
-                  IW: "#f59e0b",
-                  OOW: "#3b82f6",
-                }[d.name] || "#94a3b8"
-              }
-            />
-          ))}
-        </Pie>
+    <div style={{ position: "relative", width: "100%", height: h }}>
+      <ResponsiveContainer width="100%" height={h}>
+        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }} style={SHADOW_STYLE} >
+          <Pie
+            data={sorted}
+            cx="50%"
+            cy="80%"
+            startAngle={180}
+            endAngle={0}
+            innerRadius={innerR}
+            outerRadius={outerR}
+            dataKey="value"
+            nameKey="name"
+            paddingAngle={3}
+            onMouseEnter={(_, i) => setHov(i)}
+            onMouseLeave={() => setHov(null)}
+          >
+            {sorted.map((d, i) => (
+              <Cell
+                key={i}
+                fill={DOA_COLOR[d.name] || "#94a3b8"}
+                opacity={hov === null || hov === i ? 1 : 0.3}
+                style={{ transition: "opacity 0.18s", cursor: "pointer" }}
+              />
+            ))}
+          </Pie>
 
-        {/* Center Total */}
-        <text
-          x="50%"
-          y="65%"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          style={{ fontSize: 20, fontWeight: 800, fill: "#1e293b" }}
-        >
-          {total}
-        </text>
+          <text x="50%" y="68%" textAnchor="middle" dominantBaseline="middle"
+            style={{ fontSize: h > 300 ? 26 : 20, fontWeight: 800, fill: "#1e293b" }}>
+            {total}
+          </text>
+          <text x="50%" y="76%" textAnchor="middle"
+            style={{ fontSize: 10, fill: "#94a3b8" }}>
+            Total
+          </text>
 
-        <text
-          x="50%"
-          y="78%"
-          textAnchor="middle"
-          style={{ fontSize: 11, fill: "#94a3b8" }}
-        >
-          Total Complaints
-        </text>
+          <Tooltip
+            formatter={(v, n) => [`${((v / total) * 100).toFixed(1)}%  (${v})`, n]}
+            contentStyle={{ borderRadius: 8, border: "none", background: "#1e293b", color: "#fff", fontSize: 12 }}
+            itemStyle={{ color: "#fff" }}
+            labelStyle={{ display: "none" }}
+          />
+          <Legend
+            iconType="circle" iconSize={8}
+            wrapperStyle={{ fontSize: 11, paddingTop: 2, Shadow3DBar: "0 4px 12px rgba(0,0,0,0.1)", Shadow3DHBar: "0 4px 12px rgba(0,0,0,0.2)" }}
+            formatter={(value, entry) => (
+              <span style={{ color: "#475569" }}>
+                {value}: <strong style={{ color: entry.color }}>{entry.payload.value}</strong>
+                <span style={{ color: "#94a3b8" }}> ({((entry.payload.value / total) * 100).toFixed(1)}%)</span>
+              </span>
+            )}
+          />
+        </PieChart > 
+      </ResponsiveContainer>
 
-        <Tooltip
-          formatter={(v, n) => [
-            `${((v / total) * 100).toFixed(1)}% (${v})`,
-            n,
-          ]}
-        />
-
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-      </PieChart>
-    </ResponsiveContainer>
+      <NeedleOverlay angleDeg={needleAngle} h={h} innerRadius={innerR} />
+    </div>
   );
 };
+
   /* Daily Bar — vertical, values shown */
-  const DailyBar = ({ h = 340 }) => {
-  const today = new Date();
+const DailyBar = ({ h = 340 }) => {
+const today = new Date();
 
 const data = (daily || []).filter(d => {
   const date = new Date(d.d);
@@ -528,31 +683,52 @@ const data = (daily || []).filter(d => {
 
   /* Top Customers — vertical bar */
   const CustomerBar = ({ h = 280 }) => {
-    const data = (byCustomer || []).slice(0, 10).map(c => ({ name: c._id || "Unknown", count: c.count || 0 }));
-    if (!data.length || data.every(d => !d.count)) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} margin={{ top: 20, right: 16, bottom: 60, left: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#475569" }} angle={-35} textAnchor="end" height={64} interval={0} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
-          <ReTooltip content={<ChartTooltip />} />
-          <Bar dataKey="count" name="Complaints" fill="#3b82f6" radius={[4, 4, 0, 0]} shape={<Shadow3DBar fill="#3b82f6" />}>
-            <LabelList dataKey="count" position="top" style={LABEL_S} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
+  const data = (byCustomer || [])
+    .sort((a, b) => (b.complaints || 0) - (a.complaints || 0))
+    .slice(0, 10)
+    .map(c => ({
+      name: c.name || "Unknown",
+      count: c.complaints || 0
+    }));
+
+  if (!data.length || data.every(d => !d.count)) return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <BarChart data={data} margin={{ top: 20, right: 16, bottom: 60, left: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 10, fill: "#475569" }}
+          angle={-35}
+          textAnchor="end"
+          height={64}
+          interval={0}
+        />
+        <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
+        <ReTooltip content={<ChartTooltip />} />
+        <Bar
+          dataKey="count"
+          name="Complaints"
+          fill="#3b82f6"
+          radius={[4, 4, 0, 0]}
+          shape={<Shadow3DBar fill="#3b82f6" />}
+        >
+          <LabelList dataKey="count" position="top" style={LABEL_S} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* Category Pareto — vertical */
-  const CategoryPareto = ({ h }) => {
+  const CategoryPareto = ({ h=400 }) => {
     const cnt = catParetoData.length;
     const chartH = h || Math.max(320, cnt * 38 + 80);
     if (!catParetoData.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={chartH}>
-        <BarChart data={catParetoData} margin={{ top: 20, right: 56, bottom: 70, left: 4 }}>
+        <BarChart data={catParetoData} margin={{ top: 40, right: 56, bottom: 70, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
           <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#475569" }} angle={-40} textAnchor="end" height={72} interval={0} />
           <YAxis yAxisId="l" tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
@@ -563,8 +739,9 @@ const data = (daily || []).filter(d => {
           <Bar yAxisId="l" dataKey="value" name="Defect Count" fill="#8b5cf6" radius={[4, 4, 0, 0]} shape={<Shadow3DBar fill="#8b5cf6" />}>
             <LabelList dataKey="value" position="top" style={LABEL_S} />
           </Bar>
+
           <Line yAxisId="r" type="monotone" dataKey="cumPct" name="Cumulative %" stroke={PARETO_LINE} strokeWidth={2.5}
-            dot={{ r: 4, fill: PARETO_LINE, filter: "drop-shadow(0 2px 4px rgba(239,68,68,0.5))" }} />
+            dot={{ r: 4, fill: PARETO_LINE, filter: "drop-shadow(0 2px 4px rgba(239,68,68,0.5))" }} style={{ strokeWidth: 2 }} />
         </BarChart>
       </ResponsiveContainer>
     );
@@ -631,7 +808,7 @@ const data = (daily || []).filter(d => {
   };
 
   /* Radar */
-  const CustomerRadar = ({ h = 240 }) => {
+  const CustomerRadar = ({ h = 280 }) => {
     if (!radarData.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -666,8 +843,10 @@ const data = (daily || []).filter(d => {
 
   /* Defect by Brand (vertical bar, percentage) */
   const DefectBrandChart = ({ h = 280 }) => {
+
     if (!defectBrandData.length || defectBrandTotal === 0) return <ZeroData msg="No defect data for selection" />;
     const withPct = defectBrandData.map(d => ({ ...d, pct: +((d.value / defectBrandTotal) * 100).toFixed(1) }));
+
     return (
       <ResponsiveContainer width="100%" height={h}>
         <BarChart data={withPct} margin={{ top: 24, right: 16, bottom: 60, left: 4 }}>
@@ -738,12 +917,12 @@ const data = (daily || []).filter(d => {
 
   /* ── KPI DATA ── */
   const kpis = [
-    { label: "Total Complaints",  value: fmtNum(stats?.total    || 0), color: "blue",   icon: "📋", sub: `Year ${selectedYear}` },
-    { label: "Open",              value: fmtNum(stats?.open     || 0), color: "red",    icon: "🔴", sub: "Needs attention" },
-    { label: "Resolved",          value: fmtNum(stats?.resolved || 0), color: "green",  icon: "✅", sub: "Closed successfully" },
-    { label: "Pending",           value: fmtNum(stats?.pending  || 0), color: "amber",  icon: "⏳", sub: "Awaiting action" },
-    { label: "Avg Resolution",    value: `${stats?.avgDays || 0}d`,    color: "purple", icon: "⏱",  sub: "Days to close" },
-    { label: "Total Production",  value: fmtNum(production?.total || 0), color: "indigo", icon: "🏭", sub: "Units dispatched" },
+    { label: "Total Complaints",  value: fmtNum(stats?.total    || 0), color: "blue",   icon: <RiFileList3Line color="blue" />, sub: `Year ${selectedYear}` },
+    { label: "Open",              value: fmtNum(stats?.open     || 0), color: "red",    icon: <RiAlarmWarningLine color="red" />, sub: "Needs attention" },
+    { label: "Resolved",          value: fmtNum(stats?.resolved || 0), color: "green",  icon: <RiCheckboxCircleLine color="green" />, sub: "Closed successfully" },
+    { label: "Pending",           value: fmtNum(stats?.pending  || 0), color: "amber",  icon: <RiClockwiseLine color="orange" />, sub: "Awaiting action" },
+    { label: "Avg Resolution",    value: `${stats?.avgDays || 0}d`,    color: "purple", icon: <RiTimerLine color="purple" />,  sub: "Days to close" },
+    { label: "Total Production",  value: fmtNum(production?.total || 0), color: "indigo", icon: <TbBuildingFactory color="indigo" />, sub: "Units dispatched" },
   ];
 
   /* ── Defect dropdown options ── */
@@ -756,13 +935,13 @@ const data = (daily || []).filter(d => {
      RENDER
   ════════════════════════════════════════ */
   return (
+   
     <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 80 }}>
 
       {/* ── Pinned KPI strip (sticky) ── */}
-      {kpiPinned && (
         <div style={{
-          position: "sticky", top: 50, zIndex: 90,
-          background: "rgba(245,246,250,0.96)",
+          position: kpiPinned ? "sticky" : "relative", top:kpiPinned ? 50 : "auto", zIndex: 90,
+          background: kpiPinned ? "rgba(245,246,250,0.96)" : "transparent",
           backdropFilter: "blur(8px)",
           borderBottom: "1px solid #e8ecf0",
           padding: "8px 0 8px",
@@ -776,47 +955,19 @@ const data = (daily || []).filter(d => {
             ))}
           </div>
         </div>
-      )}
-
-      {/* ── Year selector row ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b" }}>Year:</span>
-        {YEAR_OPTIONS.map(y => (
-          <button key={y} onClick={() => setSelectedYear(y)} style={{
-            padding: "4px 14px", borderRadius: 20, border: "1.5px solid",
-            borderColor: selectedYear === y ? "#e53935" : "#e2e8f0",
-            background: selectedYear === y ? "#fff1f0" : "#fff",
-            color: selectedYear === y ? "#e53935" : "#64748b",
-            fontWeight: selectedYear === y ? 700 : 500,
-            fontSize: 12, cursor: "pointer", transition: "all 0.15s",
-          }}>
-            {y}
-          </button>
-        ))}
-      </div>
-
-      {/* ── KPI Strip (unpinned) ── */}
-      {!kpiPinned && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {kpis.map(k => (
-            <div key={k.label} style={{ flex: "1 1 140px", minWidth: 140 }}>
-              <MiniKpiCard {...k} loading={statsL || prodL} pinned={kpiPinned} onPin={() => setKpiPinned(p => !p)} />
-            </div>
-          ))}
-        </div>
-      )}
+      
 
       {/* ROW A — 3 pie/donut charts */}
       <Grid cols={3}>
-        <ChartCard title="Complaint Status Share" icon="🍩"
+        <ChartCard title="Complaint Status Share" icon={(<MdDonutLarge size={18} />)} 
           onExpand={() => openPreview("Complaint Status Share", <StatusDonut h={450} />)}>
           <StatusDonut h={250} />
         </ChartCard>
-        <ChartCard title="Warranty Type: DOA / IW / OOW" icon="🛡️" loading={doaL}
+        <ChartCard title="Warranty Type: DOA / IW / OOW" icon={(<RiShieldCheckLine size={18} />)} loading={doaL}
           onExpand={() => openPreview("Warranty Classification", <DoaHalfDonut h={450} doaData={doaData} doaTotal={doaTotal} ZeroData={ZeroData} />)}>
           <DoaHalfDonut h={250} doaData={doaData} doaTotal={doaTotal} ZeroData={ZeroData} />
         </ChartCard>
-        <ChartCard title="Product Type Split (IDU vs ODU)" icon="⚙️" loading={commL}
+        <ChartCard title="Product Type Split (IDU vs ODU)" icon={(<MdSettings size={18} />)} loading={commL}
           onExpand={() => openPreview("Product Type Split", <CommodityPie h={400} />)}>
           <CommodityPie h={250} />
         </ChartCard>
@@ -824,64 +975,64 @@ const data = (daily || []).filter(d => {
 
       {/* ROW B — Monthly + Year vs Year */}
       <Grid cols={2}>
-        <ChartCard title="Monthly Complaint Trend" icon="📈" tag={`${selectedYear}`} tagColor="blue" loading={monthlyL}
+        <ChartCard title="Monthly Complaint Trend" icon={(<MdTrendingUp size={18} />)} tag={`${selectedYear}`} tagColor="blue" loading={monthlyL}
           onExpand={() => openPreview("Monthly Complaint Trend", <MonthlyLine h={400} />)}>
           <MonthlyLine />
         </ChartCard>
-        <ChartCard title={`${selectedYear} vs ${selectedYear - 1} Comparison`} icon="📊" tag="YoY" tagColor="geekblue" loading={statsL || statsLYL}>
+        <ChartCard title={`${selectedYear} vs ${selectedYear - 1} Comparison`} icon={(<MdBarChart size={18} />)} tag="YoY" tagColor="geekblue" loading={statsL || statsLYL}>
           <YoYCompare />
         </ChartCard>
       </Grid>
 
       {/* ROW C — New vs Resolved + PPM */}
       <Grid cols={2}>
-        <ChartCard title="New vs Resolved Complaints (Monthly)" icon="📉" loading={monthlyL}
+        <ChartCard title="New vs Resolved Complaints (Monthly)" icon={(<VscActivateBreakpoints size={18} />)} loading={monthlyL}
           onExpand={() => openPreview("New vs Resolved", <AreaTrend h={400} />)}>
           <AreaTrend />
         </ChartCard>
-        <ChartCard title="Monthly Quality Index (PPM)" icon="⚡" tag="Parts Per Million" tagColor="purple" loading={ppmL}
+        <ChartCard title="Monthly Quality Index (PPM)" icon={(<MdBolt size={18} />)} tag="Parts Per Million" tagColor="purple" loading={ppmL}
           onExpand={() => openPreview("Monthly Quality Index (PPM)", <PpmTrend h={400} />)}>
           <PpmTrend />
         </ChartCard>
       </Grid>
 
       {/* ROW D — Daily bar (full width for better spacing) */}
-      <ChartCard title="Day-by-Day Complaint Load (Last 30 Days)" icon="📅" loading={dailyL}
+      <ChartCard title="Day-by-Day Complaint Load (Last 30 Days)" icon={(<MdCalendarToday size={18} />)} loading={dailyL}
         onExpand={() => openPreview("Daily Complaint Load", <DailyBar h={400} />)}>
         <DailyBar />
       </ChartCard>
 
       {/* ROW E — Defect category pareto (full width, more space) */}
-      <ChartCard title="Top Defect Categories — 80/20 Priority View" icon="🔬" tag="80/20 Rule" tagColor="purple" loading={catL}
+      <ChartCard title="Top Defect Categories — 80/20 Priority View" icon={(<MdSearch size={18} />)} tag="80/20 Rule" tagColor="purple" loading={catL}
         onExpand={() => openPreview("Defect Category Pareto", <CategoryPareto h={500} />)}>
         <CategoryPareto />
       </ChartCard>
 
       {/* ROW F — Top customers (vertical) + Radar */}
       <Grid cols={2}>
-        <ChartCard title="Top Brands by Complaint Volume" icon="🏭" tag="Top 10" tagColor="blue" loading={custL}
+        <ChartCard title="Top Brands by Complaint Volume" icon={(<MdFactory size={18} />)} tag="Top 10" tagColor="blue" loading={custL}
           onExpand={() => openPreview("Top Brands by Complaint Volume", <CustomerBar h={400} />)}>
           <CustomerBar />
         </ChartCard>
-        <ChartCard title="Brand Complaint Spread Overview" icon="🎯" loading={custL}
+        <ChartCard title="Brand Complaint Spread Overview" icon={(<GiSpiderWeb size={18}  />)} loading={custL}
           onExpand={() => openPreview("Brand Radar", <CustomerRadar h={400} />)}>
           <CustomerRadar />
         </ChartCard>
       </Grid>
 
       {/* ROW G — Top parts (vertical, full width) */}
-      <ChartCard title="Most Reported Defective Parts (Top 10)" icon="🔩" tag="Top 10" tagColor="orange" loading={partL}
+      <ChartCard title="Most Reported Defective Parts (Top 10)" icon={(<MdBuild size={18}  />)} tag="Top 10" tagColor="orange" loading={partL}
         onExpand={() => openPreview("Most Reported Parts", <TopParts h={500} />)}>
         <TopParts />
       </ChartCard>
 
       {/* ROW H — Aging (vertical %) + Radial */}
       <Grid cols={2}>
-        <ChartCard title="How Long Complaints Stay Unresolved" icon="⏰" tag="Overdue %" tagColor="red" loading={agingL}
+        <ChartCard title="How Long Complaints Stay Unresolved" icon={(<MdAccessTime size={18} />)} tag="Overdue %" tagColor="red" loading={agingL}
           onExpand={() => openPreview("Complaint Age Breakdown", <AgingChart h={340} />)}>
           <AgingChart />
         </ChartCard>
-        <ChartCard title="Top 6 Brands — Complaint Share" icon="🌐" tag="Radial" tagColor="geekblue" loading={custL}
+        <ChartCard title="Top 6 Brands — Complaint Share" icon={(<TbWorldUp size={18} />)} tag="Radial" tagColor="geekblue" loading={custL}
           onExpand={() => openPreview("Top 6 Brand Share", <CustomerRadial h={340} />)}>
           <CustomerRadial h={280} />
         </ChartCard>
@@ -891,7 +1042,7 @@ const data = (daily || []).filter(d => {
       <Grid cols={2}>
         <ChartCard
           title="Defect Distribution Across Brands"
-          icon="🏷️"
+          icon={(<TfiBarChartAlt size={18} />)}
           tag="Brand-wise"
           tagColor="cyan"
           headerExtra={

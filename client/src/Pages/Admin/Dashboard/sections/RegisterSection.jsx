@@ -5,39 +5,40 @@ import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import SectionCard from "../components/SectionCard";
 import StatusBadge from "../components/StatusBadge";
 import DrilldownModal from "./DrilldownModal.jsx";
-import api from "../../../../services/axios-interceptore/api.js";
+import { useApiQuery } from "../components/useApiQuery.js";
 import { fmtNum, fmtDate } from "../components/utils";
 
 const { Option } = Select;
 
 export default function RegisterSection({ addToast }) {
-  const [data, setData]         = useState([]);
-  const [loading, setLoading]   = useState(true);
+  // const [data, setData]         = useState([]);
+  // const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
   const [custFilter, setCust]   = useState("");
   const [catFilter, setCat]     = useState("");
   const [selected, setSelected] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get("/get-complaint");
-      setData(response.data?.complaints || response.data || []);
-      setLoading(false);
-    } catch (error) {
+  const { data = [], loading, refetch, error } = useApiQuery(
+  "/get-complaint",
+  {},
+  {
+    onError: () => {
       addToast("Failed to load register", "error");
-      setLoading(false);
     }
-  };
+  }
+);
 
-  useEffect(() => { fetchData(); }, []);
+const list = Array.isArray(data)
+  ? data
+  : data?.complaints || [];
 
-
-  const filtered = data.filter(r => {
+  const filtered = list.filter(r => {
     const q = search.toLowerCase();
+
     if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
     if (custFilter && r.customerName !== custFilter) return false;
     if (catFilter  && r.defectCategory !== catFilter)  return false;
+
     return true;
   });
 
@@ -59,8 +60,9 @@ export default function RegisterSection({ addToast }) {
     { title: "Status",         dataIndex: "status",        key: "status", width: 105, fixed: "right", render: v => <StatusBadge status={v} /> },
   ];
 
+  if(loading) return <SectionCard title="Complaint Register" icon="📋" loading />;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div  style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* Filter bar */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -72,17 +74,17 @@ export default function RegisterSection({ addToast }) {
           className="pg-input"
           allowClear
         />
-        <Select value={custFilter || undefined} onChange={v => setCust(v || "")} allowClear placeholder="All Customers"
-          style={{ minWidth: 150 }} className="pg-select">
+        <Select data-lenis-prevent  value={custFilter || undefined} onChange={v => setCust(v || "")} allowClear placeholder="All Customers"
+          style={{ minWidth: 150, }} className="pg-select">
           {["GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR"].map(c =>
             <Option key={c}>{c}</Option>)}
         </Select>
-        <Select value={catFilter || undefined} onChange={v => setCat(v || "")} allowClear placeholder="All Categories"
-          style={{ minWidth: 180 }} className="pg-select">
+        <Select data-lenis-prevent  value={catFilter || undefined} onChange={v => setCat(v || "")} allowClear placeholder="All Categories"
+          style={{ minWidth: 180, }} className="pg-select">
           {["ELEC PART DEFECTS","PART BROKEN / DAMAGED / MISSING","LEAK","NOISE","MISC DEFECT"].map(c =>
             <Option key={c}>{c}</Option>)}
         </Select>
-        <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}
+        <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}
           style={{ borderRadius: 10, borderColor: "#e2e8f0", color: "#64748b" }}>
           Refresh
         </Button>
