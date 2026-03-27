@@ -1,14 +1,12 @@
 // sections/WarrantySection.jsx
 import { useState } from "react";
+import { useOutletContext } from "react-router-dom";
+
 import { Tag, Button, Space } from "antd";
 import { ExpandAltOutlined } from "@ant-design/icons";
-import {
-  PieChart, Pie, Cell, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList,
-} from "recharts";
+import {PieChart, Pie, Cell, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { ChartTooltip, Loading, CHART_COLORS, fmtNum } from "../components/shared";
-import { useApi } from "../components/useApi";
-import { useApiQuery } from "../components/useApiQuery";
+import { useApiQuery, useBatchQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
 
 /* ── Design tokens ── */
@@ -90,15 +88,28 @@ const renderDoaLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent })
   );
 };
 
-export default function WarrantySection({ addToast, filterDate }) {
+export default function WarrantySection() {
   const [preview, setPreview] = useState(null);
+  const {filters} = useOutletContext();
 
-  const { data: doaData,       loading: doaLoading  } = useApiQuery(`/complaints/by-doa?year=${filterDate}`);
-  const { data: ppmTrend,      loading: ppmLoading  } = useApiQuery(`/complaints/ppm-trend?year=${filterDate}`);
-  const { data: byCommodity,   loading: commLoading } = useApiQuery(`/complaints/by-commodity?year=${filterDate}`);
-  const { data: commVsCat                            } = useApiQuery(`/complaints/commodity-vs-category?year=${filterDate}`);
-  const { data: byReplacement, loading: replLoading } = useApiQuery(`/complaints/by-replacement?year=${filterDate}`);
-  const { data: stats                                } = useApiQuery(`/complaints/stats?year=${filterDate}`);
+  const { data, isLoading } = useBatchQuery([
+    { key: "doaData", url: "/complaints/by-doa", params: { year: filters.year } },
+    { key: "ppmTrend", url: "/complaints/ppm-trend", params: { year: filters.year } },
+    { key: "byCommodity", url: "/complaints/by-commodity", params: { year: filters.year } },
+    { key: "commVsCat", url: "/complaints/commodity-vs-category", params: { year: filters.year } },
+    { key: "byReplacement", url: "/complaints/by-replacement", params: { year: filters.year } },
+    { key: "stats", url: "/complaints/stats", params: { year: filters.year } },
+  ]);
+
+  const {
+    doaData = [],
+    ppmTrend = [],
+    byCommodity = [],
+    commVsCat = [],
+    byReplacement = [],
+    stats = {}
+  } = data || {};
+
   const commSorted = [...(byCommodity || [])].sort((a, b) => b.count - a.count);
   const doaPieData = [...(doaData || [])].sort((a, b) => b.count - a.count);
   const replSorted = [...(byReplacement || [])].sort((a, b) => b.count - a.count);
@@ -107,9 +118,9 @@ export default function WarrantySection({ addToast, filterDate }) {
 
   /* ── KPI cards ── */
   const kpis = [
-    { label: "Avg PPM",       value: fmtNum(stats?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: ` ${new Date().getFullYear() === filterDate ? '' : 'Previous '}Year (${filterDate})` },
-    { label: "CY 2023 PPM",   value: fmtNum(stats?.ppm2023 || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: `Calendar ${filterDate}` },
-    { label: "CY 2024 PPM",   value: fmtNum(stats?.ppm2024 || 0), color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "📅", sub: `Calendar ${filterDate}` },
+    { label: "Avg PPM",       value: fmtNum(stats?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: ` ${new Date().getFullYear() === filters.year ? '' : 'Previous '}Year (${filters.year})` },
+    { label: "CY 2023 PPM",   value: fmtNum(stats?.ppm2023 || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: `Calendar ${filters.year}` },
+    { label: "CY 2024 PPM",   value: fmtNum(stats?.ppm2024 || 0), color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "📅", sub: `Calendar ${filters.year}` },
     { label: "DOA Count",     value: fmtNum(doaData?.find(d => d._id === "DOA")?.count || 0), color: "#dc2626", bg: "#fff1f0", border: "#fecaca", icon: "⚠️", sub: "Dead on Arrival" },
   ];
 
@@ -244,11 +255,11 @@ export default function WarrantySection({ addToast, filterDate }) {
 
       {/* Row 1 — DOA Donut + PPM Line */}
       <Grid cols={2}>
-        <ChartCard title="Warranty Type — DOA vs In-Warranty vs Out-of-Warranty" icon="🛡️" loading={doaLoading}
+        <ChartCard title="Warranty Type — DOA vs In-Warranty vs Out-of-Warranty" icon="🛡️" loading={isLoading}
           onExpand={() => openPreview("Warranty Type Breakdown", <DoaDonut h={420} />)}>
           <DoaDonut />
         </ChartCard>
-        <ChartCard title="Monthly Quality Rate (Parts Per Million)" icon="📈" tag="PPM Trend" tagColor="red" loading={ppmLoading}
+        <ChartCard title="Monthly Quality Rate (Parts Per Million)" icon="📈" tag="PPM Trend" tagColor="red" loading={isLoading}
           onExpand={() => openPreview("Monthly PPM Trend", <PpmLine h={420} />)}>
           <PpmLine />
         </ChartCard>
@@ -256,7 +267,7 @@ export default function WarrantySection({ addToast, filterDate }) {
 
       {/* Row 2 — Commodity bar + Comm vs Cat + Replacement */}
       <Grid cols={3}>
-        <ChartCard title="IDU vs ODU Complaint Volume" icon="📦" loading={commLoading}
+        <ChartCard title="IDU vs ODU Complaint Volume" icon="📦" loading={isLoading}
           onExpand={() => openPreview("IDU vs ODU Split", <CommodityBar h={360} />)}>
           <CommodityBar />
         </ChartCard>
@@ -264,7 +275,7 @@ export default function WarrantySection({ addToast, filterDate }) {
           loading={!commVsCat} onExpand={() => openPreview("Defects in IDU vs ODU", <CommVsCatStacked h={360} />)}>
           <CommVsCatStacked />
         </ChartCard>
-        <ChartCard title="Type of Replacement Issued" icon="🔄" loading={replLoading}
+        <ChartCard title="Type of Replacement Issued" icon="🔄" loading={isLoading}
           onExpand={() => openPreview("Replacement Type Breakdown", <ReplacementBar h={360} />)}>
           <ReplacementBar />
         </ChartCard>

@@ -25,3 +25,39 @@ export const useApiQuery = (url, params = {}, options = {}) => {
     ...options,
   });
 };
+
+
+export const useBatchQuery = (queries = [], options = {}) => {
+  return useQuery({
+    queryKey: ["batch", ...queries.map(q => [q.url, q.params])],
+
+    queryFn: async () => {
+      const results = await Promise.all(
+        queries.map(async ({key, url, params = {} }) => {
+          const cleanParams = Object.fromEntries(
+            Object.entries(params).filter(
+              ([, v]) => v !== undefined && v !== null && v !== ""
+            )
+          );
+
+          const res = await api.get(url, { params: cleanParams });
+
+          return {
+            key,
+            data: res.data?.data ?? res.data ?? []
+          };
+        })
+      );
+
+      // 🔥 convert array → object
+      return results.reduce((acc, curr) => {
+        acc[curr.key] = curr.data;
+        return acc;
+      }, {});
+    },
+
+    staleTime: 1000 * 60 * 5,
+    keepPreviousData: true,
+    ...options,
+  });
+};

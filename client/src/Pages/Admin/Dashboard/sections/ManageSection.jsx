@@ -17,39 +17,47 @@ const STATUS_COLORS = {
 };
 
 export default function ManageSection({ addToast }) {
-  // const [data, setData]             = useState([]);
-  // const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState("");
-  const [statusFilter, setStatus]   = useState("");
-  const [custFilter, setCust]       = useState("");
-  const [selected, setSelected]     = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatus] = useState("");
+  const [custFilter, setCust] = useState("");
+  const [selected, setSelected] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const { data = [], loading, refetch } = useApiQuery(
-    "/get-complaint",
-    {},
+  const { data, isLoading, refetch } = useApiQuery("/get-complaints",
     {
-      onError: () => {
-        addToast("Failed to load complaints", "error");
-      }
+      page,
+      limit: pageSize,
+      search,
+      status: statusFilter,
+      customerName: custFilter,
+    },
+    {
+      onError: () => addToast("Failed to load complaints", "error"),
     }
   );
 
-  // const fetchData = useCallback(() => {
-  //   setLoading(true);
-  //   api.get("/get-complaint")
-  //     .then(r => { setData(r.data?.complaints || r.data || []); setLoading(false); })
-  //     .catch(() => { addToast("Failed to load complaints", "error"); setLoading(false); });
-  // }, []);
+  const list = data?.complaints || [];
+  const total = data?.total || 0;
 
-  // useEffect(() => { fetchData(); }, [fetchData]);
+  // ✅ Status counts (optional, lightweight)
+  const statusCounts = STATUSES.reduce(
+    (acc, s) => ({
+      ...acc,
+      [s]: list.filter(r => r.status === s).length
+    }),
+    {}
+  );
 
+  // 🔥 Update status
   const updateStatus = async (id, status) => {
     setUpdatingId(id);
     try {
       await api.post("/complaints/status", { id, status });
       addToast(`Status updated to "${status}"`, "success");
-      setData(prev => prev.map(r => r._id === id ? { ...r, status } : r));
+      refetch(); 
     } catch {
       addToast("Update failed", "error");
     } finally {
@@ -57,50 +65,39 @@ export default function ManageSection({ addToast }) {
     }
   };
 
+  // 🔥 Delete
   const deleteComplaint = async (id) => {
     try {
       await api.post("/complaints/delete", { id });
       addToast("Complaint deleted", "success");
-      setData(prev => prev.filter(r => r._id !== id));
+      refetch(); // ✅ refresh data
       if (selected?._id === id) setSelected(null);
     } catch {
       addToast("Delete failed", "error");
     }
   };
 
-  const list = Array.isArray(data)
-    ? data
-    : data?.complaints || [];
-
-  const filtered = list.filter(r => {
-    const q = search.toLowerCase();
-    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
-    if (statusFilter && r.status !== statusFilter) return false;
-    if (custFilter   && r.customerName !== custFilter)   return false;
-    return true;
-  });
-
-  // Status-wise counts
-  const statusCounts = STATUSES.reduce((acc, s) => ({ ...acc, [s]: list?.filter(r => r.status === s).length }), {});
-
   const columns = [
-    { title: "#",            key: "idx",            width: 40,  render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 13 }}>{i + 1}</span> },
-    { title: "Complaint No", dataIndex: "complaintNo",  key: "cno",  width: 135, render: v => <span style={{ color: "#2563eb", fontFamily: "JetBrains Mono", fontSize: 13, fontWeight: 600 }}>{v || "—"}</span> },
-    { title: "Date",         dataIndex: "complaintDate",key: "date", width: 100, render: v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 13 }}>{fmtDate(v)}</span> },
-    { title: "Customer",     dataIndex: "customerName", key: "cust", width: 95,  render: v => <b style={{ color: "#1e293b", fontSize: 13 }}>{v}</b> },
-    { title: "Commodity",    dataIndex: "commodity",    key: "comm", width: 80,  render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "Model",        dataIndex: "modelName",    key: "model",width: 140, ellipsis: true, render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "Defect",       dataIndex: "defectDetails",key: "defect",ellipsis: true, render: v => (
-      <Tooltip title={v}><span style={{ color: "#64748b", fontSize: 13 }}>{v}</span></Tooltip>
-    )},
-    { title: "Part",         dataIndex: "defectivePart",key: "part", width: 110, ellipsis: true, render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "DOA",          dataIndex: "doa",          key: "doa",  width: 55,  render: v => <span style={{ fontSize: 13 }}>{v || "—"}</span> },
-    { title: "Status",       dataIndex: "status",       key: "status",width: 105,render: v => <StatusBadge status={v} /> },
     {
-      title: "Change Status", key: "changeStatus", width: 140, fixed: "right",
+      title: "#",
+      render: (_, __, i) => i + 1 + (page - 1) * pageSize
+    },
+    { title: "Complaint No", dataIndex: "complaintNo" },
+    { title: "Date", dataIndex: "complaintDate", render: v => fmtDate(v) },
+    { title: "Customer", dataIndex: "customerName" },
+    { title: "Commodity", dataIndex: "commodity" },
+    { title: "Model", dataIndex: "modelName", ellipsis: true },
+    { title: "Defect", dataIndex: "defectDetails", ellipsis: true },
+    { title: "Part", dataIndex: "defectivePart", ellipsis: true },
+    { title: "DOA", dataIndex: "doa" },
+    { title: "Status", dataIndex: "status", render: v => <StatusBadge status={v} /> },
+
+    {
+      title: "Change Status",
       render: (_, r) => (
         <Select
-          value={r.status} size="small"
+          value={r.status}
+          size="small"
           loading={updatingId === r._id}
           onChange={v => updateStatus(r._id, v)}
           onClick={e => e.stopPropagation()}
@@ -110,20 +107,19 @@ export default function ManageSection({ addToast }) {
         </Select>
       )
     },
+
     {
-      title: "Actions", key: "actions", width: 64, fixed: "right",
+      title: "Actions",
       render: (_, r) => (
         <Popconfirm
           title="Delete this complaint?"
-          description="This action cannot be undone."
           onConfirm={() => deleteComplaint(r._id)}
-          okText="Delete" cancelText="Cancel"
-          okButtonProps={{ danger: true }}
         >
           <Button
-            size="small" danger icon={<DeleteOutlined />}
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
             onClick={e => e.stopPropagation()}
-            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#e53935", borderRadius: 8 }}
           />
         </Popconfirm>
       )
@@ -133,77 +129,78 @@ export default function ManageSection({ addToast }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Status quick-filter pills */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {STATUSES.map(s => (
-          <div key={s}
-            onClick={() => setStatus(statusFilter === s ? "" : s)}
-            style={{
-              padding: "8px 18px", borderRadius: 10, cursor: "pointer",
-              background: statusFilter === s ? `${STATUS_COLORS[s]}1a` : "#ffffff",
-              border: `1.5px solid ${statusFilter === s ? STATUS_COLORS[s] : "#e8ecf0"}`,
-              transition: "all 0.15s ease",
-              boxShadow: statusFilter === s ? `0 0 0 3px ${STATUS_COLORS[s]}22` : "none",
-            }}
-          >
-            <div style={{ color: STATUS_COLORS[s], fontWeight: 800, fontSize: 20, lineHeight: 1 }}>{statusCounts[s]}</div>
-            <div style={{ color: "#94a3b8", fontSize: 11, fontFamily: "JetBrains Mono", textTransform: "uppercase", letterSpacing: 1, marginTop: 3 }}>{s}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Input
-          prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
-          placeholder="Search complaints…"
-          value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 200 }}
-          className="pg-input"
+          prefix={<SearchOutlined />}
+          placeholder="Search..."
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           allowClear
         />
-        <Select value={custFilter || undefined} onChange={v => setCust(v || "")} allowClear placeholder="All Customers"
-          style={{ minWidth: 150 }} className="pg-select">
-          {["GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR"].map(c =>
-            <Option key={c}>{c}</Option>)}
+
+        <Select
+          value={custFilter || undefined}
+          onChange={v => {
+            setCust(v || "");
+            setPage(1);
+          }}
+          allowClear
+          placeholder="Customer"
+        >
+          {["GODREJ","HAIER","AMSTRAD"].map(c => <Option key={c}>{c}</Option>)}
         </Select>
-        <Select value={statusFilter || undefined} onChange={v => setStatus(v || "")} allowClear placeholder="All Status"
-          style={{ minWidth: 140 }} className="pg-select">
+
+        <Select
+          value={statusFilter || undefined}
+          onChange={v => {
+            setStatus(v || "");
+            setPage(1);
+          }}
+          allowClear
+          placeholder="Status"
+        >
           {STATUSES.map(s => <Option key={s}>{s}</Option>)}
         </Select>
-        <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}
-          style={{ borderRadius: 10, borderColor: "#e2e8f0", color: "#64748b" }}>
+
+        <Button onClick={refetch} icon={<ReloadOutlined />}>
           Refresh
         </Button>
       </div>
 
-      <SectionCard title={`Manage Complaints (${fmtNum(filtered.length)})`} icon="⚙️">
+      <SectionCard title={`Manage Complaints (${fmtNum(total)})`} icon="⚙️">
         <Table
-          dataSource={filtered}
+          dataSource={list}
           columns={columns}
           rowKey={r => r._id}
-          size="middle"
-          loading={loading}
-          className="pg-table"
+          loading={isLoading}
           pagination={{
-            pageSize: 12, showSizeChanger: true,
-            showTotal: t => <span style={{ color: "#64748b", fontSize: 13 }}>{fmtNum(t)} total</span>
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+          }}
+          onChange={(p) => {
+            setPage(p.current);
+            setPageSize(p.pageSize);
           }}
           scroll={{ x: 1400 }}
           onRow={r => ({
-            style: { cursor: "pointer" },
             onClick: () => setSelected(r),
           })}
         />
       </SectionCard>
 
-      {/* Complaint detail popup */}
+      {/* Modal */}
       {selected && (
         <DrilldownModal
-          open={!!selected}
+          open
           onClose={() => setSelected(null)}
-          title={`Complaint — ${selected.complaintNo || "Detail"}`}
-          subtitle={`${selected.customerName || ""} · ${fmtDate(selected.complaintDate)}`}
+          title={`Complaint — ${selected.complaintNo}`}
+          subtitle={`${selected.customerName} · ${fmtDate(selected.complaintDate)}`}
           data={selected}
           type="detail"
         />

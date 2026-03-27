@@ -4,10 +4,14 @@ import { Table, Tag, Select, Button, Space } from "antd";
 import { useOutletContext } from "react-router-dom";
  
 import { ExpandAltOutlined } from "@ant-design/icons";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Cell,} from "recharts";
-import { ChartTooltip, Loading,  CHART_COLORS, fmtNum } from "../components/shared";
-import { useApiQuery, useBatchQuery } from "../components/useApiQuery";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, LabelList, Cell,
+} from "recharts";
+import { ChartTooltip, Loading, StatusBadge, CHART_COLORS, fmtNum } from "../components/shared";
+import { useApiQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
+const { Option } = Select;
 
 /* ── Design tokens ── */
 const CHART_SHADOW = {
@@ -143,25 +147,21 @@ function getRisk(ppm) {
   return { label: "OK", color: "success" };
 }
 
-export default function CustomersSection() {
+export default function CustomersSection({ addToast, filterDate }) {
   const [preview, setPreview] = useState(null);
-  const {filters} = useOutletContext();
+  const {filter}
 
-  const { data, isLoading } = useBatchQuery([
-    { key: "customers", url: "/complaints/by-customer", params: { year: filters.year } },
-    { key: "custVsStatus", url: "/complaints/customer-vs-status", params: { year: filters.year } },
-    { key: "custVsCat", url: "/complaints/customer-vs-category", params: { year: filters.year } },
-    { key: "production", url: "/production/list", params: { year: filters.year } },
-    { key: "productionStats", url: "/production/stats", params: { year: filters.year } },
-  ]);
-
-  const {
-    customers = [],
-    custVsStatus = [],
-    custVsCat = [],
-    production = [],
-    productionStats = {}
-  } = data || {};
+  const { data: customers, loading } = useApiQuery(`/complaints/by-customer?year=${filterDate}`);
+  const { data: custVsStatus }       = useApiQuery(`/complaints/customer-vs-status?year=${filterDate}`);
+  const { data: custVsCat }          = useApiQuery(`/complaints/customer-vs-category?year=${filterDate}`);
+  const { data: production }          = useApiQuery(`/production/list?year=${filterDate}`);
+  const {data: productionStats}       = useApiQuery(`/production/stats?year=${filterDate}`);
+  const
+  console.log("Customers:", customers);
+  console.log("Customer vs Status:", custVsStatus);
+  console.log("Customer vs Category:", custVsCat);
+  console.log("Production:", production);
+  console.log("Production Stats:", productionStats);
   
 
   // 1. Fix sorting
@@ -202,14 +202,14 @@ const sortedByCount = useMemo(() => {
 
   /* ── Charts ── */
 
-const ComplaintsByCustomer = ({ h = 280 }) => {
+const ComplaintsByCustomer = ({ h = 300 }) => {
   if (!enrichedCustomers.length) return <ZeroData />;
 
   return (
     <ResponsiveContainer width="100%" height={h}>
       <BarChart
         data={enrichedCustomers}
-        margin={{ top: 20, right: 16, bottom: 10 , left: 10 }}
+        margin={{ top: 20, right: 16, bottom: 60, left: 4 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
 
@@ -245,11 +245,11 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
   );
 };
 
-  const CustomerVsStatus = ({ h = 280 }) => {
+  const CustomerVsStatus = ({ h = 300 }) => {
     if (!filteredCustVsStatus.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={filteredCustVsStatus} margin={{ top: 20, right: 10, bottom: 10, left: 10 }}>
+        <BarChart data={filteredCustVsStatus} margin={{ top: 20, right: 10, bottom: 60, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
           <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-30} textAnchor="end" height={64} interval={0} />
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
@@ -271,7 +271,7 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
     const cats = Object.keys(data[0] || {}).filter(k => k !== "_id");
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} barCategoryGap="30%" barGap={3} margin={{ top: 20, right: 10, bottom: 10, left: 10 }}>
+        <BarChart data={data} barCategoryGap="30%" barGap={3} margin={{ top: 20, right: 10, bottom: 60, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
           <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-30} textAnchor="end" height={64} interval={0} />
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
@@ -298,7 +298,7 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
     <ResponsiveContainer width="100%" height={h}>
       <BarChart
         data={data}
-        margin={{ top: 20, right: 16, bottom: 10, left: 10 }}
+        margin={{ top: 20, right: 16, bottom: 60, left: 4 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
 
@@ -344,7 +344,6 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
             formatter={fmtNum}
           />
         </Bar>
-        
       </BarChart>
     </ResponsiveContainer>
   );
@@ -393,12 +392,11 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
 
       {/* Row 1 — Complaints by Brand + PPM by Brand */}
       <Grid cols={2}>
-        <ChartCard title="Complaint Volume by Brand" icon="🏢" loading={isLoading}
+        <ChartCard title="Complaint Volume by Brand" icon="🏢" loading={loading}
           onExpand={() => openPreview("Complaint Volume by Brand", <ComplaintsByCustomer h={420} />)}>
           <ComplaintsByCustomer />
         </ChartCard>
-
-        <ChartCard title="Quality Rating (PPM) by Brand" icon="📉" tag="Lower is Better" tagColor="green" loading={isLoading}
+        <ChartCard title="Quality Rating (PPM) by Brand" icon="📉" tag="Lower is Better" tagColor="green" loading={loading}
           onExpand={() => openPreview("PPM by Brand", <PpmByCustomer h={420} />)}>
           <PpmByCustomer />
         </ChartCard>
@@ -407,15 +405,13 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
       {/* Row 2 — Status stacked + Category grouped */}
       <Grid cols={2}>
         <ChartCard title="Complaint Status Breakdown by Brand" icon="📊" tag="Stacked" tagColor="geekblue"
-          loading={isLoading} onExpand={() => openPreview("Status by Brand", <CustomerVsStatus h={420} />)}>
+          loading={!custVsStatus} onExpand={() => openPreview("Status by Brand", <CustomerVsStatus h={420} />)}>
           <CustomerVsStatus />
         </ChartCard>
-
         <ChartCard title="What Defects Each Brand Reports" icon="🔬" tag="Grouped" tagColor="purple"
-          loading={isLoading} onExpand={() => openPreview("Defects by Brand", <CustomerVsCategory h={420} />)}>
+          loading={!custVsCat} onExpand={() => openPreview("Defects by Brand", <CustomerVsCategory h={420} />)}>
           <CustomerVsCategory />
         </ChartCard>
-
       </Grid>
 
       {/* Row 3 — Performance Table */}
@@ -430,7 +426,7 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
             columns={[...tableCols]}
             rowKey="name"
             size="small"
-            loading={isLoading}
+            loading={loading}
             className="pg-table"
             pagination={{ pageSize: 10, showSizeChanger: false }}
             scroll={{ x: 800 }}

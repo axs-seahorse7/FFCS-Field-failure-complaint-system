@@ -1,5 +1,6 @@
 // sections/RegisterSection.jsx
 import { useState, useEffect, useCallback } from "react";
+import { useOutletContext } from "react-router-dom";
 import { Input, Select, Table, Tooltip, Button } from "antd";
 import { SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import SectionCard from "../components/SectionCard";
@@ -10,107 +11,122 @@ import { fmtNum, fmtDate } from "../components/utils";
 
 const { Option } = Select;
 
-export default function RegisterSection({ addToast }) {
-  // const [data, setData]         = useState([]);
-  // const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState("");
-  const [custFilter, setCust]   = useState("");
-  const [catFilter, setCat]     = useState("");
+export default function RegisterSection() {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
+  const [search, setSearch] = useState("");
+  const [custFilter, setCust] = useState("");
+  const [catFilter, setCat] = useState("");
   const [selected, setSelected] = useState(null);
 
-  const { data = [], loading, refetch, error } = useApiQuery(
-  "/get-complaint",
-  {},
-  {
-    onError: () => {
-      addToast("Failed to load register", "error");
+  const { filters, addToast } = useOutletContext();
+
+  const { data, isLoading, refetch } = useApiQuery(
+    "/get-complaints",
+    {
+      ...filters,
+      page,
+      limit: pageSize,
+      search,
+      customerName: custFilter,
+      defectCategory: catFilter,
+    },
+    {
+      onError: () => addToast("Failed to load register", "error"),
     }
-  }
-);
+  );
 
-const list = Array.isArray(data)
-  ? data
-  : data?.complaints || [];
-
-  const filtered = list.filter(r => {
-    const q = search.toLowerCase();
-
-    if (q && !JSON.stringify(r).toLowerCase().includes(q)) return false;
-    if (custFilter && r.customerName !== custFilter) return false;
-    if (catFilter  && r.defectCategory !== catFilter)  return false;
-
-    return true;
-  });
+  const list = data?.complaints || [];
+  const total = data?.total || 0;
 
   const columns = [
-    { title: "#",              key: "idx",             width: 44,  render: (_, __, i) => <span style={{ color: "#94a3b8", fontFamily: "JetBrains Mono", fontSize: 13 }}>{i + 1}</span> },
-    { title: "Complaint No",   dataIndex: "complaintNo",  key: "cno",  width: 130, render: v => <span style={{ color: "#2563eb", fontFamily: "JetBrains Mono", fontSize: 13, fontWeight: 600 }}>{v || "—"}</span> },
-    { title: "Date",           dataIndex: "complaintDate",key: "date", width: 100, render: v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 13 }}>{fmtDate(v)}</span> },
-    { title: "Customer",       dataIndex: "customerName", key: "customer", width: 100, render: v => <b style={{ color: "#1e293b", fontSize: 13 }}>{v}</b> },
-    { title: "Commodity",      dataIndex: "commodity",    key: "commodity", width: 80,  render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "Model",          dataIndex: "modelName",    key: "model", width: 140, ellipsis: true, render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "Category",       dataIndex: "defectCategory",key: "cat",  width: 150, ellipsis: true, render: v => (
-      <Tooltip title={v}><span style={{ color: "#475569", fontSize: 13 }}>{v}</span></Tooltip>
-    )},
-    { title: "Part",           dataIndex: "defectivePart",key: "part", width: 120, ellipsis: true, render: v => <span style={{ fontSize: 13 }}>{v}</span> },
-    { title: "Defect Details", dataIndex: "defectDetails",key: "details", ellipsis: true, render: v => (
-      <Tooltip title={v}><span style={{ color: "#64748b", fontSize: 13 }}>{v}</span></Tooltip>
-    )},
-    { title: "DOA",            dataIndex: "doa",           key: "doa",  width: 60,  render: v => <span style={{ fontSize: 13 }}>{v || "—"}</span> },
-    { title: "Status",         dataIndex: "status",        key: "status", width: 105, fixed: "right", render: v => <StatusBadge status={v} /> },
+    { title: "S.No.", render: (_, __, i) => i + 1 + (page - 1) * pageSize },
+    { title: "Complaint No", dataIndex: "complaintNo" },
+    { title: "Date", dataIndex: "complaintDate", render: v => fmtDate(v) },
+    { title: "Customer", dataIndex: "customerName" },
+    { title: "Commodity", dataIndex: "commodity" },
+    { title: "Model", dataIndex: "modelName", ellipsis: true },
+    { title: "Category", dataIndex: "defectCategory", ellipsis: true },
+    { title: "Part", dataIndex: "defectivePart", ellipsis: true },
+    { title: "Defect Details", dataIndex: "defectDetails", ellipsis: true },
+    { title: "DOA", dataIndex: "doa" },
+    { title: "Status", dataIndex: "status", render: v => <StatusBadge status={v} /> },
   ];
 
-  if(loading) return <SectionCard title="Complaint Register" icon="📋" loading />;
-  return (
-    <div  style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Filter bar */}
+  if (isLoading) return <SectionCard title="Complaint Register" icon="📋" loading />;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Filters */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Input
-          prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
-          placeholder="Search register…"
-          value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 200 }}
-          className="pg-input"
+          prefix={<SearchOutlined />}
+          placeholder="Search..."
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value);
+            setPage(1); // reset page
+          }}
           allowClear
         />
-        <Select data-lenis-prevent  value={custFilter || undefined} onChange={v => setCust(v || "")} allowClear placeholder="All Customers"
-          style={{ minWidth: 150, }} className="pg-select">
-          {["GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR"].map(c =>
-            <Option key={c}>{c}</Option>)}
+
+        <Select
+          value={custFilter || undefined}
+          onChange={v => {
+            setCust(v || "");
+            setPage(1);
+          }}
+          allowClear
+          placeholder="Customer"
+        >
+          {["GODREJ","HAIER","AMSTRAD"].map(c => <Option key={c}>{c}</Option>)}
         </Select>
-        <Select data-lenis-prevent  value={catFilter || undefined} onChange={v => setCat(v || "")} allowClear placeholder="All Categories"
-          style={{ minWidth: 180, }} className="pg-select">
-          {["ELEC PART DEFECTS","PART BROKEN / DAMAGED / MISSING","LEAK","NOISE","MISC DEFECT"].map(c =>
-            <Option key={c}>{c}</Option>)}
+
+        <Select
+          value={catFilter || undefined}
+          onChange={v => {
+            setCat(v || "");
+            setPage(1);
+          }}
+          allowClear
+          placeholder="Category"
+        >
+          {["ELEC PART DEFECTS","LEAK"].map(c => <Option key={c}>{c}</Option>)}
         </Select>
-        <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}
-          style={{ borderRadius: 10, borderColor: "#e2e8f0", color: "#64748b" }}>
+
+        <Button onClick={refetch} icon={<ReloadOutlined />}>
           Refresh
         </Button>
       </div>
 
-      <SectionCard title={`Complaint Register (${fmtNum(filtered.length)} records)`} icon="📋">
+      {/* Table */}
+      <SectionCard title={`Complaint Register (${fmtNum(total)})`} icon="📋">
         <Table
-          dataSource={filtered}
+          dataSource={list}
           columns={columns}
-          rowKey={r => r._id || r.complaintNo}
-          size="middle"
-          loading={loading}
-          className="pg-table"
+          rowKey={r => r._id}
+          loading={isLoading}
           pagination={{
-            pageSize: 15, showSizeChanger: true,
-            showTotal: total => <span style={{ color: "#64748b", fontSize: 13 }}>{fmtNum(total)} total</span>
+            current: page,
+            pageSize: pageSize,
+            total: total,
+            showSizeChanger: true,
+          }}
+          onChange={(pagination) => {
+            setPage(pagination.current);
+            setPageSize(pagination.pageSize);
           }}
           scroll={{ x: 1200 }}
           onRow={r => ({
-            style: { cursor: "pointer" },
             onClick: () => setSelected(r),
           })}
         />
       </SectionCard>
 
-      {/* Complaint detail popup */}
+      {/* Modal */}
       {selected && (
         <DrilldownModal
           open={!!selected}

@@ -17,6 +17,7 @@ const DEFECT_CATEGORIES = [
   "ELEC PART DEFECTS",
   "PART BROKEN / DAMAGED / MISSING",
   "LEAK","NOISE","MISC DEFECT",
+  "OTHER",
 ];
 const DEFECTIVE_PARTS = [
   "ODU PCB","IDU PCB","DISPLAY PCB","REMOTE","IDU MOTOR","ODU MOTOR",
@@ -125,7 +126,8 @@ const DEFECT_LIST = [
   "ODU BURNT",
   "BEARING BUSH MISSING",
   "CAPACITOR BURNT / NG",
-  "PART BROKEN / OPEN"
+  "PART BROKEN / OPEN",
+  "OTHER",
 ];
 
 const initialForm = {
@@ -310,7 +312,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
                 <img src="pg-logo-Photoroom.png" alt="PG Logo" />
               </div>
               
-              <span className="sm:hidden text-sm font-bold text-white">PG Complaint</span>
+              <span className="max-sm:hidden text-sm font-bold text-white  ">PG Complaint</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -376,7 +378,7 @@ export default function ComplaintForm({  editId, userEmail, }) {
             {/* ════ SECTION 1: Basic Info ════ */}
             <div className="bg-white rounded-2xl shadow-lg shadow-slate-200 border border-slate-200 overflow-hidden mb-5">
               <div className="px-5 pt-5 pb-1 border-b border-slate-50">
-                <SectionHeader icon="📌" subtitle="Section 01" title="Basic Complaint Information" />
+                <SectionHeader icon="📌" subtitle="Section 01" title="Complaint Information" />
               </div>
               <div className="p-5 space-y-5">
 

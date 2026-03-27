@@ -1,26 +1,16 @@
 import { useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Layout, Menu, Avatar, Button, Dropdown, Space, Tooltip,
   Drawer, Select, DatePicker,
 } from "antd";
 import {
   DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined,
-  ThunderboltOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
+  MenuFoldOutlined, MenuUnfoldOutlined,
   LogoutOutlined, FileTextOutlined, SettingOutlined, UserSwitchOutlined,
   FilterOutlined, CloseOutlined, ReloadOutlined, CalendarOutlined, UploadOutlined,
 } from "@ant-design/icons";
-import OverviewSection   from "./sections/OverviewSection";
-import DefectsSection    from "./sections/DefectsSection";
-import CustomersSection  from "./sections/CustomersSection";
-import WarrantySection   from "./sections/WarrantySection";
-import ActionsSection    from "./sections/ActionsSection";
-import RegisterSection   from "./sections/RegisterSection";
-import ManageSection     from "./sections/ManageSection";
-import UsersSection      from "./sections/UsersSection";
-import Toast             from "./components/Toast";
-import ProductionEntryForm from "../Production-Entry-Form/ProductionForm";
-import BulkUpload from "./insert-bulk-complaint/BulkUpload";
+import Toast from "./components/Toast";
 import "./dashboard.css";
 
 const { Sider, Content, Header } = Layout;
@@ -29,57 +19,52 @@ const { Option } = Select;
 
 const CUSTOMERS    = ["GODREJ","HAIER","AMSTRAD","ONIDA","MARQ","CROMA","VOLTAS","BLUE STAR","BPL","SAMSUNG","LG","WHIRLPOOL","CMI"];
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i); // 2025, 2024, ..., 2020
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
 const NAV_ITEMS = [
-  { key: "overview",   icon: <DashboardOutlined />,   label: "Overview" },
-  { key: "defects",    icon: <BugOutlined />,          label: "Defect Analysis" },
-  { key: "customers",  icon: <TeamOutlined />,          label: "Customer Wise" },
-  { key: "warranty",   icon: <SafetyOutlined />,        label: "Warranty & PPM" },
-  // { key: "actions",    icon: <ThunderboltOutlined />,   label: "Action Plans" },
+  { key: "overview",    icon: <DashboardOutlined />,  label: "Overview" },
+  { key: "defects",     icon: <BugOutlined />,         label: "Defect Analysis" },
+  { key: "customers",   icon: <TeamOutlined />,         label: "Customer Wise" },
+  { key: "warranty",    icon: <SafetyOutlined />,       label: "Warranty & PPM" },
   { type: "divider" },
-  { key: "register",   icon: <FileTextOutlined />,      label: "Complaint Register" },
-  { key: "manage",     icon: <SettingOutlined />,       label: "Manage Complaints" },
-  { key: "users",      icon: <UserSwitchOutlined />,    label: "Manage Users" },
-  { key: "production", icon: <FileTextOutlined />,      label: "Manage Production" },
+  { key: "register",    icon: <FileTextOutlined />,     label: "Complaint Register" },
+  { key: "manage",      icon: <SettingOutlined />,      label: "Manage Complaints" },
+  { key: "users",       icon: <UserSwitchOutlined />,   label: "Manage Users" },
+  { key: "production",  icon: <FileTextOutlined />,     label: "Manage Production" },
   { key: "bulk-upload", icon: <UploadOutlined />,       label: "Bulk Upload" },
 ];
 
 const SECTION_META = {
-  overview:  { label: "Overview",            desc: "System health & complaint trends" },
-  defects:   { label: "Defect Analysis",     desc: "Root cause insights & failure patterns" },
-  customers: { label: "Customer Wise",        desc: "Brand comparison & performance" },
-  warranty:  { label: "Warranty & PPM",       desc: "Quality metrics & reliability tracking" },
-  // actions:   { label: "Action Plans",         desc: "Operations, execution & SLA tracking" },
-  register:  { label: "Complaint Register",   desc: "Full complaint log & drill-down" },
-  manage:    { label: "Manage Complaints",    desc: "Update status, delete, search" },
-  users:     { label: "Manage Users",         desc: "Block, unblock, roles & activity" },
-  production:     { label: "Manage Production",         desc: "Create, update, and delete production records" },
-  "bulk-upload": { label: "Bulk Upload",         desc: "Upload complaints in bulk" },
+  overview:     { label: "Overview",           desc: "System health & complaint trends" },
+  defects:      { label: "Defect Analysis",    desc: "Root cause insights & failure patterns" },
+  customers:    { label: "Customer Wise",       desc: "Brand comparison & performance" },
+  warranty:     { label: "Warranty & PPM",      desc: "Quality metrics & reliability tracking" },
+  register:     { label: "Complaint Register",  desc: "Full complaint log & drill-down" },
+  manage:       { label: "Manage Complaints",   desc: "Update status, delete, search" },
+  users:        { label: "Manage Users",        desc: "Block, unblock, roles & activity" },
+  production:   { label: "Manage Production",   desc: "Create, update, and delete production records" },
+  "bulk-upload":{ label: "Bulk Upload",         desc: "Upload complaints in bulk" },
 };
 
 export default function AdminDashboard({ userEmail }) {
-  const [collapsed, setCollapsed]   = useState(true);
-  const [active, setActive]         = useState("overview");
-  const [toasts, setToasts]         = useState([]);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const navigate = useNavigate();
+  const [collapsed, setCollapsed]     = useState(true);
+  const [toasts, setToasts]           = useState([]);
+  const [filterOpen, setFilterOpen]   = useState(false);
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
+  // Derive active key from URL: /dashboard/defects → "defects"
+  const active = location.pathname.split("/dashboard/")[1]?.split("/")[0] || "overview";
+  const meta   = SECTION_META[active] || SECTION_META.overview;
 
-  // ── Year state (lives here, drives ALL sections) ──
-  const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
-
-  // ── Fine-grained filter state (drawer) ──
+  // ── Year state ──
+  const [selectedYear,    setSelectedYear]    = useState(CURRENT_YEAR);
   const [filterCustomer,  setFilterCustomer]  = useState("");
   const [filterDateRange, setFilterDateRange] = useState(null);
-
-  // ── Applied filters passed to every section ──
-  // Always includes `year`; drawer can add customerName / from / to
-  const [extraFilters, setExtraFilters] = useState({});
+  const [extraFilters,    setExtraFilters]    = useState({});
 
   const user = JSON.parse(localStorage.getItem("User") || "{}");
 
-  // Merge year + extra into one params object
   const appliedFilters = useMemo(() => ({
     year: selectedYear,
     ...extraFilters,
@@ -99,7 +84,6 @@ export default function AdminDashboard({ userEmail }) {
     } catch (e) { console.error(e); }
   };
 
-  // ── Year change: clears drawer filters (date range would conflict) ──
   const handleYearChange = (y) => {
     setSelectedYear(y);
     setExtraFilters({});
@@ -107,11 +91,9 @@ export default function AdminDashboard({ userEmail }) {
     setFilterDateRange(null);
   };
 
-  // ── Drawer apply ──
   const handleApplyFilters = () => {
     const f = {};
-    if (filterCustomer) f.customerName = filterCustomer;
-    // If user picks a custom date range, it OVERRIDES the year filter on backend
+    if (filterCustomer)      f.customerName = filterCustomer;
     if (filterDateRange?.[0]) f.from = filterDateRange[0].toISOString();
     if (filterDateRange?.[1]) f.to   = filterDateRange[1].toISOString();
     setExtraFilters(f);
@@ -127,37 +109,19 @@ export default function AdminDashboard({ userEmail }) {
   };
 
   const extraFilterCount = Object.keys(extraFilters).length;
-  const meta = SECTION_META[active];
-
-  const renderSection = () => {
-    const props = { addToast, filters: appliedFilters };
-    switch (active) {
-      case "overview":  return <OverviewSection filterDate={appliedFilters.year}  {...props} />;
-      case "defects":   return <DefectsSection filterDate={appliedFilters.year}  {...props} />;
-      case "customers": return <CustomersSection filterDate={appliedFilters.year} {...props} />;
-      case "warranty":  return <WarrantySection filterDate={appliedFilters.year}  {...props} />;
-      // case "actions":   return <ActionsSection   {...props} />;
-      case "register":  return <RegisterSection filterDate={appliedFilters.year}  {...props} />;
-      case "manage":    return <ManageSection filterDate={appliedFilters.year}    {...props} />;
-      case "users":     return <UsersSection filterDate={appliedFilters.year}    {...props} />;
-      case "production": return <ProductionEntryForm filterDate={appliedFilters.year} {...props} />;
-      case "bulk-upload": return <BulkUpload {...props} />;
-      default: return null;
-    }
-  };
-
-  const userMenu = {
-    items: [
-      { key: "email", label: <span style={{ color: "#64748b", fontSize: 12 }}>{user?.email || "admin@pg.com"}</span>, disabled: true },
-      { type: "divider" },
-      { key: "logout", icon: <LogoutOutlined />, label: "Logout", danger: true, onClick: handleLogout },
-    ]
-  };
 
   const menuItems = useMemo(() =>
     NAV_ITEMS.filter(i => i.key !== undefined || i.type === "divider")
       .map(i => i.type === "divider" ? { type: "divider", key: "div1" } : i)
   , []);
+
+  const userMenu = {
+    items: [
+      { key: "email", label: <span style={{ color: "#64748b", fontSize: 12 }}>{user?.email }</span>, disabled: true },
+      { type: "divider" },
+      { key: "logout", icon: <LogoutOutlined />, label: "Logout", danger: true, onClick: handleLogout },
+    ]
+  };
 
   return (
     <Layout className="pg-root" style={{ minHeight: "100vh" }}>
@@ -202,8 +166,10 @@ export default function AdminDashboard({ userEmail }) {
               Analytics
             </div>
           )}
-          <Menu mode="inline" selectedKeys={[active]}
-            onClick={({ key }) => key !== "divider" && setActive(key)}
+          <Menu
+            mode="inline"
+            selectedKeys={[active]}
+            onClick={({ key }) => key !== "divider" && navigate(`/dashboard/${key}`)}
             style={{ background: "transparent", border: "none", paddingRight: 10 }}
             items={menuItems}
           />
@@ -243,29 +209,25 @@ export default function AdminDashboard({ userEmail }) {
       {/* ══ MAIN ══ */}
       <Layout style={{ background: "#f5f6fa" }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <Header style={{
           background: "linear-gradient(to right, #f0f2f5, #e8ecf0)", padding: "0 20px", height: 54,
-          borderBottom: "1px solid #e8ecf0",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+          borderBottom: "1px solid #e8ecf0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           position: "sticky", top: 0, zIndex: 100,
         }}>
-          {/* Left: toggle + page title */}
           <div style={{ display: "flex", height: "100%", alignItems: "center", gap: 12 }}>
             <Button type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(c => !c)}
               style={{ color: "#64748b", fontSize: 16, width: 34, height: 34 }}
             />
-
-             <span className=" font-semibold text-cyan-700" > {meta.label}</span> • <span className=" text-[12px] text-slate-500" > {meta.desc}</span> 
-
+            <span className="font-semibold text-cyan-700">{meta.label}</span>
+            {" • "}
+            <span className="text-[12px] text-slate-500">{meta.desc}</span>
           </div>
 
-          {/* Right: LIVE + Year + Customer filter + avatar */}
           <Space size={8}>
-            {/* LIVE badge */}
             <div style={{
               display: "flex", alignItems: "center", gap: 5, height: 28, padding: "0 12px", borderRadius: 20,
               background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a",
@@ -276,7 +238,6 @@ export default function AdminDashboard({ userEmail }) {
             </div>
             <style>{`@keyframes pgpulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
 
-            {/* ── Year Selector ── */}
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               background: "#f8fafc", border: "1px solid #e2e8f0",
@@ -285,11 +246,8 @@ export default function AdminDashboard({ userEmail }) {
               <CalendarOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: "#64748b" }}>Year</span>
               <Select
-                size="small"
-                value={selectedYear}
-                onChange={handleYearChange}
-                variant="borderless"
-                style={{ width: 68, fontSize: 12, fontWeight: 700 }}
+                size="small" value={selectedYear} onChange={handleYearChange}
+                variant="borderless" style={{ width: 68, fontSize: 12, fontWeight: 700 }}
                 popupMatchSelectWidth={false}
               >
                 {YEAR_OPTIONS.map(y => (
@@ -300,7 +258,6 @@ export default function AdminDashboard({ userEmail }) {
               </Select>
             </div>
 
-
             <Dropdown menu={userMenu} placement="bottomRight" trigger={["click"]}>
               <Avatar size={32} style={{ background: "#fff1f0", border: "1.5px solid #fecaca", color: "#e53935", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
                 {(userEmail || "A")[0].toUpperCase()}
@@ -309,13 +266,13 @@ export default function AdminDashboard({ userEmail }) {
           </Space>
         </Header>
 
-        {/* ── Content ── */}
+        {/* ── Content: Outlet renders the matched child route ── */}
         <Content style={{ padding: 16, minHeight: "calc(100vh - 54px)", paddingBottom: 40 }}>
-          {renderSection()}
+          <Outlet context={{ addToast, filters: appliedFilters }} />
         </Content>
       </Layout>
 
-      {/* ══ FILTER DRAWER (extra: customer + date range) ══ */}
+      {/* Filter Drawer (unchanged) */}
       <Drawer
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -326,10 +283,8 @@ export default function AdminDashboard({ userEmail }) {
             </span>
           </div>
         }
-        placement="top"
-        style={{ height: 200 }}
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
+        placement="top" style={{ height: 200 }}
+        open={filterOpen} onClose={() => setFilterOpen(false)}
         closeIcon={<CloseOutlined style={{ fontSize: 13 }} />}
         styles={{
           header: { background: "#fafbfc", borderBottom: "1px solid #f0f2f5", padding: "12px 20px" },
@@ -350,39 +305,20 @@ export default function AdminDashboard({ userEmail }) {
         }
       >
         <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-          {/* Customer */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.8 }}>
-              Customer
-            </div>
-            <Select
-              className="pg-select"
-              placeholder="All Customers"
-              allowClear
-              value={filterCustomer || undefined}
-              style={{ minWidth: 180 }}
-              onChange={v => setFilterCustomer(v || "")}
-              size="small"
-            >
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.8 }}>Customer</div>
+            <Select className="pg-select" placeholder="All Customers" allowClear value={filterCustomer || undefined}
+              style={{ minWidth: 180 }} onChange={v => setFilterCustomer(v || "")} size="small">
               {CUSTOMERS.map(c => <Option key={c}>{c}</Option>)}
             </Select>
           </div>
-
-          {/* Date Range (overrides year) */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.8 }}>
-              Custom Date Range
-              <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 4 }}>(overrides year)</span>
+              Custom Date Range <span style={{ fontWeight: 400, color: "#94a3b8", marginLeft: 4 }}>(overrides year)</span>
             </div>
-            <RangePicker
-              value={filterDateRange}
-              onChange={setFilterDateRange}
-              style={{ borderRadius: 8, fontSize: 12, minWidth: 240 }}
-              size="small"
-              placeholder={["From date", "To date"]}
-            />
+            <RangePicker value={filterDateRange} onChange={setFilterDateRange}
+              style={{ borderRadius: 8, fontSize: 12, minWidth: 240 }} size="small" placeholder={["From date", "To date"]} />
           </div>
-
           {extraFilterCount > 0 && (
             <div style={{ fontSize: 12, color: "#16a34a", fontWeight: 600, paddingBottom: 2 }}>
               ✓ {extraFilterCount} extra filter{extraFilterCount > 1 ? "s" : ""} active

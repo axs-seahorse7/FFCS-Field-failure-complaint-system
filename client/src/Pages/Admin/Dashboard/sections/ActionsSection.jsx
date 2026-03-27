@@ -1,4 +1,5 @@
 // sections/ActionsSection.jsx
+import { useOutletContext } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { Table, Tag, Select, Button, Space } from "antd";
 import { ExpandAltOutlined } from "@ant-design/icons";
@@ -75,7 +76,8 @@ function Grid({ cols = 2, children }) {
 
 const AGING_COLORS = { "0–2 days": "#22c55e", "3–7 days": "#f59e0b", "8–14 days": "#f97316", "15–30 days": "#e53935", "30+ days": "#7c3aed" };
 
-export default function ActionsSection({ addToast }) {
+export default function ActionsSection() {
+  const { addToast, filters } = useOutletContext();
   const [statusFilter, setStatusFilter] = useState("Open");
   const [updatingId, setUpdatingId]     = useState(null);
   const [preview, setPreview]           = useState(null);

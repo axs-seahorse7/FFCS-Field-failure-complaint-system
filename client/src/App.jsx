@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./Components/Protected/ProtectedRoute.jsx";
 import Login from "./Pages/Authentication/Login/Login";
@@ -9,6 +9,16 @@ import AccountPending from "./Pages/Authentication/Pending/AccountPending.jsx";
 import ProductionEntryForm from "./Pages/Admin/Production-Entry-Form/ProductionForm.jsx";
 import { useEffect } from "react";
 import Lenis from "@studio-freight/lenis";
+
+import OverviewSection    from "./Pages/Admin/Dashboard/sections/OverviewSection";
+import DefectsSection     from "./Pages/Admin/Dashboard/sections/DefectsSection";
+import CustomersSection   from "./Pages/Admin/Dashboard/sections/CustomersSection";
+import WarrantySection    from "./Pages/Admin/Dashboard/sections/WarrantySection";
+import RegisterSection    from "./Pages/Admin/Dashboard/sections/RegisterSection";
+import ManageSection      from "./Pages/Admin/Dashboard/sections/ManageSection";
+import UsersSection       from "./Pages/Admin/Dashboard/sections/UsersSection";
+import BulkUpload         from "./Pages/Admin/Dashboard/insert-bulk-complaint/BulkUpload";
+
 
 
 function App() {
@@ -43,8 +53,18 @@ function App() {
           <Route path="/" element={<Login />} />
 
           <Route element={<ProtectedRoute allowedRole="admin" />}>
-            <Route path="/dashboard"  element={<AdminDashboard />} />
-            <Route path="/dashboard/production-entry" element={<ProductionEntryForm />} />
+            <Route path="/dashboard" element={<AdminDashboard />}>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview"    element={<OverviewSection />} />
+              <Route path="defects"     element={<DefectsSection />} />
+              <Route path="customers"   element={<CustomersSection />} />
+              <Route path="warranty"    element={<WarrantySection />} />
+              <Route path="register"    element={<RegisterSection />} />
+              <Route path="manage"      element={<ManageSection />} />
+              <Route path="users"       element={<UsersSection />} />
+              <Route path="production"  element={<ProductionEntryForm />} />
+              <Route path="bulk-upload" element={<BulkUpload />} />
+            </Route>
           </Route>
 
           <Route element={<ProtectedRoute allowedRole="user" />}>

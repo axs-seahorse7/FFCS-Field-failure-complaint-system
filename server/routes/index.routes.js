@@ -25,49 +25,71 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
     
 });
 
-router.get("/get-complaint", isAuthenticated, async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const { search, status } = req.query;
+router.get("/get-complaints", isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.userId;
 
-        // Base query
-        let query = {};
+    const {
+      search,
+      status,
+      page = 1,
+      limit = 500
+    } = req.query;
 
-        // Role-based filtering
-        if (req.user.role !== "admin") {
-            query.createdBy = userId;
-        }
+    // 🛡️ Safe parsing
+    const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 500));
+    const safePage = Math.max(1, Number(page) || 1);
+    const skip = (safePage - 1) * safeLimit;
 
-        // Status filter
-        if (status) {
-            query.status = status;
-        }
+    // Base query
+    let query = {};
 
-        // Search filter (example: searching in title/description)
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: "i" } },
-                { description: { $regex: search, $options: "i" } }
-            ];
-        }
-
-        // Fetch complaints
-        const complaints = await Complaint.find(query)
-            .populate("createdBy", "email")
-            .sort({ status: 1, createdAt: -1 });
-
-        return res.status(200).json({
-            success: true,
-            complaints
-        });
-
-    } catch (error) {
-        console.error("Error fetching complaints:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+    // Role-based filtering
+    if (req.user.role !== "admin") {
+      query.createdBy = userId;
     }
+
+    // Status filter
+    if (status) {
+      query.status = status;
+    }
+
+    // Search filter
+    if (search) {
+      const re = new RegExp(search, "i");
+      query.$or = [
+        { title: re },
+        { description: re }
+      ];
+    }
+
+    // 🔥 Parallel queries (best practice)
+    const [complaints, total] = await Promise.all([
+      Complaint.find(query)
+        .populate("createdBy", "email")
+        .sort({ status: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean(),
+
+      Complaint.countDocuments(query)
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      complaints,
+      total,
+      page: safePage,
+      limit: safeLimit
+    });
+
+  } catch (error) {
+    console.error("Error fetching complaints:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
 });
 
 router.get("/users", isAuthenticated, async (req, res) => {

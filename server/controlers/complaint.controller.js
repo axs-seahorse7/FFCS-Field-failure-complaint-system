@@ -62,8 +62,10 @@ export const getComplaints = async (req, res) => {
     const {
       search, status, customerName, defectCategory,
       defectDetails, defectivePart,
-      page = 1, limit = 500,
+      page = 1, limit,
     } = req.query;
+
+    console.log("Query params:", req.query);  
 
     const query = { ...buildDateMatch(req.query) };
 
@@ -89,9 +91,18 @@ export const getComplaints = async (req, res) => {
       query.createdBy = req.user.userId;
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
+    const safeLimit = Math.max(1, Number(limit) || 500);
+    const safePage  = Math.max(1, Number(page) || 1);
+
+    const skip = (safePage - 1) * safeLimit;
+
     const [data, total] = await Promise.all([
-      Complaint.find(query).sort({ complaintDate: -1 }).skip(skip).limit(Number(limit)).lean(),
+      Complaint.find(query)
+        .sort({ complaintDate: -1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean(),
+        
       Complaint.countDocuments(query),
     ]);
 

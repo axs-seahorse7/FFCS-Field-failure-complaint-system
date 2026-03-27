@@ -171,8 +171,8 @@
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 /* ── Recharts axis text ── */
-.recharts-cartesian-axis-tick-value { font-size: 11px !important; fill: #94a3b8 !important; font-family: 'JetBrains Mono', monospace !important; }
-.recharts-legend-item-text { font-size: 12px !important; color: #64748b !important; }
+.recharts-cartesian-axis-tick-value { font-size: 11px !important;  font-family: 'JetBrains Mono', monospace !important; }
+.recharts-legend-item-text { font-size: 12px !important; color: #000000 !important; }
 
 /* ── Drawer ── */
 .ant-drawer-header { background: #fafbfc !important; border-bottom: 1px solid #f0f2f5 !important; }

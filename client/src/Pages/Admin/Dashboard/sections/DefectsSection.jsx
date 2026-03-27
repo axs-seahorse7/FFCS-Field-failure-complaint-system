@@ -2,17 +2,13 @@
 import { useState, useMemo } from "react";
 import { Select, Button, Space, Tag } from "antd";
 import { ExpandAltOutlined } from "@ant-design/icons";
-import {
-  BarChart, Bar, PieChart, Pie, Cell, ComposedChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, LabelList, AreaChart, Area,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Treemap,
-} from "recharts";
+import { useOutletContext } from "react-router-dom";
+import {BarChart, Bar, PieChart, Pie, Cell, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Treemap, } from "recharts";
 import { ChartTooltip, Loading, FilterBar, CHART_COLORS, fmtNum } from "../components/shared";
-import { useApi } from "../components/useApi";
-import { useApiQuery } from "../components/useApiQuery";
+import { useBatchQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
+import LoaderPage from "../../../../Components/Skeleto-Loader/LoaderPage";
+
 
 const { Option } = Select;
 
@@ -54,7 +50,7 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, h
           {headerExtra}
           {onExpand && (
             <Button type="text" size="small" icon={<ExpandAltOutlined />} onClick={onExpand}
-              style={{ color: "#cbd5e1", fontSize: 12, padding: "0 3px" }} />
+              style={{ color: "blue", fontSize: 15, padding: "0 3px" }} />
           )}
         </Space>
       </div>
@@ -117,25 +113,41 @@ const TreemapContent = ({ x, y, width, height, name, value, index }) => {
   );
 };
 
-export default function DefectsSection({ addToast, filterDate }) {
+export default function DefectsSection() {
   const [customer, setCustomer] = useState("");
   const [preview,  setPreview]  = useState(null);
+  const {filters} = useOutletContext();
 
-const params = useMemo(() => {
-  const p = {};
-  if (customer) p.customerName = customer; // reuse this
-  if (filterDate) p.year = filterDate;
-  return p;
-}, [customer, filterDate]);
+  const params = useMemo(() => {
+    const p = {};
+    if (customer) p.customerName = customer; // reuse this
+    if (filters.year) p.year = filters.year;
+    return p;
+  }, [customer, filters.year]);
 
-  const { data: byCategory,    loading: catLoading    } = useApiQuery(`complaints/by-category`,          params); //done
-  const { data: byPart,        loading: partLoading    } = useApiQuery(`/complaints/by-part`,              params); //done
-  const { data: topDefects,    loading: defLoading     } = useApiQuery(`/complaints/top-defects`,          params); //done
-  const { data: catVsPart                              } = useApiQuery(`/complaints/category-vs-part`,     params); //done
-  const { data: monthly,       loading: monthlyLoading } = useApiQuery(`/complaints/monthly`,              params); //done
-  const { data: custVsCategory                         } = useApiQuery(`/complaints/customer-vs-category`, params); //done
-  const { data: commodityVsCat                         } = useApiQuery(`/complaints/commodity-vs-category`,params); //done
-  const { data: byCommodity,   loading: commLoading    } = useApiQuery(`/complaints/by-commodity`,         params); //done
+  const { data, isLoading } = useBatchQuery([
+    { key: "byCategory", url: "/complaints/by-category", params },
+    { key: "byPart", url: "/complaints/by-part", params },
+    { key: "topDefects", url: "/complaints/top-defects", params },
+    { key: "catVsPart", url: "/complaints/category-vs-part", params },
+    { key: "monthly", url: "/complaints/monthly", params },
+    { key: "custVsCategory", url: "/complaints/customer-vs-category", params },
+    { key: "commodityVsCat", url: "/complaints/commodity-vs-category", params },
+    { key: "byCommodity", url: "/complaints/by-commodity", params },
+    ]);
+
+  const {
+    byCategory = [],
+    byPart = [],
+    topDefects = [],
+    catVsPart = [],
+    monthly = [],
+    custVsCategory = [],
+    commodityVsCat = [],
+    byCommodity = []
+  } = data || {};
+
+
 
   const sortedParts    = useMemo(() => (byPart     || []).sort((a, b) => b.count - a.count).slice(0, 12), [byPart]);
   const sortedDefects  = useMemo(() => (topDefects || []).sort((a, b) => b.count - a.count).slice(0, 10), [topDefects]);
@@ -162,14 +174,14 @@ const params = useMemo(() => {
 
   /* ────────── CHARTS ────────── */
 
-  const CategoryDonut = ({ h = 300 }) => {
+  const CategoryDonut = ({ h = 260 }) => {
     const total = sortedCategory.reduce((s, d) => s + d.count, 0);
     if (!sortedCategory.length || total === 0) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
         <PieChart>
           <Pie data={sortedCategory} cx="48%" cy="50%"
-            innerRadius={h > 300 ? 90 : 62} outerRadius={h > 300 ? 140 : 96}
+            innerRadius={40} outerRadius={80}
             dataKey="count" nameKey="_id" paddingAngle={3}
             label={renderPieLabel} labelLine={false}>
             {sortedCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
@@ -181,15 +193,15 @@ const params = useMemo(() => {
     );
   };
 
-  const TopPartsBar = ({ h = 300 }) => {
+  const TopPartsBar = ({ h = 260 }) => {
     const cnt = sortedParts.length;
     const chartH = h || Math.max(260, cnt * 28 + 80);
     if (!sortedParts.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={chartH}>
-        <BarChart data={sortedParts} margin={{ top: 20, right: 16, bottom: 64, left: 4 }}>
+        <BarChart data={sortedParts} margin={{ top: 20, right: 16, bottom: 10, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#475569" }} angle={-40} textAnchor="end" height={68} interval={0} />
+          <XAxis dataKey="_id" angle={-30} tick={{ fontSize: 10, fill: "#475569" }} textAnchor="end" height={68} interval={0} />
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
           <Tooltip content={<ChartTooltip />} />
           <Bar dataKey="count" name="Complaint Count" radius={[4,4,0,0]} shape={<Bar3D fill="#f59e0b" />}>
@@ -198,6 +210,7 @@ const params = useMemo(() => {
             ))}
             <LabelList dataKey="count" position="top" style={LABEL_S} />
           </Bar>
+          <Legend verticalAlign="bottom"  wrapperStyle={{ fontSize: 11 }} />
         </BarChart>
       </ResponsiveContainer>
     );
@@ -213,13 +226,13 @@ const params = useMemo(() => {
   "#8b5cf6",
 ];
 
-  const ParetoChart = ({ h = 300 }) => {
+  const ParetoChart = ({ h = 260 }) => {
     if (!paretoData.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <ComposedChart data={paretoData} margin={{ top: 20, right: 56, bottom: 12, left: 4 }}>
+        <ComposedChart data={paretoData} margin={{ top: 20, right: 10, bottom: 12, left: 24 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-40} textAnchor="end" height={76} interval={0} />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-20} textAnchor="end" height={76} interval={0} />
           <YAxis yAxisId="l" tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
           <YAxis yAxisId="r" orientation="right" domain={[0,100]} tick={{ fontSize: 10, fill: "#ef4444" }} width={38} tickFormatter={v => `${v}%`} />
           <Tooltip content={<ChartTooltip />} />
@@ -254,9 +267,9 @@ const params = useMemo(() => {
 
   const CatVsPartStacked = ({ h = 280 }) => (
     <ResponsiveContainer width="100%" height={h}>
-      <BarChart data={catVsPart || []} margin={{ top: 20, right: 10, bottom: 56, left: 4 }}>
+      <BarChart data={catVsPart || []} margin={{ top: 20, right: 10, bottom: 10, left: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-        <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-25} textAnchor="end" height={60} />
+        <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-20} textAnchor="end" height={60} />
         <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
         <Tooltip content={<ChartTooltip />} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -267,16 +280,16 @@ const params = useMemo(() => {
     </ResponsiveContainer>
   );
 
-  const DefectTrendChart = ({ h = 240 }) => {
+  const DefectTrendChart = ({ h = 260 }) => {
     if (!defectTrendData.length || defectTrendData.every(d => !d.defects)) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <AreaChart data={defectTrendData} margin={{ top: 16, right: 48, bottom: 8, left: 4 }}>
+        <AreaChart data={defectTrendData} margin={{ top: 16, right: 10, bottom: 8, left: 14 }}>
           <defs>
             <linearGradient id="gradD" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
             <linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.18}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+          <CartesianGrid strokeDasharray="3 0" stroke="#f0f2f5" />
           <XAxis dataKey="m" tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
           <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#f59e0b" }} width={38} />
@@ -343,7 +356,7 @@ const params = useMemo(() => {
     </ResponsiveContainer>
   );
 
-  const CommodityPieChart = ({ h = 300 }) => {
+  const CommodityPieChart = ({ h = 260 }) => {
     const data = (byCommodity || []).map(c => ({ name: c._id || "Unknown", value: c.count }));
     const total = data.reduce((s, d) => s + d.value, 0);
     if (!data.length || total === 0) return <ZeroData />;
@@ -366,38 +379,27 @@ const params = useMemo(() => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 80 }}>
 
-      {/* ── Filter bar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Filter by brand:</span>
-       <Select
-          className="pg-select"
-          placeholder="All Brands"
-          allowClear
-          size="small"
-          style={{ minWidth: 160 }}
-          onChange={v => setCustomer(v || "")}
-        >
-          {["GODREJ","HAIER","AMSTRAD","ONIDA","MARQ","CROMA","VOLTAS","BLUE STAR","SAMSUNG","LG"].map(c =>
-            <Option key={c} value={c}>{c}</Option>
-          )}
-        </Select>
-      </div>
 
       {/* Row 1 — Category Donut + Parts bar + Commodity Pie */}
-      <Grid cols={3}>
+      <Grid cols={4}>
 
-        <ChartCard title="Defect Category Breakdown" icon="🍩" loading={catLoading}
-          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={500} />)}>
+        <ChartCard title="Defect Category Breakdown" icon="🍩" loading={isLoading}
+          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={100} />)}>
           <CategoryDonut />
         </ChartCard>
 
-        <ChartCard title="Most Reported Defective Parts" icon="🔩" tag="Top 12" tagColor="orange" loading={partLoading}
-          onExpand={() => openPreview("Most Reported Parts", <TopPartsBar h={500} />)}>
+        <ChartCard title="Most Reported Defective Parts" icon="🔩" tag="Top 12" tagColor="orange" loading={isLoading}
+          onExpand={() => openPreview("Most Reported Parts", <TopPartsBar h={380} />)}>
           <TopPartsBar />
         </ChartCard>
 
-        <ChartCard title="Product Type Split (IDU / ODU)" icon="⚙️" loading={commLoading}
-          onExpand={() => openPreview("Product Type Split", <CommodityPieChart h={500} />)}>
+        <ChartCard title="Which Parts Fail Most — Radar View" icon="🎯" loading={isLoading}
+          onExpand={() => openPreview("Part Frequency Radar", <PartRadarChart h={380} />)}>
+          <PartRadarChart />
+        </ChartCard>
+
+        <ChartCard title="Product Type Split (IDU / ODU)" icon="⚙️" loading={isLoading}
+          onExpand={() => openPreview("Product Type Split", <CommodityPieChart h={380} />)}>
           <CommodityPieChart />
         </ChartCard>
 
@@ -405,43 +407,47 @@ const params = useMemo(() => {
 
       {/* Row 2 — Trend + Part Radar + Treemap */}
       <Grid cols={3}>
-        <ChartCard title="Monthly Defect Volume & Quality Rate" icon="📈" tag="12 Months" tagColor="blue" loading={monthlyLoading}
+        <ChartCard title="Monthly Defect Volume & Quality Rate" icon="📈" tag="12 Months" tagColor="blue" loading={isLoading}
           onExpand={() => openPreview("Monthly Defect Trend", <DefectTrendChart h={380} />)}>
           <DefectTrendChart />
         </ChartCard>
-        <ChartCard title="Which Parts Fail Most — Radar View" icon="🎯" loading={partLoading}
-          onExpand={() => openPreview("Part Frequency Radar", <PartRadarChart h={380} />)}>
-          <PartRadarChart />
-        </ChartCard>
-        <ChartCard title="Defect Category Volume Map" icon="🗂️" tag="Proportional" tagColor="cyan" loading={catLoading}
+
+        <ChartCard title="Defect Category Volume Map" icon="🗂️" tag="Proportional" tagColor="cyan" loading={isLoading}
           onExpand={() => openPreview("Category Volume Map", <CategoryTreemap h={380} />)}>
           <CategoryTreemap />
         </ChartCard>
+
+        <ChartCard title="Top 10 Defect Types — 80/20 Priority Analysis" icon="📊" tag="80/20 Rule" tagColor="volcano" loading={isLoading}
+          onExpand={() => openPreview("Pareto Analysis", <ParetoChart h={440} />)}>
+          <ParetoChart />
+        </ChartCard>
+
       </Grid>
 
       {/* Row 3 — Pareto (full width) */}
-      <ChartCard title="Top 10 Defect Types — 80/20 Priority Analysis" icon="📊" tag="80/20 Rule" tagColor="volcano" loading={defLoading}
-        onExpand={() => openPreview("Pareto Analysis", <ParetoChart h={440} />)}>
-        <ParetoChart />
-      </ChartCard>
+      
 
       {/* Row 4 — Customer vs Category + Commodity vs Category */}
-      <Grid cols={2}>
+      <Grid cols={3}>
         <ChartCard title="Defect Type Breakdown by Brand" icon="🏭" tag="Stacked" tagColor="geekblue"
-          loading={!custVsCategory} onExpand={() => openPreview("Defect by Brand", <CustVsCategoryChart h={400} />)}>
+          loading={isLoading} onExpand={() => openPreview("Defect by Brand", <CustVsCategoryChart h={400} />)}>
           <CustVsCategoryChart />
         </ChartCard>
+
         <ChartCard title="Defect Types in IDU vs ODU Units" icon="🔧" tag="Stacked" tagColor="cyan"
-          loading={!commodityVsCat} onExpand={() => openPreview("Defect vs Product Type", <DefectVsCommodityChart h={400} />)}>
+          loading={isLoading} onExpand={() => openPreview("Defect vs Product Type", <DefectVsCommodityChart h={400} />)}>
           <DefectVsCommodityChart />
         </ChartCard>
+
+         <ChartCard title="Defect Category vs Defective Part (Stacked View)" icon="📦"
+            loading={isLoading} onExpand={() => openPreview("Category vs Part", <CatVsPartStacked h={420} />)}>
+            <CatVsPartStacked />
+          </ChartCard>
+          
       </Grid>
 
       {/* Row 5 — Cat vs Part Stacked (full width) */}
-      <ChartCard title="Defect Category vs Defective Part (Stacked View)" icon="📦"
-        loading={!catVsPart} onExpand={() => openPreview("Category vs Part", <CatVsPartStacked h={420} />)}>
-        <CatVsPartStacked />
-      </ChartCard>
+
 
       <ChartPreviewModal open={!!preview} onClose={() => setPreview(null)} title={preview?.title}>
         {preview?.chart}
