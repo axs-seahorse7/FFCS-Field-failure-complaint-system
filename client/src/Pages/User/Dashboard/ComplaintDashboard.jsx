@@ -168,12 +168,7 @@ function DetailDrawer({ complaint, onClose }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadDocument}
-              className=" px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center gap-1 text-white/70 border border-gray-200/30  hover:text-white transition-all shrink-0 mt-0.5"
-            >
-              <i className="ri-download-2-line"></i> <span className="text-[10px] tracking-widest" >Download</span>
-            </button>
+           
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all shrink-0 mt-0.5"
@@ -223,6 +218,8 @@ export default function ComplaintDashboard({  userEmail, }) {
   const [sortDir, setSortDir]         = useState("desc");
   const searchRef = useRef();
   const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem("User") || "{}");
 
   /* ── Fetch ── */
   const fetchComplaints = useCallback(async () => {
@@ -327,26 +324,26 @@ export default function ComplaintDashboard({  userEmail, }) {
                 <img src="pg-logo-Photoroom.png" alt="PG Logo" />
               </div>
               <div className="hidden sm:block">
-                <p className="text-sm font-bold text-white leading-tight">FFS Dashboard</p>
+                <p className="text-sm font-bold text-white leading-tight ">FFS Dashboard</p>
               </div>
-              <span className="sm:hidden text-sm font-bold text-white">PG Dashboard</span>
+              <span className="sm:hidden text-sm font-bold text-white max-sm:hidden ">PG Dashboard</span>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {userEmail && (
+              {user?.email && (
                 <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 shrink-0">
                   <div className="w-5 h-5 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center">
                     <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
                     </svg>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-['DM_Mono',monospace]">{userEmail}</span>
+                  <span className="text-[11px] text-slate-400 font-['DM_Mono',monospace]">{user?.email}</span>
                 </div>
               )}
               <button
                 onClick={fetchComplaints}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-600 border border-white/12 text-white hover:text-zinc-600 hover:bg-white/20 cursor-pointer text-xs font-semibold transition-all disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-600 max-sm:bg-transparent max-sm:border-none border border-white/12 text-white hover:text-zinc-600 hover:bg-white/20 cursor-pointer text-xs font-semibold transition-all disabled:opacity-40"
               >
                 <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M3 12a9 9 0 109-9" strokeLinecap="round"/>
@@ -356,12 +353,12 @@ export default function ComplaintDashboard({  userEmail, }) {
               </button>
               <button
                 onClick={() => navigate("/complaint-form")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all shadow-lg shadow-cyan-900/30"
+                className="flex items-center gap-1.5 px-3 py-1.5 max-sm:hidden rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all shadow-lg shadow-cyan-900/30"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
                 </svg>
-                New Complaint
+              <span className="hidden sm:inline ">New Complaint</span>
               </button>
               <button
               title="logout"
@@ -384,6 +381,7 @@ export default function ComplaintDashboard({  userEmail, }) {
             <p className="text-xs text-slate-400 font-['DM_Mono',monospace] mt-1">
               Field Failure System · {complaints.length} total record{complaints.length !== 1 ? "s" : ""}
             </p>
+            
           </div>
 
           {/* ── STAT CARDS ── */}
@@ -399,6 +397,16 @@ export default function ComplaintDashboard({  userEmail, }) {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200 px-4 py-3.5 mb-4">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
 
+                <button
+                onClick={() => navigate("/complaint-form")}
+                className=" self-end w-40 items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+                    </svg>
+                  <span className=" sm:inline ">New Complaint</span>
+                </button>
+                  
               {/* Search */}
               <div className="relative flex-1 min-w-0">
                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -416,6 +424,7 @@ export default function ComplaintDashboard({  userEmail, }) {
                     focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-400/10 placeholder:text-slate-300 transition-all
                     font-['Sora',sans-serif]"
                 />
+                
                 {search && (
                   <button
                     onClick={() => { setSearch(""); searchRef.current?.focus(); }}
@@ -427,6 +436,8 @@ export default function ComplaintDashboard({  userEmail, }) {
                   </button>
                 )}
               </div>
+
+              
 
               {/* Status filter pills */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0 shrink-0">
