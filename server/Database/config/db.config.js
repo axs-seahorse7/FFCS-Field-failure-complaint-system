@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const connectDB = async () => {
   try {
-    const NODE_ENV = process.env.NODE_ENV || "development";
+    const NODE_ENV = process.env.NODE_ENV 
     let mongoURI;
 
     if (NODE_ENV === "production") {

@@ -19,9 +19,7 @@ const isProduction = process.env.NODE_ENV === "production";
 // ✅ CORS
 app.use(
   cors({
-    origin: isProduction
-      ? process.env.CLIENT_URL
-      : "http://localhost:5173",
+    origin: "https://ffcs-field-failure-complaint-system-ten.vercel.app/",
     credentials: true,
   })
 );
