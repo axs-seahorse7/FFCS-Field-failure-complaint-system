@@ -65,6 +65,10 @@ const ensureAdminAccount = async () => {
 	console.log(`Admin account created: ${adminEmail}`);
 };
 
+app.get("/", (req, res) => {
+  res.send("API running 🚀");
+});
+
 
 
 app.use("/api/auth", authRoutes);
