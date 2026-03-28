@@ -172,14 +172,27 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, h
    FLEXIBLE GRID
 ════════════════════════════════════════ */
 function Grid({ cols = 3, children }) {
-  const pct = `calc(${100 / cols}% - ${((cols - 1) * 10) / cols}px)`;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-      {(Array.isArray(children) ? children : [children]).filter(Boolean).map((child, i) => (
-        <div key={i} style={{ flex: `0 0 ${pct}`, minWidth: 220, boxSizing: "border-box" }}>
-          {child}
-        </div>
-      ))}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 12
+      }}
+    >
+      {(Array.isArray(children) ? children : [children])
+        .filter(Boolean)
+        .map((child, i) => (
+          <div
+            key={i}
+            style={{
+              flex: `1 1 calc(${100 / cols}% - 12px)`,
+              minWidth: 320
+            }}
+          >
+            {child}
+          </div>
+        ))}
     </div>
   );
 }
@@ -197,7 +210,7 @@ const ZeroData = ({ msg = "No data for selected year" }) => (
 ════════════════════════════════════════ */
 export default function OverviewSection({ addToast,  }) {
   const [preview, setPreview]           = useState(null);
-  const [kpiPinned, setKpiPinned]       = useState(false);
+  const [kpiPinned, setKpiPinned]       = useState(true);
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   const [defectDropdown, setDefectDropdown] = useState("overall");
   const { filters} = useOutletContext() || {};
@@ -464,19 +477,17 @@ export default function OverviewSection({ addToast,  }) {
               data={sorted}
               cx="50%"
               cy="50%"        // ← back to centre (was 85% for half-donut)
-              startAngle={90} // ← full circle, starting from top
-              endAngle={-270} // ← going clockwise all the way around
+              startAngle={190} // ← full circle, starting from top
+              endAngle={-360} // ← going clockwise all the way around
               innerRadius={outerR * 0.58}
-              outerRadius={outerR}
+              // outerRadius={outerR}
               dataKey="value"
               nameKey="name"
               paddingAngle={13}
+              paddingRightAngle={-13}
               onMouseEnter={(_, i) => setHov(i)}
               onMouseLeave={() => setHov(null)}
-              label={({ name, value }) =>
-                `${name}: ${total > 0 ? ((value / total) * 100).toFixed(1) : 0}%`
-              }
-              labelLine={{ stroke: "#cbd5e1" }}
+              
             >
             {sorted.map((d, i) => (
               <Cell

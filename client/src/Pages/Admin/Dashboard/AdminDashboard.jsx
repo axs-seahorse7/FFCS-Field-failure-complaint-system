@@ -223,9 +223,9 @@ export default function AdminDashboard({ userEmail }) {
               onClick={() => setCollapsed(c => !c)}
               style={{ color: "#64748b", fontSize: 16, width: 34, height: 34 }}
             />
-            <span className="font-semibold text-cyan-700">{meta.label}</span>
-            {" • "}
-            <span className="text-[12px] text-slate-500">{meta.desc}</span>
+            <span className="font-semibold text-cyan-700  ">{meta.label}</span>
+            
+            <span className="text-[12px] text-slate-500 max-lg:hidden ">{" • "}{meta.desc}</span>
           </div>
 
           <Space size={8}>

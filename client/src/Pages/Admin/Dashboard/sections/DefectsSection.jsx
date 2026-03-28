@@ -7,7 +7,11 @@ import {BarChart, Bar, PieChart, Pie, Cell, ComposedChart, Line, XAxis, YAxis, C
 import { ChartTooltip, Loading, FilterBar, CHART_COLORS, fmtNum } from "../components/shared";
 import { useBatchQuery } from "../components/useApiQuery";
 import ChartPreviewModal from "../components/ChartPreviewModal";
-import LoaderPage from "../../../../Components/Skeleto-Loader/LoaderPage";
+import { MdDonutLarge, MdBuild, MdTrendingUp, MdSettings, MdFactory, } from "react-icons/md";
+import { IoSettingsOutline,  } from "react-icons/io5";
+import { TfiBarChartAlt } from "react-icons/tfi";
+import { GrSettingsOption } from "react-icons/gr";
+
 
 
 const { Option } = Select;
@@ -49,8 +53,8 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, h
         <Space size={4}>
           {headerExtra}
           {onExpand && (
-            <Button type="text" size="small" icon={<ExpandAltOutlined />} onClick={onExpand}
-              style={{ color: "blue", fontSize: 15, padding: "0 3px" }} />
+            <Button type="text" size={8} icon={<ExpandAltOutlined color="blue" />} onClick={onExpand}
+              style={{ color: "blue", fontSize: 10, padding: "0 3px" }} />
           )}
         </Space>
       </div>
@@ -63,12 +67,27 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, h
 
 /* ── Grid ── */
 function Grid({ cols = 3, children }) {
-  const pct = `calc(${100 / cols}% - ${((cols - 1) * 12) / cols}px)`;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-      {(Array.isArray(children) ? children : [children]).filter(Boolean).map((child, i) => (
-        <div key={i} style={{ flex: `0 0 ${pct}`, minWidth: 260, boxSizing: "border-box" }}>{child}</div>
-      ))}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 12
+      }}
+    >
+      {(Array.isArray(children) ? children : [children])
+        .filter(Boolean)
+        .map((child, i) => (
+          <div
+            key={i}
+            style={{
+              flex: `1 1 calc(${100 / cols}% - 12px)`,
+              minWidth: 320
+            }}
+          >
+            {child}
+          </div>
+        ))}
     </div>
   );
 }
@@ -149,14 +168,14 @@ export default function DefectsSection() {
 
 
 
-  const sortedParts    = useMemo(() => (byPart     || []).sort((a, b) => b.count - a.count).slice(0, 12), [byPart]);
-  const sortedDefects  = useMemo(() => (topDefects || []).sort((a, b) => b.count - a.count).slice(0, 10), [topDefects]);
-  const sortedCategory = useMemo(() => (byCategory || []).sort((a, b) => b.count - a.count), [byCategory]);
+  const sortedParts    = useMemo(() => (byPart     || [])?.sort((a, b) => b.count - a.count).slice(0, 12), [byPart]);
+  const sortedDefects  = useMemo(() => (topDefects || [])?.sort((a, b) => b.count - a.count).slice(0, 10), [topDefects]);
+  const sortedCategory = useMemo(() => (byCategory || [])?.sort((a, b) => b.count - a.count), [byCategory]);
 
   const paretoData = useMemo(() => {
-    const total = sortedDefects.reduce((s, d) => s + d.count, 0);
+    const total = sortedDefects?.reduce((s, d) => s + d.count, 0);
     let cum = 0;
-    return sortedDefects.map(d => {
+    return sortedDefects?.map(d => {
       cum += d.count;
       return { ...d, name: (d._id || d.name || "").slice(0, 22), cumm: +((cum / total) * 100).toFixed(1) };
     });
@@ -174,26 +193,71 @@ export default function DefectsSection() {
 
   /* ────────── CHARTS ────────── */
 
-  const CategoryDonut = ({ h = 260 }) => {
+ 
+
+  const CategoryDonut = ({h = 220}) => {
     const total = sortedCategory.reduce((s, d) => s + d.count, 0);
     if (!sortedCategory.length || total === 0) return <ZeroData />;
+
     return (
-      <ResponsiveContainer width="100%" height={h}>
-        <PieChart>
-          <Pie data={sortedCategory} cx="48%" cy="50%"
-            innerRadius={40} outerRadius={80}
-            dataKey="count" nameKey="_id" paddingAngle={3}
-            label={renderPieLabel} labelLine={false}>
-            {sortedCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-          </Pie>
-          <Tooltip content={<ChartTooltip />} formatter={fmtNum} />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-        </PieChart>
-      </ResponsiveContainer>
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Chart — no labels on slices */}
+        <div style={{ width: "100%", aspectRatio: "1 / 1", maxHeight: 140, minHeight: 140 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={sortedCategory}
+                cx="50%" cy="50%"
+                // innerRadius="40%" outerRadius="65%"
+                dataKey="count" nameKey="_id"
+                paddingAngle={3}
+                labelLine={false}
+                label={false}       
+              >
+                {sortedCategory.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip content={<ChartTooltip />} formatter={fmtNum} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Custom legend — every segment, always visible */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingInline: 4 }}>
+          {sortedCategory.map((d, i) => {
+            const pct = ((d.count / total) * 100).toFixed(1);
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                {/* Color swatch */}
+                <span style={{
+                  width: 10, height: 10, borderRadius: 3,
+                  background: color, flexShrink: 0
+                }} />
+                {/* Name */}
+                <span style={{ flex: 1, color: "#374151", fontWeight: 500,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {d._id || "Unknown"}
+                </span>
+                {/* Percentage bar */}
+                <div style={{ width: 60, height: 4, borderRadius: 2, background: "#f1f5f9", flexShrink: 0 }}>
+                  <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: color }} />
+                </div>
+                {/* Value + pct */}
+                <span style={{ color: "#6b7280", fontVariantNumeric: "tabular-nums",
+                  whiteSpace: "nowrap", fontSize: 11 }}>
+                  {d.count} <span style={{ color: "#9ca3af" }}>({pct}%)</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     );
   };
 
-  const TopPartsBar = ({ h = 260 }) => {
+  const TopPartsBar = ({ h = 220 }) => {
     const cnt = sortedParts.length;
     const chartH = h || Math.max(260, cnt * 28 + 80);
     if (!sortedParts.length) return <ZeroData />;
@@ -226,7 +290,7 @@ export default function DefectsSection() {
   "#8b5cf6",
 ];
 
-  const ParetoChart = ({ h = 260 }) => {
+  const ParetoChart = ({ h = 220 }) => {
     if (!paretoData.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -265,22 +329,22 @@ export default function DefectsSection() {
     );
   };
 
-  const CatVsPartStacked = ({ h = 280 }) => (
+  const CatVsPartStacked = ({ h = 220 }) => (
     <ResponsiveContainer width="100%" height={h}>
-      <BarChart data={catVsPart || []} margin={{ top: 20, right: 10, bottom: 10, left: 4 }}>
+      <BarChart data={catVsPart || []} margin={{ top: 20, right: 10, bottom: 60, left: 14 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-        <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-20} textAnchor="end" height={60} />
-        <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
+        <XAxis dataKey="_id" tick={{ fontSize: 10,  }} angle={-30} textAnchor="end" height={10} style={{color:"black"}} />
+        <YAxis tick={{ fontSize: 10, }} width={32} />
         <Tooltip content={<ChartTooltip />} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-        {PARTS_LIST.map((part, i) => (
-          <Bar key={part} dataKey={part} name={part} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
-        ))}
+        <Legend wrapperStyle={{ fontSize: 8, paddingLeft: 10 }} layout="vertical" verticalAlign="middle" align="right" />
+          {PARTS_LIST.map((part, i) => (
+            <Bar key={part} dataKey={part} name={part} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
+          ))}
       </BarChart>
     </ResponsiveContainer>
   );
 
-  const DefectTrendChart = ({ h = 260 }) => {
+  const DefectTrendChart = ({ h = 220 }) => {
     if (!defectTrendData.length || defectTrendData.every(d => !d.defects)) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -302,24 +366,24 @@ export default function DefectsSection() {
     );
   };
 
-  const CustVsCategoryChart = ({ h = 280 }) => (
+  const CustVsCategoryChart = ({ h = 220 }) => (
     <ResponsiveContainer width="100%" height={h}>
-      <BarChart data={custVsCatData} margin={{ top: 20, right: 10, bottom: 56, left: 4 }}>
+      <BarChart data={custVsCatData} margin={{ top: 20, right: 10, bottom: 10, left: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
         <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#64748b" }} angle={-30} textAnchor="end" height={60} interval={0} />
         <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
         <Tooltip content={<ChartTooltip />} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
-        {categoryKeys.map((cat, i) => (
+        {categoryKeys?.map((cat, i) => (
           <Bar key={cat} dataKey={cat} name={cat} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
         ))}
       </BarChart>
     </ResponsiveContainer>
   );
 
-  const DefectVsCommodityChart = ({ h = 280 }) => (
+  const DefectVsCommodityChart = ({ h = 220 }) => (
     <ResponsiveContainer width="100%" height={h}>
-      <BarChart data={commodityStackData} margin={{ top: 20, right: 10, bottom: 48, left: 4 }}>
+      <BarChart data={commodityStackData} margin={{ top: 20, right: 10, bottom: 10, left: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
         <XAxis dataKey="_id" tick={{ fontSize: 11, fill: "#64748b" }} angle={-15} textAnchor="end" height={52} />
         <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
@@ -332,7 +396,7 @@ export default function DefectsSection() {
     </ResponsiveContainer>
   );
 
-  const PartRadarChart = ({ h = 260 }) => {
+  const PartRadarChart = ({ h = 220 }) => {
     if (!radarData.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -348,7 +412,7 @@ export default function DefectsSection() {
     );
   };
 
-  const CategoryTreemap = ({ h = 260 }) => (
+  const CategoryTreemap = ({ h = 220 }) => (
     <ResponsiveContainer width="100%" height={h}>
       <Treemap data={treemapData} dataKey="size" nameKey="name" aspectRatio={4/3} content={<TreemapContent />}>
         <Tooltip content={<ChartTooltip />} />
@@ -356,7 +420,7 @@ export default function DefectsSection() {
     </ResponsiveContainer>
   );
 
-  const CommodityPieChart = ({ h = 260 }) => {
+  const CommodityPieChart = ({ h = 220 }) => {
     const data = (byCommodity || []).map(c => ({ name: c._id || "Unknown", value: c.count }));
     const total = data.reduce((s, d) => s + d.value, 0);
     if (!data.length || total === 0) return <ZeroData />;
@@ -383,22 +447,22 @@ export default function DefectsSection() {
       {/* Row 1 — Category Donut + Parts bar + Commodity Pie */}
       <Grid cols={4}>
 
-        <ChartCard title="Defect Category Breakdown" icon="🍩" loading={isLoading}
-          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={100} />)}>
+        <ChartCard title="Defect Category Breakdown" icon={<MdDonutLarge color="red" />} loading={isLoading}
+          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={480} />)}>
           <CategoryDonut />
         </ChartCard>
 
-        <ChartCard title="Most Reported Defective Parts" icon="🔩" tag="Top 12" tagColor="orange" loading={isLoading}
+        <ChartCard title="Most Reported Defective Parts" icon={<MdBuild color="orange" />} tag="Top 12" tagColor="orange" loading={isLoading}
           onExpand={() => openPreview("Most Reported Parts", <TopPartsBar h={380} />)}>
           <TopPartsBar />
         </ChartCard>
 
-        <ChartCard title="Which Parts Fail Most — Radar View" icon="🎯" loading={isLoading}
+        <ChartCard title="Which Parts Fail Most — Radar View" icon={<MdTrendingUp color="blue" />} loading={isLoading}
           onExpand={() => openPreview("Part Frequency Radar", <PartRadarChart h={380} />)}>
           <PartRadarChart />
         </ChartCard>
 
-        <ChartCard title="Product Type Split (IDU / ODU)" icon="⚙️" loading={isLoading}
+        <ChartCard title="Product Type Split (IDU / ODU)" icon={<MdSettings color="gray" />} loading={isLoading}
           onExpand={() => openPreview("Product Type Split", <CommodityPieChart h={380} />)}>
           <CommodityPieChart />
         </ChartCard>
@@ -407,17 +471,17 @@ export default function DefectsSection() {
 
       {/* Row 2 — Trend + Part Radar + Treemap */}
       <Grid cols={3}>
-        <ChartCard title="Monthly Defect Volume & Quality Rate" icon="📈" tag="12 Months" tagColor="blue" loading={isLoading}
+        <ChartCard title="Monthly Defect Volume & Quality Rate" icon={<MdTrendingUp color="green" />} tag="12 Months" tagColor="blue" loading={isLoading}
           onExpand={() => openPreview("Monthly Defect Trend", <DefectTrendChart h={380} />)}>
           <DefectTrendChart />
         </ChartCard>
 
-        <ChartCard title="Defect Category Volume Map" icon="🗂️" tag="Proportional" tagColor="cyan" loading={isLoading}
+        <ChartCard title="Defect Category Volume Map" icon={<IoSettingsOutline color="red" />} tag="Proportional" tagColor="cyan" loading={isLoading}
           onExpand={() => openPreview("Category Volume Map", <CategoryTreemap h={380} />)}>
           <CategoryTreemap />
         </ChartCard>
 
-        <ChartCard title="Top 10 Defect Types — 80/20 Priority Analysis" icon="📊" tag="80/20 Rule" tagColor="volcano" loading={isLoading}
+        <ChartCard title="Top 10 Defect Types " icon={<TfiBarChartAlt color="purple" />} tag="Top 10" tagColor="volcano" loading={isLoading}
           onExpand={() => openPreview("Pareto Analysis", <ParetoChart h={440} />)}>
           <ParetoChart />
         </ChartCard>
@@ -429,21 +493,21 @@ export default function DefectsSection() {
 
       {/* Row 4 — Customer vs Category + Commodity vs Category */}
       <Grid cols={3}>
-        <ChartCard title="Defect Type Breakdown by Brand" icon="🏭" tag="Stacked" tagColor="geekblue"
+        <ChartCard title="Defect Type Breakdown by Brand" icon={<MdFactory color="blue" />} tag="Stacked" tagColor="geekblue"
           loading={isLoading} onExpand={() => openPreview("Defect by Brand", <CustVsCategoryChart h={400} />)}>
           <CustVsCategoryChart />
         </ChartCard>
 
-        <ChartCard title="Defect Types in IDU vs ODU Units" icon="🔧" tag="Stacked" tagColor="cyan"
+        <ChartCard title="Defect Types in IDU vs ODU Units" icon={<MdBuild color="orange" />} tag="Stacked" tagColor="cyan"
           loading={isLoading} onExpand={() => openPreview("Defect vs Product Type", <DefectVsCommodityChart h={400} />)}>
           <DefectVsCommodityChart />
         </ChartCard>
 
-         <ChartCard title="Defect Category vs Defective Part (Stacked View)" icon="📦"
-            loading={isLoading} onExpand={() => openPreview("Category vs Part", <CatVsPartStacked h={420} />)}>
-            <CatVsPartStacked />
-          </ChartCard>
-          
+         <ChartCard title="Defect Category vs Defective Part (Stacked View)" icon={<GrSettingsOption color="purple" />} tag="Stacked" tagColor="purple" loading={isLoading}
+          onExpand={() => openPreview("Defect Category vs Part", <CatVsPartStacked h={400} />)}>
+          <CatVsPartStacked />
+        </ChartCard>
+
       </Grid>
 
       {/* Row 5 — Cat vs Part Stacked (full width) */}

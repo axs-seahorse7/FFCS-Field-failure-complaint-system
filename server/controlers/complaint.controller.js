@@ -59,54 +59,11 @@ const MONTHLY_UNITS_SHIPPED = [9864,10157,10683,12082,12616,11612,12418,11892,11
 ═══════════════════════════════════════════════════════ */
 export const getComplaints = async (req, res) => {
   try {
-    const {
-      search, status, customerName, defectCategory,
-      defectDetails, defectivePart,
-      page = 1, limit,
-    } = req.query;
+    const loggedInUser = req.user.userId;
 
-    console.log("Query params:", req.query);  
+    const complaints = await Complaint.find({ createdBy: loggedInUser }).sort({ createdAt: -1 });
+    return res.json({ complaints });
 
-    const query = { ...buildDateMatch(req.query) };
-
-    if (status)         query.status = status;
-    if (customerName)   query.customerName = customerName;
-    if (defectCategory) query.defectCategory = defectCategory;
-    if (defectDetails)  query.defectDetails = new RegExp(defectDetails, "i");
-    if (defectivePart)  query.defectivePart = defectivePart;
-
-    if (search) {
-      const re = new RegExp(search, "i");
-      query.$or = [
-        { complaintNo:    re },
-        { customerName:   re },
-        { modelName:      re },
-        { defectDetails:  re },
-        { defectivePart:  re },
-        { defectCategory: re },
-      ];
-    }
-
-    if (req.user.role !== "admin") {
-      query.createdBy = req.user.userId;
-    }
-
-    const safeLimit = Math.max(1, Number(limit) || 500);
-    const safePage  = Math.max(1, Number(page) || 1);
-
-    const skip = (safePage - 1) * safeLimit;
-
-    const [data, total] = await Promise.all([
-      Complaint.find(query)
-        .sort({ complaintDate: -1 })
-        .skip(skip)
-        .limit(safeLimit)
-        .lean(),
-        
-      Complaint.countDocuments(query),
-    ]);
-
-    return res.json({ data, total, page: Number(page), limit: Number(limit) });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -116,25 +73,39 @@ export const getComplaints = async (req, res) => {
    POST /create-complaint
 ═══════════════════════════════════════════════════════ */
 export const createComplaint = async (req, res) => {
+  console.log("Creating complaint with data:", req.body);
+
   try {
-    const complaint = await Complaint.create({ ...req.body, createdBy: req.user.userId });
-    await User.findByIdAndUpdate(req.user.userId, {
-      $inc: { "stats.totalComplaints": 1, "stats.pendingComplaints": 1 }
+    const complaint = await Complaint.create({
+      ...req.body,
+      createdBy: req.user.userId,
     });
-    
-    const production = await Production.findOneAndUpdate(
-      { modelName: complaint.modelName },
-      { $inc: { "stats.totalComplaints": 1 } }
-    );
 
-    await production.save();
+    await User.findByIdAndUpdate(req.user.userId, {
+      $inc: {
+        "stats.totalComplaints": 1,
+        "stats.pendingComplaints": 1,
+      },
+    });
 
-    return res.status(201).json({ data: complaint });
+    await Production.findOneAndUpdate({
+          customer: complaint.customerName,
+          commodity: complaint.commodity,
+          month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        },
+        {
+          $inc: { fieldComplaint: 1 }, // 🔥 THIS matches your schema
+        },
+        { upsert: true }
+      );
+
+    return res.status(200).json({ data: complaint, success: true, message: "Complaint created successfully" });
+
   } catch (err) {
+    console.error("Error creating complaint:", err);
     return res.status(400).json({ message: err.message });
   }
 };
-
 /* ═══════════════════════════════════════════════════════
    POST /complaints/status
 ═══════════════════════════════════════════════════════ */

@@ -45,7 +45,7 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, c
         </div>
         {onExpand && (
           <Button type="text" size="small" icon={<ExpandAltOutlined />} onClick={onExpand}
-            style={{ color: "#cbd5e1", fontSize: 12, padding: "0 3px" }} />
+            style={{ color: "blue", fontSize: 12, padding: "0 3px" }} />
         )}
       </div>
       <div style={CHART_SHADOW}>
@@ -166,7 +166,7 @@ export default function WarrantySection() {
     );
   };
 
-  const CommodityBar = ({ h = 220 }) => {
+  const CommodityBar = ({ h = 260 }) => {
     if (!commSorted.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -185,28 +185,80 @@ export default function WarrantySection() {
     );
   };
 
-  const CommVsCatStacked = ({ h = 220 }) => {
-    if (!commVsCat) return <ZeroData />;
-    const cats = ["ELEC PART DEFECTS","PART BROKEN / DAMAGED / MISSING","LEAK","NOISE","MISC DEFECT"];
+  
+
+ const CommVsCatStacked = ({ h = 220 }) => {
+  if (!commVsCat) return <ZeroData />;
+  const cats = ["ELEC PART DEFECTS", "PART BROKEN / DAMAGED / MISSING", "LEAK", "NOISE", "MISC DEFECT"];
+
+  const dataWithTotals = (commVsCat || []).map(row => ({
+    ...row,
+    _total: cats.reduce((s, c) => s + (row[c] || 0), 0),
+  }));
+
+  // Sum each category across all rows for the legend
+  const catTotals = cats.reduce((acc, cat) => {
+    acc[cat] = (commVsCat || []).reduce((s, row) => s + (row[cat] || 0), 0);
+    return acc;
+  }, {});
+
+  const TopLabel = (props) => {
+    const { x, y, width, value } = props;
+    if (!value || value === 0) return null;
     return (
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={commVsCat || []} margin={{ top: 20, right: 10, bottom: 16, left: 4 }}>
+      <text
+        x={x + width / 2} y={y - 5}
+        textAnchor="middle" dominantBaseline="auto"
+        fontSize={10} fontWeight={700} fill="#374151"
+      >
+        {value}
+      </text>
+    );
+  };
+
+  const CustomLegend = ({ payload }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px",
+      justifyContent: "center", marginTop: 8, paddingInline: 4 }}>
+      {payload.map((entry, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2,
+            background: entry.color, flexShrink: 0, display: "inline-block" }} />
+          <span style={{ fontSize: 11, color: "#475569", fontWeight: 500 }}>
+            {entry.value}
+          </span>
+          <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700 }}>
+            ({catTotals[cats[i]]})
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ width: "100%", aspectRatio: "16/9", minHeight: 180, maxHeight: 320 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={dataWithTotals} margin={{ top: 24, right: 10, bottom: 16, left: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
           <XAxis dataKey="_id" tick={{ fontSize: 12, fill: "#475569", fontWeight: 600 }} />
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
           <Tooltip content={<ChartTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          {cats.map((cat, i) => (
-            <Bar key={cat} dataKey={cat} name={cat.split(" ")[0]} stackId="a" fill={CHART_COLORS[i]}>
-              <LabelList dataKey={cat} position="center" style={{ fontSize: 10, fill: "#fff", fontWeight: 700 }} formatter={v => v > 5 ? v : ""} />
-            </Bar>
-          ))}
+          <Legend content={<CustomLegend />} />
+
+          {cats.map((cat, i) => {
+            const isTop = i === cats.length - 1;
+            return (
+              <Bar key={cat} dataKey={cat} name={cat.split(" ")[0]} stackId="a" fill={CHART_COLORS[i]}>
+                {isTop && <LabelList dataKey="_total" content={<TopLabel />} />}
+              </Bar>
+            );
+          })}
         </BarChart>
       </ResponsiveContainer>
-    );
-  };
+    </div>
+  );
+};
 
-  const ReplacementBar = ({ h = 220 }) => {
+  const ReplacementBar = ({ h = 260 }) => {
     if (!replSorted.length) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>

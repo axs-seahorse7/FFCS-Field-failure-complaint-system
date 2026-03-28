@@ -38,17 +38,23 @@ const complaintSchema = new Schema(
       type: String,
       required: [true, "Commodity is required"],
       enum: {
-        values: ["IDU", "ODU"],
+        values: ["IDU", "ODU", "WAC"],
         message: "{VALUE} is not a valid commodity",
       },
     },
 
     replacementCategory: {
-      type: String,
-      trim: true,
-      enum: { values: ["PART", ""], message: "{VALUE} is not valid" },
-      default: "",
-    },
+        type: String,
+        trim: true,
+        enum: ["Part", "Services", "Demonstration", "Unit" ],
+        default: "",
+      },
+
+      customerComplaintId: { type: String, trim: true },
+      serialNo: { type: String, trim: true },
+      partNo: { type: String, trim: true },
+      partModel: { type: String, trim: true },
+
 
     modelName: {
       type: String,
@@ -63,7 +69,7 @@ const complaintSchema = new Schema(
 
     doa: {
       type: String,
-      enum: { values: ["DOA", "IW", "OOW", ""], message: "{VALUE} is not valid" },
+      enum: { values: ["DOA", "IW", "OW", ""], message: "{VALUE} is not valid" },
       default: "",
     },
 

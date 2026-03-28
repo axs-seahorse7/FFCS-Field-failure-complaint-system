@@ -45,8 +45,8 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, c
           {tag && <Tag color={tagColor} style={{ fontSize: 10, borderRadius: 5, padding: "0 5px", margin: 0 }}>{tag}</Tag>}
         </div>
         {onExpand && (
-          <Button type="text" size="small" icon={<ExpandAltOutlined />} onClick={onExpand}
-            style={{ color: "#cbd5e1", fontSize: 12, padding: "0 3px" }} />
+          <Button type="text" size="small" icon={<ExpandAltOutlined color="blue" />} onClick={onExpand}
+            style={{ color: "blue", fontSize: 12, padding: "0 3px" }} />
         )}
       </div>
       <div style={CHART_SHADOW}>

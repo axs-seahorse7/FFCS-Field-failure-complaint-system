@@ -23,27 +23,27 @@ import BulkUpload         from "./Pages/Admin/Dashboard/insert-bulk-complaint/Bu
 
 function App() {
 
-    useEffect(() => {
-      const lenis = new Lenis({
-        duration: 1.2,
-        smooth: true,
-        gestureOrientation: "vertical",
-      });
+    // useEffect(() => {
+    //   const lenis = new Lenis({
+    //     duration: 1.2,
+    //     smooth: true,
+    //     gestureOrientation: "vertical",
+    //   });
 
-      let rafId;
+    //   let rafId;
 
-      const raf = (time) => {
-        lenis.raf(time);
-        rafId = requestAnimationFrame(raf);
-      };
+    //   const raf = (time) => {
+    //     lenis.raf(time);
+    //     rafId = requestAnimationFrame(raf);
+    //   };
 
-      rafId = requestAnimationFrame(raf);
+    //   rafId = requestAnimationFrame(raf);
 
-      return () => {
-        cancelAnimationFrame(rafId);
-        lenis.destroy();
-      };
-    }, []);
+    //   return () => {
+    //     cancelAnimationFrame(rafId);
+    //     lenis.destroy();
+    //   };
+    // }, []);
  
 
       return (
