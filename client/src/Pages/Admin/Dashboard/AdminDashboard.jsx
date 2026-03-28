@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { useNavigate, useLocation, Outlet, } from "react-router-dom";
 import {
   Layout, Menu, Avatar, Button, Dropdown, Space, Tooltip,
   Drawer, Select, DatePicker,
@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import Toast from "./components/Toast";
 import "./dashboard.css";
+import api from "../../../services/axios-interceptore/api";
 
 const { Sider, Content, Header } = Layout;
 const { RangePicker } = DatePicker;
@@ -78,9 +79,9 @@ export default function AdminDashboard({ userEmail }) {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      localStorage.removeItem("token");
-      window.location.href = "/";
+      console.log("Attempting logout for user:", user?.email);
+      await api.post("/auth/logout");
+      navigate("/", { replace: true });
     } catch (e) { console.error(e); }
   };
 

@@ -48,7 +48,8 @@ router.get("/complaints/by-replacement",       isAuthenticated, getByReplacement
 router.get("/complaints/by-created-user",      isAuthenticated, getByCreatedUser);
 router.get("/complaints/by-updated-user",      isAuthenticated, getByUpdatedUser);
 router.get("/complaints/aging",                isAuthenticated, getAging);
-router.get("/complaints/production-stats",       isAuthenticated, getProductionStats);
+router.get("/complaints/production-stats",     isAuthenticated, getProductionStats);
+
 /* ── Admin CRUD ── */
 router.post("/complaints/status", isAuthenticated, updateComplaintStatus);
 router.post("/complaints/delete", isAuthenticated, deleteComplaint);

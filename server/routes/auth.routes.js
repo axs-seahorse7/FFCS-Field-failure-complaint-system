@@ -159,6 +159,7 @@ router.get("/me", isAuthenticated, async (req, res) => {
 
 router.post("/logout", isAuthenticated, async (req, res) => {
     try {
+        console.log("Logging out user:", req.user.userId);
         res.clearCookie("token", {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",

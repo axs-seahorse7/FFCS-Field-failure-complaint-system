@@ -102,7 +102,6 @@ router.get("/users", isAuthenticated, async (req, res) => {
     }
 });
 
-
 router.post("/production", isAuthenticated, async (req, res) => {
     try {
         const { customer, commodity, month, production } = req.body;
