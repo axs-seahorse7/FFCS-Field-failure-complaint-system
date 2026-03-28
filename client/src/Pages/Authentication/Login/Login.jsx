@@ -3,13 +3,10 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../services/axios-interceptore/api.js";
 
 /* ─── Logo ─── */
-const Logo = () => (
-  <div style={{
-    width: 60, height: 60, borderRadius: 10,
-    
-  }}>
-  <img src="/pg-logo-Photoroom (1).png" alt="" />
-</div>
+const Logo = ({ size = 60 }) => (
+  <div style={{ width: size, height: size, borderRadius: 10 }}>
+    <img src="/pg-logo-Photoroom (1).png" alt="PG Group" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+  </div>
 );
 
 const RESEND_SECONDS = 60;
@@ -90,57 +87,34 @@ export default function Login() {
   };
 
   const handleOtpSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-
-  if (otp.join("").length < 6) {
-    setError("Please enter all 6 digits of your OTP.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const response = await api.post("/auth/verify-otp", {
-      email,
-      otp: otp.join(""),
-    });
-
-    const { token, role } = response?.data;
-
-    // ✅ Only set cookies if token exists (ACTIVE USER)
-    if (token) {
-      document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
-      document.cookie = `role=${encodeURIComponent(role)}; path=/; max-age=3600; samesite=lax`;
-
-      setSuccess("Login successful.");
-
-      setTimeout(() => {
-        if (role === "admin") {
-          navigate("/dashboard", { replace: true });
-        } else {
-          navigate("/complaints", { replace: true });
-        }
-      }, 500);
-    }
-
-  } catch (err) {
-    setLoading(false);
-
-    const message = err?.response?.data?.message;
-
-    //  HANDLE PENDING USER
-    if (err?.response?.status === 403) {
-      navigate("/account/pending", { replace: true });
+    e.preventDefault();
+    setError("");
+    if (otp.join("").length < 6) {
+      setError("Please enter all 6 digits of your OTP.");
       return;
     }
-
-    //  Other errors
-    setError(message || "Invalid OTP. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      const response = await api.post("/auth/verify-otp", { email, otp: otp.join("") });
+      const { token, role } = response?.data;
+      if (token) {
+        document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
+        document.cookie = `role=${encodeURIComponent(role)}; path=/; max-age=3600; samesite=lax`;
+        setSuccess("Login successful.");
+        setTimeout(() => {
+          if (role === "admin") navigate("/dashboard", { replace: true });
+          else navigate("/complaints", { replace: true });
+        }, 500);
+      }
+    } catch (err) {
+      setLoading(false);
+      const message = err?.response?.data?.message;
+      if (err?.response?.status === 403) { navigate("/account/pending", { replace: true }); return; }
+      setError(message || "Invalid OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResend = () => {
     if (!canResend) return;
@@ -179,7 +153,6 @@ export default function Login() {
           border-right: 1px solid #e2e8f0;
         }
 
-        /* Subtle decorative background */
         .pg-left-bg {
           position: absolute; inset: 0;
           background:
@@ -188,11 +161,9 @@ export default function Login() {
           pointer-events: none;
         }
 
-        /* Light dot grid */
         .pg-grid {
           position: absolute; inset: 0;
-          background-image:
-            radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+          background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
           background-size: 28px 28px;
           pointer-events: none;
           opacity: 0.55;
@@ -276,7 +247,6 @@ export default function Login() {
           position: relative; flex-shrink: 0; overflow: hidden;
         }
 
-        /* Subtle top-right orb */
         .pg-right::before {
           content: '';
           position: absolute; top: -140px; right: -140px;
@@ -293,13 +263,14 @@ export default function Login() {
         }
         .pg-card.vis { opacity: 1; transform: none; }
 
-        /* Card container box */
         .pg-card-box {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 20px;
           padding: 36px 32px 32px;
           box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+          /* Prevent any child from overflowing */
+          overflow: hidden;
         }
 
         /* Step dots */
@@ -335,6 +306,20 @@ export default function Login() {
         }
         .card-sub strong { color: #475569; font-weight: 600; }
 
+        /* Mobile logo — only visible on mobile, in OTP step */
+        .mobile-logo {
+          display: none;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 20px;
+        }
+        .mobile-logo-name { font-size: 16px; font-weight: 800; color: #1e293b; letter-spacing: -0.4px; }
+        .mobile-logo-desc {
+          font-size: 9px; font-weight: 600; color: #e53935;
+          letter-spacing: 2px; text-transform: uppercase;
+          font-family: 'DM Mono', monospace; margin-top: 1px;
+        }
+
         /* Fields */
         .field-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 24px; }
         .field-label {
@@ -360,15 +345,29 @@ export default function Login() {
           background: #f1f5f9; border-color: #e2e8f0;
         }
 
-        /* OTP */
-        .otp-row { display: flex; gap: 9px; margin-top: 20px; }
+        /* ── OTP ROW FIX ── */
+        .otp-row {
+          display: flex;
+          gap: 8px;
+          margin-top: 20px;
+          width: 100%;
+          /* Ensure the row never overflows its container */
+          overflow: hidden;
+        }
         .otp-box {
-          flex: 1; aspect-ratio: 1; max-width: 54px;
+          /* flex: 1 lets each box grow equally; min-width:0 prevents flex blowout */
+          flex: 1;
+          min-width: 0;
+          /* Enforce a square via aspect-ratio; cap max so they stay proportional */
+          aspect-ratio: 1;
+          max-width: 52px;
           background: #f8fafc; border: 1.5px solid #e2e8f0;
-          border-radius: 12px; color: #1e293b; font-size: 22px; font-weight: 700;
+          border-radius: 12px; color: #1e293b; font-size: 20px; font-weight: 700;
           font-family: 'DM Mono', monospace; text-align: center; outline: none;
           transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
           caret-color: #e53935;
+          /* Prevent the box itself from shrinking below a usable tap size */
+          min-height: 40px;
         }
         .otp-box:focus {
           border-color: #e53935; background: #fff;
@@ -401,12 +400,8 @@ export default function Login() {
           padding: 10px 13px; border-radius: 9px;
           font-size: 13px; margin-top: 16px; line-height: 1.5; font-weight: 500;
         }
-        .feedback.err {
-          background: #fff5f5; border: 1px solid #fecaca; color: #dc2626;
-        }
-        .feedback.ok {
-          background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a;
-        }
+        .feedback.err { background: #fff5f5; border: 1px solid #fecaca; color: #dc2626; }
+        .feedback.ok  { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
 
         /* Submit button */
         .submit-btn {
@@ -448,14 +443,37 @@ export default function Login() {
           font-family: 'DM Mono', monospace; letter-spacing: 0.3px;
         }
 
-        /* Divider between card and security note */
         .pg-divider {
           height: 1px; background: #f1f5f9; margin: 20px 0 0;
         }
 
+        /* ── MOBILE ── */
         @media (max-width: 860px) {
           .pg-left { display: none; }
-          .pg-right { width: 100%; border-left: none; background: #f8fafc; }
+          .pg-right {
+            width: 100%; border-left: none;
+            background: #f8fafc;
+            padding: 32px 20px;
+          }
+          .pg-card { max-width: 100%; }
+          .pg-card-box { padding: 28px 20px 24px; }
+
+          /* Show mobile logo only on step 2 (OTP) */
+          .mobile-logo { display: flex; }
+
+          /* Tighter OTP on small screens */
+          .otp-row { gap: 6px; }
+          .otp-box {
+            font-size: 18px;
+            border-radius: 10px;
+            /* On very small screens let them shrink more */
+            max-width: 44px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .otp-row { gap: 4px; }
+          .otp-box { font-size: 16px; border-radius: 8px; max-width: 38px; }
         }
       `}</style>
 
@@ -466,7 +484,6 @@ export default function Login() {
           <div className="pg-left-bg" />
           <div className="pg-grid" />
 
-          {/* Brand */}
           <div className="pg-left-top">
             <div className={`pg-brand ${mounted ? "vis" : ""}`}>
               <Logo />
@@ -477,7 +494,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Headline + features */}
           <div className={`pg-left-mid ${mounted ? "vis" : ""}`}>
             <div className="pg-headline">
               Manage defects<br />with complete<br /><em>confidence.</em>
@@ -528,7 +544,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Bottom badges */}
           <div className={`pg-left-bottom ${mounted ? "vis" : ""}`}>
             <div className="pg-badge"><div className="pg-badge-dot" />ALL SYSTEMS OPERATIONAL</div>
             <div className="pg-badge">SOC 2</div>
@@ -539,11 +554,8 @@ export default function Login() {
         {/* ══ RIGHT PANEL ══ */}
         <div className="pg-right">
           <div className={`pg-card ${mounted ? "vis" : ""}`}>
-
-            {/* Card box */}
             <div className="pg-card-box">
 
-              {/* Step progress dots */}
               <div className="pg-steps-row">
                 <div className={`pg-step-dot ${step === 1 ? "current" : "done"}`} />
                 <div className={`pg-step-dot ${step === 2 ? "current" : step > 2 ? "done" : ""}`} />
@@ -595,6 +607,16 @@ export default function Login() {
 
                 {/* ── STEP 2: OTP ── */}
                 <div className={`pg-panel ${step === 2 && !animating ? "active" : ""}`}>
+
+                  {/* Mobile-only logo — top left of OTP card */}
+                  <div className="mobile-logo">
+                    <Logo size={38} />
+                    <div>
+                      <div className="mobile-logo-name">PG Group</div>
+                      <div className="mobile-logo-desc">Field Failure System</div>
+                    </div>
+                  </div>
+
                   <div className="card-eyebrow">Step 2 of 2</div>
                   <div className="card-title">Check your inbox</div>
                   <div className="card-sub">
@@ -684,8 +706,6 @@ export default function Login() {
 
               </div>
             </div>
-            {/* End card box */}
-
           </div>
         </div>
 

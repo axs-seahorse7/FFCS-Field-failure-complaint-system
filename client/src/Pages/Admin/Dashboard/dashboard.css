@@ -191,3 +191,15 @@
 @media (max-width: 900px) {
   .pg-chart-grid { grid-template-columns: 1fr; }
 }
+
+.recharts-wrapper text {
+  font-size: 10px !important;
+}
+
+.recharts-pie-label-text {
+  font-size: 10px !important;
+}
+
+.recharts-layer text {
+  font-size: 10px !important;
+}
