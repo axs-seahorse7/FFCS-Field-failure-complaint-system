@@ -61,13 +61,28 @@ function ChartCard({ title, icon, tag, tagColor, loading: isLoading, onExpand, c
 }
 
 /* ── Grid ── */
-function Grid({ cols = 2, children }) {
-  const pct = `calc(${100 / cols}% - ${((cols - 1) * 12) / cols}px)`;
+function Grid({ cols = 3, children }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-      {(Array.isArray(children) ? children : [children]).filter(Boolean).map((child, i) => (
-        <div key={i} style={{ flex: `0 0 ${pct}`, minWidth: 260, boxSizing: "border-box" }}>{child}</div>
-      ))}
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 12
+      }}
+    >
+      {(Array.isArray(children) ? children : [children])
+        .filter(Boolean)
+        .map((child, i) => (
+          <div
+            key={i}
+            style={{
+              flex: `1 1 calc(${100 / cols}% - 12px)`,
+              minWidth: 320
+            }}
+          >
+            {child}
+          </div>
+        ))}
     </div>
   );
 }
@@ -241,6 +256,7 @@ const ComplaintsByCustomer = ({ h = 300 }) => {
           />
         </Bar>
       </BarChart>
+
     </ResponsiveContainer>
   );
 };
@@ -351,7 +367,7 @@ const ComplaintsByCustomer = ({ h = 300 }) => {
 
   /* ── Table columns ── */
   const tableCols = [
-    { title: "#", key: "idx", width: 44, render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 12 }}>{i+1}</span> },
+    { title: "S.N.", key: "idx", width: 44, render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 12 }}>{i+1}</span> },
     { title: "Brand",      dataIndex: "name",      key: "cust",  render: v => <b style={{ fontSize: 13, color: "#1e293b" }}>{v}</b> },
     { title: "Complaints", dataIndex: "complaints",    key: "count", sorter: (a,b) => b.complaints - a.complaints, defaultSortOrder: "ascend",
       render: v => <span style={{ color: "#e53935", fontWeight: 800, fontSize: 13, fontFamily: "monospace" }}>{fmtNum(v)}</span> },
@@ -371,6 +387,7 @@ const ComplaintsByCustomer = ({ h = 300 }) => {
           statusMap[s._id] = s;
         });
       }
+      
   const finalData = customers?.map(c => {
     const produced = productionMap[c.name] || 0;
 

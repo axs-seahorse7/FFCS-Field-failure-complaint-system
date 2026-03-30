@@ -18,6 +18,7 @@ import User from "./Database/models/User-Models/user.models.js";
 import complaitRoutes from "./routes/complaint.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import productionRoutes from "./routes/production.routes.js";
+import ensureAdminAccount from "./Temp/ensureAdminAccount.js";
 
 
 
@@ -40,30 +41,6 @@ app.use(cookieParser());
 app.use(express.static(path.join(process.cwd(), "public")));
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
-const ensureAdminAccount = async () => {
-	const adminEmail = process.env.ADMIN_EMAIL || "pe.pgtl2@pgel.in";
-
-	const existingAdmin = await User.findOne({ email: adminEmail });
-	if (existingAdmin) {
-		if (existingAdmin.role !== "admin") {
-			existingAdmin.role = "admin";
-			await existingAdmin.save();
-		}
-		console.log(`Admin account ready: ${adminEmail}`);
-		return;
-	}
-
-	await User.create({
-		email: adminEmail,
-		role: "admin",
-		otp: "000000",
-		status: "active",
-		otpExpiresAt: new Date(0),
-		isBlocked: false,
-	});
-
-	console.log(`Admin account created: ${adminEmail}`);
-};
 
 app.get("/", (req, res) => {
   res.send("API running 🚀");
@@ -81,7 +58,7 @@ app.use("/api/production", productionRoutes);
 const startServer = async () => {
 	try {
 		await connectDB();
-		createTransporter(); // Validate SMTP config at startup
+		createTransporter();
 		// await ensureAdminAccount();
 
 		app.listen(PORT, () => {

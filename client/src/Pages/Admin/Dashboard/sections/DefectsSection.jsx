@@ -173,7 +173,7 @@ export default function DefectsSection() {
   const sortedCategory = useMemo(() => (byCategory || [])?.sort((a, b) => b.count - a.count), [byCategory]);
 
   const paretoData = useMemo(() => {
-    const total = sortedDefects?.reduce((s, d) => s + d.count, 0);
+     const total = sortedDefects?.reduce((s, d) => s + d.count, 0);
     let cum = 0;
     return sortedDefects?.map(d => {
       cum += d.count;
@@ -467,10 +467,6 @@ export default function DefectsSection() {
           <CommodityPieChart />
         </ChartCard>
 
-      </Grid>
-
-      {/* Row 2 — Trend + Part Radar + Treemap */}
-      <Grid cols={3}>
         <ChartCard title="Monthly Defect Volume & Quality Rate" icon={<MdTrendingUp color="green" />} tag="12 Months" tagColor="blue" loading={isLoading}
           onExpand={() => openPreview("Monthly Defect Trend", <DefectTrendChart h={380} />)}>
           <DefectTrendChart />
@@ -488,7 +484,7 @@ export default function DefectsSection() {
 
       </Grid>
 
-      {/* Row 3 — Pareto (full width) */}
+      
       
 
       {/* Row 4 — Customer vs Category + Commodity vs Category */}

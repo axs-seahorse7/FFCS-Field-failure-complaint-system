@@ -8,9 +8,14 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["admin", "user"],
+        enum: ["admin", "user", "hod"],
         default: "user"
     },
+    roleId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Role"
+    },
+    
     otp: { 
         type: String, 
     },

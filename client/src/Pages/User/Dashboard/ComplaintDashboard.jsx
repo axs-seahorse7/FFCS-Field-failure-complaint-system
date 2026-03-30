@@ -321,7 +321,7 @@ export default function ComplaintDashboard({  userEmail, }) {
           <div className=" mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-20 h-20 rounded-md flex items-center justify-center shrink-0">
-                <img src="pg-logo-Photoroom.png" alt="PG Logo" />
+                <img src="./pg-logo-Photoroom.png" alt="PG Logo" />
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-bold text-white leading-tight ">FFS Dashboard</p>
@@ -352,7 +352,7 @@ export default function ComplaintDashboard({  userEmail, }) {
                 <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
-                onClick={() => navigate("/complaint-form")}
+                onClick={() => navigate("/complaints/form")}
                 className="flex items-center gap-1.5 px-3 py-1.5 max-sm:hidden rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all shadow-lg shadow-cyan-900/30"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -398,7 +398,7 @@ export default function ComplaintDashboard({  userEmail, }) {
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
 
                 <button
-                onClick={() => navigate("/complaint-form")}
+                onClick={() => navigate("/complaints/form")}
                 className=" self-end w-40 items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

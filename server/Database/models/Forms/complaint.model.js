@@ -125,6 +125,12 @@ const complaintSchema = new Schema(
       default: "Open",
     },
 
+    remarks: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     /* ── Audit fields ── */
     createdBy: {
       type: mongoose.Schema.Types.ObjectId, // user email or userId

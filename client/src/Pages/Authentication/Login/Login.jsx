@@ -96,14 +96,35 @@ export default function Login() {
     setLoading(true);
     try {
       const response = await api.post("/auth/verify-otp", { email, otp: otp.join("") });
-      const { token, role } = response?.data;
+      const { token, user } = response?.data;
       if (token) {
         document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
-        document.cookie = `role=${encodeURIComponent(role)}; path=/; max-age=3600; samesite=lax`;
+
+        // 🔥 store full user (IMPORTANT)
+        localStorage.setItem("User", JSON.stringify(user));
+        console.log("Logged in user:", user);
+
+        const permissions = user?.roleId?.permissions || [];
+        console.log("User permissions:", permissions);
+
         setSuccess("Login successful.");
+
         setTimeout(() => {
-          if (role === "admin") navigate("/dashboard", { replace: true });
-          else navigate("/complaints", { replace: true });
+          if (user?.isSystemRole) {
+            navigate("/dashboard", { replace: true });
+          } 
+          else if (permissions.includes("complaint")) {
+            navigate("/complaints", { replace: true });
+          } 
+          else if (permissions.includes("manage")) {
+            navigate("/dashboard/manage", { replace: true });
+          } 
+          else if (permissions.includes("register")) {
+            navigate("/dashboard/register", { replace: true });
+          } 
+          else {
+            navigate("/", { replace: true });
+          }
         }, 500);
       }
     } catch (err) {

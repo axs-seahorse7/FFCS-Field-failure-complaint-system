@@ -218,8 +218,8 @@ export default function OverviewSection({ addToast,  }) {
   /* Year-scoped filters */
   const yearFilters = useMemo(() => ({
     ...filters,
-    from: `${filters.year}-01-01T00:00:00.000Z`,
-    to:   `${filters.year}-12-31T23:59:59.999Z`,
+    from: `${filters?.year}-01-01T00:00:00.000Z`,
+    to:   `${filters?.year}-12-31T23:59:59.999Z`,
   }), [filters]);
 
   const lastYearFilters = useMemo(() => ({
@@ -387,32 +387,7 @@ export default function OverviewSection({ addToast,  }) {
 
   const openPreview = (title, chartEl) => setPreview({ title, chart: chartEl });
 
-  /* ──────────────── NEEDLE OVERLAY ──────────────── */
-  function NeedleOverlay({ angleDeg, h, innerRadius }) {
-    const toRad   = d => (d * Math.PI) / 180;
-    const needleL = innerRadius - 6;
-    const pivotR  = 6;
-    const W  = 100;
-    const cx = 50;
-    const cy = h * 0.8;
-    const tipX  = cx + needleL * Math.cos(toRad(angleDeg));
-    const tipY  = cy - needleL * Math.sin(toRad(angleDeg));
-    const lx    = cx + pivotR  * Math.cos(toRad(angleDeg + 90));
-    const ly    = cy - pivotR  * Math.sin(toRad(angleDeg + 90));
-    const rx    = cx + pivotR  * Math.cos(toRad(angleDeg - 90));
-    const ry    = cy - pivotR  * Math.sin(toRad(angleDeg - 90));
-    const tailX = cx + (needleL * 0.18) * Math.cos(toRad(angleDeg + 180));
-    const tailY = cy - (needleL * 0.18) * Math.sin(toRad(angleDeg + 180));
-    return (
-      <svg viewBox={`0 0 ${W} ${h}`} width="100%" height={h}
-        style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
-        <polygon points={`${tipX},${tipY} ${lx},${ly} ${rx},${ry}`} fill="#1e293b" opacity={0.88} />
-        <line x1={cx} y1={cy} x2={tailX} y2={tailY} stroke="#1e293b" strokeWidth={2} opacity={0.45} />
-        <circle cx={cx} cy={cy} r={pivotR}     fill="#1e293b" opacity={0.9} />
-        <circle cx={cx} cy={cy} r={pivotR - 3} fill="#fff" />
-      </svg>
-    );
-  }
+
 
   /* ──────────────── CHARTS ──────────────── */
 
@@ -914,6 +889,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
       {/* ROW A — 3 donut/pie charts */}
       <Grid cols={4}  >
         <ChartCard title="Complaint Status Share"
+        loading={isLoading}
           icon={<MdDonutLarge size={15} color="#3b82f6" />}
           onExpand={() => openPreview("Complaint Status Share", <StatusDonut h={400} />)}>
           <StatusDonut h={200} />
@@ -940,17 +916,13 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
             <CustomerRadial />
           </ChartCard>
 
-      </Grid>
-
-      {/* ROW B — 2 trend charts */}
-      <Grid cols={3}>
         <ChartCard title="Monthly Complaint Trend"
           icon={<MdTrendingUp size={15} color="#e53935" />}
           tag={`${selectedYear}`} tagColor="blue" loading={isLoading}
           onExpand={() => openPreview("Monthly Complaint Trend", <MonthlyLine h={380} />)}>
           <MonthlyLine />
         </ChartCard>
-        
+
         <ChartCard title={`${selectedYear} vs ${selectedYear - 1} Comparison`}
           icon={<MdBarChart size={15} color="#3b82f6" />}
           tag="YoY" tagColor="geekblue" loading={isLoading}
@@ -966,6 +938,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
         </ChartCard>
 
       </Grid>
+
 
      
 

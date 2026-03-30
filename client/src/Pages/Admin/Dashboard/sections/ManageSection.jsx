@@ -30,6 +30,10 @@ export default function ManageSection({ addToast }) {
     { onError: () => addToast("Failed to load complaints", "error") }
   );
 
+  const user = JSON.parse(localStorage.getItem("User")) || {};
+
+  console.log("User:", user);
+
   const list = data?.complaints || [];
   const total = data?.total || 0;
 
@@ -61,44 +65,68 @@ export default function ManageSection({ addToast }) {
     }
   };
 
-  const columns = [
-    { title: "#", width: 44, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
-    { title: "Complaint No", dataIndex: "complaintNo", width: 130 },
-    { title: "Date", dataIndex: "complaintDate", width: 100, render: v => fmtDate(v) },
-    { title: "Customer", dataIndex: "customerName", width: 110 },
-    { title: "Commodity", dataIndex: "commodity", width: 110 },
-    { title: "Model", dataIndex: "modelName", width: 120, ellipsis: true },
-    { title: "Defect", dataIndex: "defectDetails", width: 140, ellipsis: true },
-    { title: "Part", dataIndex: "defectivePart", width: 120, ellipsis: true },
-    { title: "DOA", dataIndex: "doa", width: 60 },
-    {
-      title: "Status", dataIndex: "status", width: 100,
-      render: v => <StatusBadge status={v} />
-    },
-    {
-      title: "Change Status", width: 130,
-      render: (_, r) => (
-        <Select
-          value={r.status}
-          size="small"
-          loading={updatingId === r._id}
-          onChange={v => updateStatus(r._id, v)}
-          onClick={e => e.stopPropagation()}
-          style={{ width: 120 }}
-        >
-          {STATUSES.map(s => <Option key={s}>{s}</Option>)}
-        </Select>
-      )
-    },
-    {
-      title: "Actions", width: 70,
-      render: (_, r) => (
-        <Popconfirm title="Delete this complaint?" onConfirm={() => deleteComplaint(r._id)}>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={e => e.stopPropagation()} />
-        </Popconfirm>
-      )
-    },
-  ];
+
+  const actions = user?.roleId?.action || [];
+    const canDelete = user.isSystemRole || actions.includes("delete");
+    const canUpdate = user.isSystemRole || actions.includes("edit");
+
+    const columns = [
+      { title: "S.N.", width: 46, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
+      { title: "Complaint No", dataIndex: "complaintNo", width: 130 },
+      { title: "Complaint Date", dataIndex: "complaintDate", width: 100, render: v => fmtDate(v) },
+      { title: "Customer", dataIndex: "customerName", width: 110 },
+      { title: "Commodity", dataIndex: "commodity", width: 110 },
+      { title: "Model", dataIndex: "modelName", width: 120, ellipsis: true },
+      { title: "Defect", dataIndex: "defectDetails", width: 140, ellipsis: true },
+      { title: "Part", dataIndex: "defectivePart", width: 120, ellipsis: true },
+      { title: "DOA", dataIndex: "doa", width: 60 },
+
+      {
+        title: "Status",
+        dataIndex: "status",
+        width: 100,
+        render: v => <StatusBadge status={v} />
+      },
+        ...(canUpdate? [{
+          title: "Change Status",
+          width: 130,
+          render: (_, r) => (
+            <Select
+              value={r.status}
+              size="small"
+              loading={updatingId === r._id}
+              onChange={v => updateStatus(r._id, v)}
+              onClick={e => e.stopPropagation()}
+              style={{ width: 120 }}
+              disabled={!canUpdate}
+            >
+              {STATUSES.map(s => <Option key={s}>{s}</Option>)}
+            </Select>
+          )
+        }]: []),
+
+          
+      //  CONDITIONAL COLUMN
+      ...(canDelete 
+        ? [{
+            title: "Actions",
+            width: 70,
+            render: (_, r) => (
+              <Popconfirm
+                title="Delete this complaint?"
+                onConfirm={() => deleteComplaint(r._id)}
+              >
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={e => e.stopPropagation()}
+                />
+              </Popconfirm>
+            )
+          }]
+        : [])
+    ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

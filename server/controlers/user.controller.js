@@ -38,6 +38,7 @@ export const getUsers = async (req, res) => {
 
     const users = await User.find(query)
       .select("-password -otp -otpExpiresAt")
+      .populate("roleId")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))

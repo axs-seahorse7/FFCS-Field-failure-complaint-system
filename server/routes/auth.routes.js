@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../helpers/nodemailer/nodemailer.js";
 import { isAuthenticated } from "../middleware/Authentication/isAuthenticated.js";
 import { otpEmailTemplate } from "../helpers/HTML-templates-Mail/OTP-temp.js";
+import roleModel from "../Database/models/Role/role.model.js";
 
 const router = e.Router();
 
@@ -67,7 +68,7 @@ router.post("/verify-otp", async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).populate("roleId");
 
         if (!user) {
             return res.status(404).json({
@@ -111,6 +112,7 @@ router.post("/verify-otp", async (req, res) => {
                 success: true,
                 token,
                 role: user.role,
+                user,
             });
         }
 
@@ -137,25 +139,62 @@ router.post("/verify-otp", async (req, res) => {
 });
 
 router.get("/me", isAuthenticated, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .populate("roleId"); // 🔥 THIS IS THE FIX
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      success: false,
+    });
+  }
+});
+
+router.post("/create-role", isAuthenticated, async (req, res) => {
+    const roles = req.body;
+    console.log("Creating role with data:", roles);
+    if (!roles.role || !roles.permission) {
+        return res.status(400).json({ message: "Role name and permissions are required" });
+    }
+
     try {
-        const user = await User.findById(req.user.userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // Check if role already exists
+        const existingRole = await roleModel.findOne({ name: roles.role.toLowerCase() });
+        if (existingRole) {
+            console.warn(`Role "${roles.role}" already exists`);
+            return res.status(400).json({ message: ` Role "${roles.role}" already exists ` });
         }
-
-        return res.status(200).json({
-            success: true,
-            user,
+        const newRole = new roleModel({
+            name: roles.role.toLowerCase(),
+            permissions: roles.permission,
+            action: roles.action || []
         });
+        await newRole.save();
+        return res.status(201).json({ message: "Role created successfully", role: newRole });
     } catch (error) {
-        return res.status(500).json({
-            message: error.message,
-            success: false,
-        });
+        console.error("Error creating role:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
+router.get("/roles", isAuthenticated, async (req, res) => {
+    try {
+        const roles = await roleModel.find({});
+        return res.status(200).json({ success: true, roles });
+    } catch (error) {
+        console.error("Error fetching roles:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 router.post("/logout", isAuthenticated, async (req, res) => {
     try {

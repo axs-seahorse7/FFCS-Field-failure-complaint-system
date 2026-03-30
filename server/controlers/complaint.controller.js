@@ -114,7 +114,7 @@ export const updateComplaintStatus = async (req, res) => {
     const { id, status } = req.body;
     if (!id || !status) return res.status(400).json({ message: "id and status required" });
 
-    const VALID = ["Open", "Active", "Pending", "Resolved", "Closed"];
+    const VALID = ["Open", "Pending", "Resolved", "Closed"];
     if (!VALID.includes(status)) return res.status(400).json({ message: "Invalid status" });
 
     const complaint = await Complaint.findById(id);
@@ -122,6 +122,7 @@ export const updateComplaintStatus = async (req, res) => {
 
     const prevStatus = complaint.status;
     complaint.status    = status;
+    complaint.remarks   = req.body.remarks || complaint.remarks;
     complaint.updatedBy = req.user.userId;
     complaint.updatedAt = new Date();
     await complaint.save();

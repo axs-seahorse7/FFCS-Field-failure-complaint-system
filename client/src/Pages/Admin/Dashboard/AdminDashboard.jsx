@@ -1,14 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, Outlet, } from "react-router-dom";
-import {
-  Layout, Menu, Avatar, Button, Dropdown, Space, Tooltip,
-  Drawer, Select, DatePicker,
-} from "antd";
-import {
-  DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined,
-  MenuFoldOutlined, MenuUnfoldOutlined,
-  LogoutOutlined, FileTextOutlined, SettingOutlined, UserSwitchOutlined,
-  FilterOutlined, CloseOutlined, ReloadOutlined, CalendarOutlined, UploadOutlined,
+import { Layout, Menu, Avatar, Button, Dropdown, Space, Tooltip, Drawer, Select, DatePicker } from "antd";
+import { DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, FileTextOutlined, SettingOutlined, UserSwitchOutlined, FilterOutlined, CloseOutlined, ReloadOutlined, CalendarOutlined, UploadOutlined, FilePptOutlined ,
 } from "@ant-design/icons";
 import Toast from "./components/Toast";
 import "./dashboard.css";
@@ -23,16 +16,18 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
 const NAV_ITEMS = [
-  { key: "overview",    icon: <DashboardOutlined />,  label: "Overview" },
-  { key: "defects",     icon: <BugOutlined />,         label: "Defect Analysis" },
-  { key: "customers",   icon: <TeamOutlined />,         label: "Customer Wise" },
-  { key: "warranty",    icon: <SafetyOutlined />,       label: "Warranty & PPM" },
+  { key: "overview", label: "Overview", permission: "overview", icon: <DashboardOutlined /> },
+  { key: "defects", label: "Defect Analysis", permission: "defects", icon: <BugOutlined /> },
+  { key: "customers", label: "Customer Wise", permission: "customers", icon: <TeamOutlined /> },
+  { key: "warranty", label: "Warranty & PPM", permission: "warranty", icon: <SafetyOutlined /> },
+
   { type: "divider" },
-  { key: "register",    icon: <FileTextOutlined />,     label: "Complaint Register" },
-  { key: "manage",      icon: <SettingOutlined />,      label: "Manage Complaints" },
-  { key: "users",       icon: <UserSwitchOutlined />,   label: "Manage Users" },
-  { key: "production",  icon: <FileTextOutlined />,     label: "Manage Production" },
-  { key: "bulk-upload", icon: <UploadOutlined />,       label: "Bulk Upload" },
+
+  { key: "register", label: "Complaint Register", permission: "register", icon: <FileTextOutlined /> },
+  { key: "manage", label: "Manage Complaints", permission: "manage", icon: <SettingOutlined /> },
+  { key: "users", label: "Manage Users", permission: "users", icon: <UserSwitchOutlined /> },
+  { key: "production", label: "Production", permission: "production", icon: <FilePptOutlined /> },
+  { key: "bulk-upload", label: "Bulk Upload", permission: "bulk-upload", icon: <UploadOutlined /> },
 ];
 
 const SECTION_META = {
@@ -47,6 +42,7 @@ const SECTION_META = {
   "bulk-upload":{ label: "Bulk Upload",         desc: "Upload complaints in bulk" },
 };
 
+
 export default function AdminDashboard({ userEmail }) {
   const [collapsed, setCollapsed]     = useState(true);
   const [toasts, setToasts]           = useState([]);
@@ -55,16 +51,17 @@ export default function AdminDashboard({ userEmail }) {
   const location  = useLocation();
 
   // Derive active key from URL: /dashboard/defects → "defects"
-  const active = location.pathname.split("/dashboard/")[1]?.split("/")[0] || "overview";
-  const meta   = SECTION_META[active] || SECTION_META.overview;
-
+  const user = JSON.parse(localStorage.getItem("User") || "{}");
+  const active = location.pathname.split("/")[2] || "overview";
+  const meta = SECTION_META[active || "overview"];
+  
+  
   // ── Year state ──
   const [selectedYear,    setSelectedYear]    = useState(CURRENT_YEAR);
   const [filterCustomer,  setFilterCustomer]  = useState("");
   const [filterDateRange, setFilterDateRange] = useState(null);
   const [extraFilters,    setExtraFilters]    = useState({});
 
-  const user = JSON.parse(localStorage.getItem("User") || "{}");
 
   const appliedFilters = useMemo(() => ({
     year: selectedYear,
@@ -111,10 +108,13 @@ export default function AdminDashboard({ userEmail }) {
 
   const extraFilterCount = Object.keys(extraFilters).length;
 
-  const menuItems = useMemo(() =>
-    NAV_ITEMS.filter(i => i.key !== undefined || i.type === "divider")
-      .map(i => i.type === "divider" ? { type: "divider", key: "div1" } : i)
-  , []);
+    const permissions = user?.roleId?.permissions || [];
+    const menuItems = useMemo(() => {
+      if (user?.isSystemRole) return NAV_ITEMS;
+      return NAV_ITEMS.filter(item =>
+        !item.permission || permissions.includes(item.permission)
+      );
+    }, [user]);
 
   const userMenu = {
     items: [
@@ -123,6 +123,18 @@ export default function AdminDashboard({ userEmail }) {
       { key: "logout", icon: <LogoutOutlined />, label: "Logout", danger: true, onClick: handleLogout },
     ]
   };
+
+  useEffect(() => {
+  if (!active && permissions.length) {
+    const firstAllowed = NAV_ITEMS.find(item =>
+      permissions.includes(item.permission)
+    );
+
+    if (firstAllowed) {
+      navigate(`/dashboard/${firstAllowed.key}`, { replace: true });
+    }
+  }
+}, [active, permissions]);
 
   return (
     <Layout className="pg-root" style={{ minHeight: "100vh" }}>
@@ -142,7 +154,7 @@ export default function AdminDashboard({ userEmail }) {
         <div style={{
           padding: "14px 16px", borderBottom: "1px solid #f0f2f5",
           display: "flex", alignItems: "center", gap: 10,
-          background: "#ECE7D1", minHeight: 56,
+          background: "", minHeight: 56,
         }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <img src="/pg-logo-Photoroom (1).png" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
@@ -167,6 +179,7 @@ export default function AdminDashboard({ userEmail }) {
               Analytics
             </div>
           )}
+
           <Menu
             mode="inline"
             selectedKeys={[active]}
@@ -182,7 +195,7 @@ export default function AdminDashboard({ userEmail }) {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid #f0f2f5", padding: "12px", background: "#fafbfc" }}>
+        <div style={{ borderTop: "1px solid #f0f2f5", padding: "12px", background: "#fafbfc", position: "absolute", bottom: 0, width: "100%" }}>
           {!collapsed ? (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>

@@ -1,24 +1,25 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useOutletContext, useLocation  } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../../services/axios-interceptore/api.js"; // your axios instance
 import SkeletonDashboard from "../Skeleto-Loader/SkeletonDashboard.jsx";
 
-const ProtectedRoute = ({ allowedRole }) => {
+const ProtectedRoute = ({ requiredPermission }) => {
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
-    const [isAuth, setIsAuth] = useState(false);
-    const [role, setRole] = useState(null);
+    const [user, setUser] = useState(null);
+    const context = useOutletContext();
+
 
     useEffect(() => {
         const checkAuth = async () => {
             try {
                 const res = await api.get("/auth/me");
-                setIsAuth(true);
-                setRole(res.data.user.role);
-                localStorage.setItem("User", JSON.stringify(res.data.user));
-                
-            } catch (error) {
-                setIsAuth(false);
-                console.error("Authentication check failed:", error.message);
+                const userData = res.data.user;
+
+                setUser(userData);
+                localStorage.setItem("User", JSON.stringify(userData));
+            } catch (err) {
+                setUser(null);
             } finally {
                 setLoading(false);
             }
@@ -28,16 +29,25 @@ const ProtectedRoute = ({ allowedRole }) => {
     }, []);
 
     if (loading) return <SkeletonDashboard />;
+    if (!user) return <Navigate to="/" replace />;
 
-    if (!isAuth) {
-        return <Navigate to="/" replace />;
-    }
+    const permissions = user?.roleId?.permissions || [];
 
-    if (allowedRole && role !== allowedRole) {
-        return <Navigate to={role === "admin" ? "/dashboard" : "/complaint-form"} replace />;
-    }
+    console.log("Required:", requiredPermission);
+    console.log("User Permissions:", permissions);
+    console.log("Match:", permissions.includes(requiredPermission));
 
-    return <Outlet />;
+    // ✅ SYSTEM ROLE (ADMIN)
+    if (user.isSystemRole) return <Outlet context={context} />;
+
+    // ✅ Complaint user
+    if (permissions.includes("complaint") && !location.pathname.startsWith("/complaints")) {
+        return <Navigate to="/complaints" replace />;
+        }
+
+
+
+    return <Outlet context={context} />;
 };
 
 export default ProtectedRoute;

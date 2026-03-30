@@ -1,13 +1,9 @@
 // sections/ProductionEntryForm.jsx
 // Admin form to create/manage monthly production entries
 import { useState, useMemo, useCallback } from "react";
-import {
-  Select, DatePicker, InputNumber, Button, Table, Tag, Popconfirm, message, Tooltip,
-} from "antd";
-import {
-  PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined,
-  CloseOutlined, ReloadOutlined, CheckCircleOutlined,
-} from "@ant-design/icons";
+import { useOutletContext } from "react-router-dom";
+import { Select, DatePicker, InputNumber, Button, Table, Tag, Popconfirm, message, Tooltip, } from "antd";
+import { PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined, } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useApiQuery } from "../Dashboard/components/useApiQuery.js";
 import api from "../../../services/axios-interceptore/api.js"
@@ -78,6 +74,7 @@ const PpmPreview = ({ production, warrantyComplaint }) => {
    MAIN COMPONENT
 ════════════════════════════════════════ */
 export default function ProductionEntryForm({ addToast, filterDate }) {
+  const filters = useOutletContext();
   /* ── Form state ── */
   const [form, setForm] = useState({
     customer: "",
@@ -90,9 +87,11 @@ export default function ProductionEntryForm({ addToast, filterDate }) {
   const [submitting, setSubmitting] = useState(false);
   const [editingId,  setEditingId]  = useState(null);
   const [editRow,    setEditRow]    = useState({});
-
+  const user = JSON.parse(localStorage.getItem("User") || "{}");
+  const canEdit = user.isSystemRole || (user.roleId && user.roleId.action.includes("edit"));
+  const canDelete = user.isSystemRole || (user.roleId && user.roleId.action.includes("delete"));
   /* ── API ── */
-  const { data: records, loading, refetch } = useApiQuery(`/production/list?year=${filterDate}`);
+  const { data: records, loading, refetch } = useApiQuery(`/production/list?year=${filters.year || dayjs().year()}`);
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))
   , [records]);
@@ -231,14 +230,18 @@ export default function ProductionEntryForm({ addToast, filterDate }) {
         </div>
       ) : (
         <div style={{ display: "flex", gap: 6 }}>
-          <Tooltip title="Edit complaints">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(r)}
-              style={{ color: "#3b82f6", padding: "0 6px" }} />
-          </Tooltip>
-          <Popconfirm title="Delete this record?" okText="Delete" okType="danger" onConfirm={() => handleDelete(r._id)}>
-            <Button type="text" size="small" icon={<DeleteOutlined />}
-              style={{ color: "#ef4444", padding: "0 6px" }} />
-          </Popconfirm>
+          {canEdit && (
+            <Tooltip title="Edit complaints">
+              <Button type="text" size="small" icon={<EditOutlined />} onClick={() => startEdit(r)}
+                style={{ color: "#3b82f6", padding: "0 6px" }} />
+            </Tooltip>
+          )}
+          {canDelete && (
+            <Popconfirm title="Delete this record?" okText="Delete" okType="danger" onConfirm={() => handleDelete(r._id)}>
+              <Button type="text" size="small" icon={<DeleteOutlined />}
+                style={{ color: "#ef4444", padding: "0 6px" }} />
+            </Popconfirm>
+          )}
         </div>
       ),
     },

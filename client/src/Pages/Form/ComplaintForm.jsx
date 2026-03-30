@@ -254,7 +254,7 @@ export default function ComplaintForm({ editId, userEmail }) {
           <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-20 h-20 rounded-md flex items-center justify-center shrink-0">
-                <img src="pg-logo-Photoroom.png" alt="PG Logo" />
+                <img src="/pg-logo-Photoroom.png" alt="PG Logo" />
               </div>
               <span className="max-sm:hidden text-sm font-bold text-white">PG Complaint</span>
             </div>

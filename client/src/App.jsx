@@ -47,35 +47,60 @@ function App() {
  
 
       return (
-        <div>
       <Router>
         <Routes>
+
           <Route path="/" element={<Login />} />
 
-          <Route element={<ProtectedRoute allowedRole="admin" />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<AdminDashboard />}>
-              <Route index element={<Navigate to="overview" replace />} />
-              <Route path="overview"    element={<OverviewSection />} />
-              <Route path="defects"     element={<DefectsSection />} />
-              <Route path="customers"   element={<CustomersSection />} />
-              <Route path="warranty"    element={<WarrantySection />} />
-              <Route path="register"    element={<RegisterSection />} />
-              <Route path="manage"      element={<ManageSection />} />
-              <Route path="users"       element={<UsersSection />} />
-              <Route path="production"  element={<ProductionEntryForm />} />
-              <Route path="bulk-upload" element={<BulkUpload />} />
+
+              <Route index element={<Navigate to="manage" replace />} />
+
+              <Route element={<ProtectedRoute requiredPermission="manage" />}>
+                <Route path="manage" element={<ManageSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="register" />}>
+                <Route path="register" element={<RegisterSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="users" />}>
+                <Route path="users" element={<UsersSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="overview" />}>
+                <Route path="overview" element={<OverviewSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="defects" />}>
+                <Route path="defects" element={<DefectsSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="customers" />}>
+                <Route path="customers" element={<CustomersSection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="warranty" />}>
+                <Route path="warranty" element={<WarrantySection />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermission="production" />}>
+                <Route path="production" element={<ProductionEntryForm />} />
+              </Route>
+
             </Route>
           </Route>
 
-          <Route element={<ProtectedRoute allowedRole="user" />}>
-            <Route path="/complaint-form" element={<ComplaintForm />} />
+          <Route element={<ProtectedRoute requiredPermission="complaint" />}>
             <Route path="/complaints" element={<ComplaintDashboard />} />
+            <Route path="/complaints/form" element={<ComplaintForm />} />
           </Route>
 
           <Route path="/account/pending" element={<AccountPending />} />
+
         </Routes>
       </Router>
-    </div>
   );
 }
 
