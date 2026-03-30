@@ -186,6 +186,47 @@ router.post("/create-role", isAuthenticated, async (req, res) => {
     }
 });
 
+router.put("/roles/:id", isAuthenticated, async (req, res) => {
+    const { id } = req.params;
+    const { name, permissions, action } = req.body;
+    if (!name || !permissions) {
+        return res.status(400).json({ message: "Role name and permissions are required" });
+    }
+    try {
+        const role = await roleModel.findById(id);
+        if (!role) {
+            return res.status(404).json({ message: "Role not found" });
+        }
+        role.name = name.toLowerCase();
+        role.permissions = permissions;
+        role.action = action || [];
+        await role.save();
+        return res.status(200).json({ message: "Role updated successfully", role });
+    } catch (error) {
+        console.error("Error updating role:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+router.delete("/roles/:id", isAuthenticated, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const role = await roleModel.findById(id);
+        if (!role) {
+            return res.status(404).json({ message: "Role not found" });
+        }
+        const usersWithRole = await User.find({ roleId: id });
+        if (usersWithRole.length > 0) {
+            return res.status(400).json({ message: "Cannot delete role assigned to users" });
+        }
+        await roleModel.findByIdAndDelete(id);
+        return res.status(200).json({ message: "Role deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting role:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 router.get("/roles", isAuthenticated, async (req, res) => {
     try {
         const roles = await roleModel.find({});

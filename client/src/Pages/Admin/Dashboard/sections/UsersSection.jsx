@@ -1,19 +1,19 @@
 // sections/UsersSection.jsx
 import { useState, useEffect, useCallback } from "react";
 import {
-      Input, Select, Table, Button, Popconfirm, Avatar, Drawer,
-      Space, Row, Col, Modal, Progress, Checkbox, Tag,
-      Empty, Spin, message,
+  Input, Select, Table, Button, Popconfirm, Avatar, Drawer,
+  Space, Row, Col, Modal, Progress, Checkbox, Tag,
+  Empty, Spin, message, Tooltip, Divider,
 } from "antd";
 import {
-      SearchOutlined, ReloadOutlined, StopOutlined,
-      CheckCircleOutlined, DeleteOutlined, PlusOutlined, EyeOutlined,
-      DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined,
-      FileTextOutlined, SettingOutlined, UserSwitchOutlined, UploadOutlined,
-      DeleteFilled, FileAddOutlined,
+  SearchOutlined, ReloadOutlined, StopOutlined,
+  CheckCircleOutlined, DeleteOutlined, PlusOutlined, EyeOutlined,
+  DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined,
+  FileTextOutlined, SettingOutlined, UserSwitchOutlined, UploadOutlined,
+  DeleteFilled, EditOutlined, FileAddOutlined, 
+  UserOutlined, LockOutlined, UnlockOutlined,
 } from "@ant-design/icons";
-import SectionCard from "../components/SectionCard";
-import KpiCard from "../components/KpiCard";
+
 import api from "../../../../services/axios-interceptore/api.js";
 import { fmtNum, fmtDate, fmtDT } from "../components/utils";
 
@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { key: "users",       icon: <UserSwitchOutlined />,   label: "Manage Users" },
   { key: "production",  icon: <FileTextOutlined />,     label: "Manage Production" },
   { key: "bulk-upload", icon: <UploadOutlined />,       label: "Bulk Upload" },
-  { key: "complaint",    icon: <FileAddOutlined />,  label: "create-complaint (cannot access internal features) " },
+  { key: "complaint",   icon: <FileAddOutlined />,      label: "Create Complaint" },
 ];
 
 const NAV_LABEL_MAP = Object.fromEntries(NAV_ITEMS.map(n => [n.key, n.label]));
@@ -49,13 +49,13 @@ const NEXT_STATUSES = {
   suspended: ["active"],
 };
 
-// Role badge palette — cycles for custom roles
 const BADGE_PALETTE = [
   { bg: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.3)",  color: "#7c3aed" },
   { bg: "rgba(100,116,139,0.10)", border: "rgba(100,116,139,0.25)", color: "#64748b" },
   { bg: "rgba(6,182,212,0.10)",  border: "rgba(6,182,212,0.25)",  color: "#0891b2" },
   { bg: "rgba(16,185,129,0.10)", border: "rgba(16,185,129,0.25)", color: "#059669" },
   { bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.25)", color: "#d97706" },
+  { bg: "rgba(239,68,68,0.10)",  border: "rgba(239,68,68,0.25)",  color: "#e53935" },
 ];
 
 function getRoleBadgeStyle(roleName) {
@@ -67,15 +67,17 @@ function getRoleBadgeStyle(roleName) {
   return BADGE_PALETTE[Math.abs(hash) % BADGE_PALETTE.length];
 }
 
-// ── Reusable badge / tag components ──────────────────────────────────────────
+// ── Shared UI atoms ───────────────────────────────────────────────────────────
 function RoleBadge({ roleName }) {
   const s = getRoleBadgeStyle(roleName);
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", padding: "2px 12px",
+      display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px",
       borderRadius: 20, background: s.bg, border: `1px solid ${s.border}`,
-      color: s.color, fontSize: 12, fontWeight: 700, textTransform: "capitalize",
+      color: s.color, fontSize: 11, fontWeight: 700, textTransform: "capitalize",
+      whiteSpace: "nowrap",
     }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
       {roleName || "user"}
     </span>
   );
@@ -98,7 +100,7 @@ function StatusTag({ status, isBlocked, onClick }) {
         color: isBlocked ? "#e53935" : s.color,
         fontSize: 12, fontWeight: 700,
         cursor: isBlocked || !onClick ? "default" : "pointer",
-        userSelect: "none", transition: "opacity 0.15s",
+        userSelect: "none", transition: "all 0.15s",
       }}
     >
       <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0,
@@ -113,13 +115,12 @@ const ACTION_CHIP_STYLE = {
   edit:   { bg: "rgba(37,99,235,0.08)",  border: "rgba(37,99,235,0.25)",  color: "#2563eb", icon: "✏️" },
   delete: { bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.25)",  color: "#e53935", icon: "🗑" },
 };
-
 function ActionChip({ action }) {
   const s = ACTION_CHIP_STYLE[action] || ACTION_CHIP_STYLE.view;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 3,
-      padding: "2px 9px", borderRadius: 6,
+      padding: "3px 10px", borderRadius: 6,
       background: s.bg, border: `1px solid ${s.border}`,
       color: s.color, fontSize: 11, fontWeight: 700,
     }}>
@@ -128,182 +129,35 @@ function ActionChip({ action }) {
   );
 }
 
-// ── View Roles Modal ──────────────────────────────────────────────────────────
-function ViewRolesModal({ open, onClose, roles, rolesLoading, onDeleteRole }) {
-  return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={640}
-      destroyOnClose
-      title={
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: "rgba(6,182,212,0.10)", border: "1.5px solid rgba(6,182,212,0.25)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
-          }}>🛡</span>
-          <div>
-            <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 15 }}>All Roles & Permissions</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>
-              {roles.length} role{roles.length !== 1 ? "s" : ""} configured
-            </div>
-          </div>
-        </div>
-      }
-    >
-      {rolesLoading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: 48 }}>
-          <Spin size="large" />
-        </div>
-      ) : roles.length === 0 ? (
-        <Empty description="No roles found" style={{ padding: 40 }} />
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0 4px" }}>
-          {roles.map(role => {
-            const s = getRoleBadgeStyle(role.name);
-            return (
-              <div key={role._id} style={{
-                borderRadius: 12, border: "1.5px solid #e2e8f0",
-                background: "#fafbfc", overflow: "hidden",
-              }}>
-                {/* Role header */}
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "11px 16px", background: s.bg, borderBottom: "1px solid #e8ecf0",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      background: "#fff", border: `1.5px solid ${s.border}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 14, color: s.color, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {(role.name || "R")[0].toUpperCase()}
-                    </span>
-                    <div>
-                      <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 13, textTransform: "capitalize" }}>
-                        {role.name}
-                      </span>
-                      {role.description ? (
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{role.description}</div>
-                      ) : null}
-                    </div>
-                    {role.isDefault && (
-                      <Tag style={{
-                        fontSize: 10, padding: "0 6px", borderRadius: 4,
-                        background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)",
-                        color: "#7c3aed", marginLeft: 4,
-                      }}>Default</Tag>
-                    )}
-                    {role.isActive === false && (
-                      <Tag style={{
-                        fontSize: 10, padding: "0 6px", borderRadius: 4,
-                        background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
-                        color: "#e53935",
-                      }}>Inactive</Tag>
-                    )}
+// ── Role Form Modal (shared for Add + Edit) ───────────────────────────────────
+function RoleFormModal({ open, onConfirm, onCancel, loading, initialData }) {
+  const isEdit = !!initialData;
 
-                    <Popconfirm
-                      title={`Update role "${role.name}"?`}
-                      description="Users with this role will lose it. Cannot be undone."
-                      onConfirm={() => onDeleteRole(role._id)}
-                      okText="Delete" okButtonProps={{ danger: true }}
-                      placement="left"
-                    >
-                      <Button
-                        size="small" danger icon={<DeleteFilled />}
-                        style={{
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.2)",
-                          color: "#e53935", borderRadius: 8,
-                        }}
-                      />
-                    </Popconfirm>
-                  </div>
-                  
+  const [roleName, setRoleName]     = useState("");
+  const [selectedMenus, setMenus]   = useState([]);
+  const [actions, setActions]       = useState({ view: true, edit: false, delete: false });
 
-                  {!role.isDefault && (
-                    <Popconfirm
-                      title={`Delete role "${role.name}"?`}
-                      description="Users with this role will lose it. Cannot be undone."
-                      onConfirm={() => onDeleteRole(role._id)}
-                      okText="Delete" okButtonProps={{ danger: true }}
-                      placement="left"
-                    >
-                      <Button
-                        size="small" danger icon={<DeleteFilled />}
-                        style={{
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.2)",
-                          color: "#e53935", borderRadius: 8,
-                        }}
-                      />
-                    </Popconfirm>
-                  )}
-                </div>
-
-                {/* Permissions + Actions body */}
-                <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div>
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, color: "#94a3b8",
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
-                    }}>Menu Access</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {(role.permissions || []).length === 0 ? (
-                        <span style={{ fontSize: 12, color: "#cbd5e1" }}>No menus assigned</span>
-                      ) : (role.permissions || []).map(key => (
-                        <span key={key} style={{
-                          display: "inline-flex", alignItems: "center",
-                          padding: "2px 9px", borderRadius: 6,
-                          background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.2)",
-                          color: "#7c3aed", fontSize: 11, fontWeight: 600,
-                        }}>
-                          {NAV_LABEL_MAP[key] || key}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, color: "#94a3b8",
-                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
-                    }}>Allowed Actions</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {(role.action || []).length === 0 ? (
-                        <span style={{ fontSize: 12, color: "#cbd5e1" }}>No actions assigned</span>
-                      ) : (role.action || []).map(a => <ActionChip key={a} action={a} />)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-// ── Add Role Modal ────────────────────────────────────────────────────────────
-function AddRoleModal({ open, onConfirm, onCancel, loading }) {
-  const [roleName, setRoleName]           = useState("");
-  const [selectedMenus, setSelectedMenus] = useState([]);
-  const [actions, setActions]             = useState({ view: true, edit: false, delete: false });
+  // Populate when editing
+  useEffect(() => {
+    if (open && isEdit && initialData) {
+      setRoleName(initialData.name || "");
+      setMenus(initialData.permissions || []);
+      setActions({
+        view:   true,
+        edit:   (initialData.action || []).includes("edit"),
+        delete: (initialData.action || []).includes("delete"),
+      });
+    }
+    if (!open) {
+      setRoleName(""); setMenus([]);
+      setActions({ view: true, edit: false, delete: false });
+    }
+  }, [open, isEdit, initialData]);
 
   const showAdvanced = selectedMenus.some(k => ADVANCED_PERMISSION_KEYS.includes(k));
 
-  useEffect(() => {
-    if (!open) {
-      setRoleName(""); setSelectedMenus([]);
-      setActions({ view: true, edit: false, delete: false });
-    }
-  }, [open]);
-
   const handleMenuChange = (vals) => {
-    setSelectedMenus(vals);
+    setMenus(vals);
     if (!vals.some(k => ADVANCED_PERMISSION_KEYS.includes(k)))
       setActions(prev => ({ ...prev, edit: false, delete: false }));
   };
@@ -315,6 +169,7 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
       role: roleName.trim().toLowerCase().replace(/\s+/g, "-"),
       permission: selectedMenus,
       action: activeActions,
+      ...(isEdit ? { id: initialData._id } : {}),
     });
   };
 
@@ -324,12 +179,17 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
   return (
     <Modal
       open={open} onCancel={onCancel} onOk={handleSubmit}
-      okText="Create Role" cancelText="Cancel"
+      okText={isEdit ? "Update Role" : "Create Role"}
+      cancelText="Cancel"
       confirmLoading={loading}
       okButtonProps={{
         disabled: !isValid,
         style: {
-          background: isValid ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : undefined,
+          background: isValid
+            ? isEdit
+              ? "linear-gradient(135deg,#2563eb,#1d4ed8)"
+              : "linear-gradient(135deg,#7c3aed,#6d28d9)"
+            : undefined,
           border: "none", borderRadius: 8, fontWeight: 700,
         },
       }}
@@ -337,13 +197,20 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
       title={
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: "rgba(139,92,246,0.12)", border: "1.5px solid rgba(139,92,246,0.25)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
-          }}>🔑</span>
+            width: 36, height: 36, borderRadius: 10,
+            background: isEdit ? "rgba(37,99,235,0.10)" : "rgba(139,92,246,0.12)",
+            border: `1.5px solid ${isEdit ? "rgba(37,99,235,0.25)" : "rgba(139,92,246,0.25)"}`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
+          }}>
+            {isEdit ? "✏️" : "🔑"}
+          </span>
           <div>
-            <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 15 }}>Add New Role</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>Define name, menu access & permissions</div>
+            <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 15 }}>
+              {isEdit ? `Edit Role: ${initialData?.name}` : "Add New Role"}
+            </div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>
+              {isEdit ? "Update permissions and menu access" : "Define name, menu access & permissions"}
+            </div>
           </div>
         </div>
       }
@@ -366,7 +233,8 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
           />
           {roleName.trim() && (
             <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8" }}>
-              Saved as: <code style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#7c3aed" }}>
+              Saved as:{" "}
+              <code style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, color: "#7c3aed" }}>
                 {roleName.trim().toLowerCase().replace(/\s+/g, "-")}
               </code>
             </div>
@@ -422,12 +290,12 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
             display: "block", fontSize: 11, fontWeight: 700, color: "#64748b",
             textTransform: "uppercase", letterSpacing: 1, marginBottom: 10,
           }}>Actions</label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {/* View */}
+          <div style={{ display: "flex", gap: 10 }}>
+            {/* View — always on */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
+              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
               borderRadius: 10, background: "rgba(22,163,74,0.08)",
-              border: "1.5px solid rgba(22,163,74,0.3)", flex: 1, minWidth: 100,
+              border: "1.5px solid rgba(22,163,74,0.3)", flex: 1,
             }}>
               <Checkbox checked disabled />
               <div>
@@ -437,36 +305,32 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
             </div>
             {/* Edit */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
-              borderRadius: 10, flex: 1, minWidth: 100, transition: "all 0.2s",
-              opacity: showAdvanced ? 1 : 0.45,
+              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
+              borderRadius: 10, flex: 1, transition: "all 0.2s",
+              opacity: showAdvanced ? 1 : 0.4,
               background: showAdvanced && actions.edit ? "rgba(37,99,235,0.08)" : "#f8fafc",
               border: `1.5px solid ${showAdvanced && actions.edit ? "rgba(37,99,235,0.3)" : "#e2e8f0"}`,
             }}>
               <Checkbox checked={actions.edit} disabled={!showAdvanced}
                 onChange={e => setActions(p => ({ ...p, edit: e.target.checked }))} />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: showAdvanced && actions.edit ? "#2563eb" : "#94a3b8" }}>
-                  ✏️ Edit
-                </div>
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>{showAdvanced ? "Modify records" : "Select adv. menu"}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: showAdvanced && actions.edit ? "#2563eb" : "#94a3b8" }}>✏️ Edit</div>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>{showAdvanced ? "Modify records" : "Needs adv. menu"}</div>
               </div>
             </div>
             {/* Delete */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
-              borderRadius: 10, flex: 1, minWidth: 100, transition: "all 0.2s",
-              opacity: showAdvanced ? 1 : 0.45,
+              display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
+              borderRadius: 10, flex: 1, transition: "all 0.2s",
+              opacity: showAdvanced ? 1 : 0.4,
               background: showAdvanced && actions.delete ? "rgba(239,68,68,0.08)" : "#f8fafc",
               border: `1.5px solid ${showAdvanced && actions.delete ? "rgba(239,68,68,0.3)" : "#e2e8f0"}`,
             }}>
               <Checkbox checked={actions.delete} disabled={!showAdvanced}
                 onChange={e => setActions(p => ({ ...p, delete: e.target.checked }))} />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: showAdvanced && actions.delete ? "#e53935" : "#94a3b8" }}>
-                  🗑 Delete
-                </div>
-                <div style={{ fontSize: 10, color: "#94a3b8" }}>{showAdvanced ? "Remove records" : "Select adv. menu"}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: showAdvanced && actions.delete ? "#e53935" : "#94a3b8" }}>🗑 Delete</div>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>{showAdvanced ? "Remove records" : "Needs adv. menu"}</div>
               </div>
             </div>
           </div>
@@ -476,11 +340,172 @@ function AddRoleModal({ open, onConfirm, onCancel, loading }) {
   );
 }
 
-// ── Inline role-change select with per-change Popconfirm ──────────────────────
-function RoleChangeSelect({ user, roles, currentRole, disabled, onConfirm }) {
+// ── View Roles Modal ──────────────────────────────────────────────────────────
+function ViewRolesModal({ open, onClose, roles, rolesLoading, onEditRole, onDeleteRole }) {
+  return (
+    <Modal
+      open={open} onCancel={onClose} footer={null}
+      width={660} destroyOnClose
+      title={
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: "rgba(6,182,212,0.10)", border: "1.5px solid rgba(6,182,212,0.25)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17,
+          }}>🛡</span>
+          <div>
+            <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 15 }}>All Roles & Permissions</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>
+              {roles.length} role{roles.length !== 1 ? "s" : ""} configured
+            </div>
+          </div>
+        </div>
+      }
+    >
+      {rolesLoading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: 48 }}>
+          <Spin size="large" />
+        </div>
+      ) : roles.length === 0 ? (
+        <Empty description="No roles found" style={{ padding: 40 }} />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "8px 0 4px" }}>
+          {roles.map(role => {
+            const s = getRoleBadgeStyle(role.name);
+            return (
+              <div key={role._id} style={{
+                borderRadius: 12, border: "1.5px solid #e2e8f0",
+                background: "#fff", overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              }}>
+                {/* Header */}
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: `linear-gradient(135deg, ${s.bg}, rgba(255,255,255,0.6))`,
+                  borderBottom: "1px solid #f0f2f5",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{
+                      width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+                      background: "#fff", border: `1.5px solid ${s.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 15, color: s.color, fontWeight: 800,
+                    }}>
+                      {(role.name || "R")[0].toUpperCase()}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 700, color: "#1e293b", fontSize: 13, textTransform: "capitalize", lineHeight: 1.3 }}>
+                        {role.name}
+                      </div>
+                      {role.description && (
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>{role.description}</div>
+                      )}
+                    </div>
+                    {role.isDefault && (
+                      <Tag style={{
+                        fontSize: 10, padding: "0 6px", borderRadius: 4,
+                        background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)",
+                        color: "#7c3aed", marginLeft: 2,
+                      }}>Default</Tag>
+                    )}
+                    {role.isActive === false && (
+                      <Tag style={{
+                        fontSize: 10, padding: "0 6px", borderRadius: 4,
+                        background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
+                        color: "#e53935",
+                      }}>Inactive</Tag>
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <Space size={6}>
+                    <Tooltip title="Edit role">
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => onEditRole(role)}
+                        style={{
+                          background: "rgba(37,99,235,0.07)",
+                          border: "1px solid rgba(37,99,235,0.2)",
+                          color: "#2563eb", borderRadius: 8,
+                        }}
+                      />
+                    </Tooltip>
+                    {!role.isDefault && (
+                      <Popconfirm
+                        title={`Delete role "${role.name}"?`}
+                        description="Users with this role will lose it. Cannot be undone."
+                        onConfirm={() => onDeleteRole(role._id)}
+                        okText="Delete" okButtonProps={{ danger: true }}
+                        placement="left"
+                      >
+                        <Tooltip title="Delete role">
+                          <Button
+                            size="small" danger icon={<DeleteFilled />}
+                            style={{
+                              background: "rgba(239,68,68,0.06)",
+                              border: "1px solid rgba(239,68,68,0.2)",
+                              color: "#e53935", borderRadius: 8,
+                            }}
+                          />
+                        </Tooltip>
+                      </Popconfirm>
+                    )}
+                  </Space>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: "10px 14px", display: "flex", gap: 16 }}>
+                  {/* Menus */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: "#94a3b8",
+                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
+                    }}>Menu Access</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {(role.permissions || []).length === 0 ? (
+                        <span style={{ fontSize: 11, color: "#cbd5e1" }}>None</span>
+                      ) : (role.permissions || []).map(key => (
+                        <span key={key} style={{
+                          display: "inline-flex", alignItems: "center",
+                          padding: "2px 8px", borderRadius: 5,
+                          background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.18)",
+                          color: "#7c3aed", fontSize: 10, fontWeight: 600,
+                        }}>
+                          {NAV_LABEL_MAP[key] || key}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Divider */}
+                  <div style={{ width: 1, background: "#f1f5f9", flexShrink: 0 }} />
+                  {/* Actions */}
+                  <div style={{ minWidth: 110 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: "#94a3b8",
+                      textTransform: "uppercase", letterSpacing: 1, marginBottom: 6,
+                    }}>Actions</div>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                      {(role.action || []).length === 0 ? (
+                        <span style={{ fontSize: 11, color: "#cbd5e1" }}>None</span>
+                      ) : (role.action || []).map(a => <ActionChip key={a} action={a} />)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── Inline role-change select ─────────────────────────────────────────────────
+function RoleChangeSelect({ user, roles, currentRoleId, disabled, onConfirm }) {
   const [pendingRole, setPendingRole] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-
   const pendingRoleName = roles.find(r => r._id === pendingRole)?.name || pendingRole;
 
   return (
@@ -493,16 +518,17 @@ function RoleChangeSelect({ user, roles, currentRole, disabled, onConfirm }) {
       okText="Confirm" cancelText="Cancel" placement="bottom"
     >
       <Select
-        value={currentRole}
+        value={currentRoleId || undefined}
+        placeholder="Assign role…"
         size="small"
         disabled={disabled}
         onChange={v => {
-          if (v === currentRole) return;
+          if (v === currentRoleId) return;
           setPendingRole(v);
           setConfirmOpen(true);
         }}
         onClick={e => e.stopPropagation()}
-        style={{ width: 120 }}
+        style={{ width: 130 }}
       >
         {roles.map(r => (
           <Option key={r._id} value={r._id}>
@@ -516,8 +542,8 @@ function RoleChangeSelect({ user, roles, currentRole, disabled, onConfirm }) {
 
 // ── Status cell ───────────────────────────────────────────────────────────────
 function StatusCell({ user, onStatusChange }) {
-  const [open, setOpen]   = useState(false);
-  const [next, setNext]   = useState(null);
+  const [open, setOpen] = useState(false);
+  const [next, setNext] = useState(null);
   const options = NEXT_STATUSES[user.status] || [];
 
   const handleTagClick = (e) => {
@@ -561,19 +587,22 @@ export default function UsersSection({ addToast }) {
   const [selected, setSelected] = useState(null);
   const [drawerOpen, setDrawer] = useState(false);
 
-  // Roles from API
+  // Roles
   const [roles, setRoles]               = useState([]);
   const [rolesLoading, setRolesLoading] = useState(false);
 
   // Modals
-  const [addRoleModal, setAddRoleModal]     = useState(false);
-  const [addRoleLoading, setAddRoleLoading] = useState(false);
-  const [viewRolesModal, setViewRolesModal] = useState(false);
+  const [roleFormModal, setRoleFormModal]     = useState(false);
+  const [roleFormLoading, setRoleFormLoading] = useState(false);
+  const [editingRole, setEditingRole]         = useState(null); // null = add, obj = edit
+  const [viewRolesModal, setViewRolesModal]   = useState(false);
 
-  const user = JSON.parse(localStorage.getItem("User") || "{}");
-
-  const canEdit = user.isSystemRole || (user.roleId && user.roleId.action.includes("edit"));
-  const canDelete = user.isSystemRole || (user.roleId && user.roleId.action.includes("delete"));
+  // Current logged-in user
+  const loggedUser = (() => {
+    try { return JSON.parse(localStorage.getItem("User") || "{}"); } catch { return {}; }
+  })();
+  const canEdit   = loggedUser.isSystemRole || (loggedUser.roleId?.action || []).includes("edit");
+  const canDelete = loggedUser.isSystemRole || (loggedUser.roleId?.action || []).includes("delete");
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchRoles = useCallback(async () => {
@@ -594,80 +623,90 @@ export default function UsersSection({ addToast }) {
       .then(r => {
         const list = (r.data?.users || [])
           .filter(u => !u.isSystemRole)
-          .map(u => ({ ...u, role: u.role || "user" }));
+          .map(u => ({ ...u }));
         setUsers(list);
-        console.log("Fetched users:", list);
       })
-      .catch(() => message.error("Failed to load users", "error"))
+      .catch(() => message.error("Failed to load users"))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { fetchUsers(); fetchRoles(); }, [fetchUsers, fetchRoles]);
-
-  // Helper: resolve role _id → display name
-  const resolveRoleName = (roleValue) => {
-    if (!roleValue) return "user";
-    const found = roles.find(r => r._id === roleValue || r.name === roleValue);
-    return found ? found.name : roleValue;
-  };
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const blockUser = async (id, isBlocked) => {
     const action = isBlocked ? "unblock" : "block";
     try {
       await api.post(`/users/${action}`, { id });
-      message.success(`User ${action}ed`, "success");
+      message.success(`User ${action}ed`);
       setUsers(prev => prev.map(u => u._id === id ? { ...u, isBlocked: !isBlocked } : u));
       if (selected?._id === id) setSelected(s => ({ ...s, isBlocked: !isBlocked }));
-    } catch { message.error(`Failed to ${action}`, "error"); }
+    } catch { message.error(`Failed to ${action}`); }
   };
 
   const deleteUser = async (id) => {
     try {
       await api.post("/users/delete", { id });
-      message.success("User deleted", "success");
+      message.success("User deleted");
       setUsers(prev => prev.filter(u => u._id !== id));
       if (selected?._id === id) { setDrawer(false); setSelected(null); }
-    } catch { message.error("Delete failed", "error"); }
+    } catch { message.error("Delete failed"); }
   };
 
   const changeStatus = async (id, status) => {
     try {
       await api.post("/users/status", { id, status });
-      message.success(`Status changed to "${status}"`, "success");
+      message.success(`Status changed to "${status}"`);
       setUsers(prev => prev.map(u => u._id === id ? { ...u, status } : u));
       if (selected?._id === id) setSelected(s => ({ ...s, status }));
-    } catch { message.error("Status update failed", "error"); }
+    } catch { message.error("Status update failed"); }
   };
 
-  // Direct role change — sends role._id
   const changeUserRole = async (userId, roleId) => {
     try {
-    const res = await api.post("/user/assign-role", { userId, roleId });
-    if(res.data?.success) {
-      message.success(res.data.message);
-        setUsers(prev => prev.map(u => u._id === userId ? { ...u, role: roleId } : u));
-        if (selected?._id === userId) setSelected(s => ({ ...s, role: roleId }));
-    }
+      const res = await api.post("/user/assign-role", { userId, roleId });
+      if (res.data?.success) {
+        message.success(res.data.message || "Role updated");
+        const assignedRole = roles.find(r => r._id === roleId);
+        setUsers(prev => prev.map(u =>
+          u._id === userId ? { ...u, roleId: assignedRole || { _id: roleId } } : u
+        ));
+        if (selected?._id === userId)
+          setSelected(s => ({ ...s, roleId: assignedRole || { _id: roleId } }));
+      }
     } catch (err) {
-      message.error(err?.response?.data?.message || "Role update failed", "error");
+      message.error(err?.response?.data?.message || "Role update failed");
     }
   };
 
+  // ── Role CRUD ─────────────────────────────────────────────────────────────
+  const openAddRole  = () => { setEditingRole(null); setRoleFormModal(true); };
+  const openEditRole = (role) => { setEditingRole(role); setRoleFormModal(true); };
 
-
-  const handleCreateRole = async (payload) => {
-    console.log("Creating role with payload:", payload);
-    setAddRoleLoading(true);
+  const handleRoleFormSubmit = async (payload) => {
+    setRoleFormLoading(true);
     try {
-      await api.post("/auth/create-role", payload);
-      message.success(`Role "${payload.role}" created`);
-      setAddRoleModal(false);
+      if (editingRole) {
+        // Update
+        const res = await api.put(`/auth/roles/${payload.id}`, {
+          name:        payload.role,
+          permissions: payload.permission,
+          action:      payload.action,
+        });
+        if (res.data?.success || res.status === 200) {
+          message.success(`Role "${payload.role}" updated`);
+        }
+      } else {
+        // Create
+        await api.post("/auth/create-role", payload);
+        message.success(`Role "${payload.role}" created`);
+      }
+      setRoleFormModal(false);
+      setEditingRole(null);
       fetchRoles();
     } catch (err) {
-      message.error(err?.response?.data?.message || "Failed to create role");
+      message.error(err?.response?.data?.message || `Failed to ${editingRole ? "update" : "create"} role`);
     } finally {
-      setAddRoleLoading(false);
+      setRoleFormLoading(false);
     }
   };
 
@@ -682,11 +721,19 @@ export default function UsersSection({ addToast }) {
   };
 
   // ── Derived data ──────────────────────────────────────────────────────────
+  // role display name helper — user.roleId is the populated object from server
+  const getRoleName = (u) => u?.roleId?.name || u?.role || "user";
+  const getRoleId   = (u) => u?.roleId?._id  || u?.roleId || null;
+
   const filtered = users.filter(u => {
     const q = search.toLowerCase();
-    const roleName = resolveRoleName(u.role);
-    if (q && !`${u.email || ""} ${roleName}`.toLowerCase().includes(q)) return false;
-    if (roleFilter && u.role !== roleFilter) return false;
+    const rName = getRoleName(u);
+    if (q && !`${u.email || ""} ${rName}`.toLowerCase().includes(q)) return false;
+    // roleFilter holds a role _id
+    if (roleFilter) {
+      const uRoleId = getRoleId(u);
+      if (uRoleId !== roleFilter) return false;
+    }
     return true;
   });
 
@@ -694,7 +741,7 @@ export default function UsersSection({ addToast }) {
     total:   users.length,
     active:  users.filter(u => !u.isBlocked && u.status === "active").length,
     blocked: users.filter(u => u.isBlocked).length,
-    admins:  users.filter(u => resolveRoleName(u.role) === "admin").length,
+    admins:  users.filter(u => getRoleName(u) === "admin").length,
   };
 
   const openDrawer = (u) => { setSelected(u); setDrawer(true); };
@@ -702,30 +749,41 @@ export default function UsersSection({ addToast }) {
   // ── Table columns ─────────────────────────────────────────────────────────
   const columns = [
     {
-      title: "#", key: "idx", width: 44,
-      render: (_, __, i) => <span style={{ color: "#94a3b8", fontSize: 13 }}>{i + 1}</span>,
+      title: "#", key: "idx", width: 44, align: "center",
+      render: (_, __, i) => (
+        <span style={{ color: "#94a3b8", fontSize: 12, fontFamily: "JetBrains Mono" }}>{i + 1}</span>
+      ),
     },
     {
       title: "User", key: "user",
       render: (_, u) => (
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar size={30} style={{
+          <Avatar size={32} style={{
             background: u.isBlocked ? "rgba(239,68,68,0.12)" : "rgba(139,92,246,0.12)",
-            color: u.isBlocked ? "#e53935" : "#7c3aed", fontSize: 12, fontWeight: 700,
+            color: u.isBlocked ? "#e53935" : "#7c3aed", fontSize: 13, fontWeight: 700,
             border: `1.5px solid ${u.isBlocked ? "rgba(239,68,68,0.25)" : "rgba(139,92,246,0.25)"}`,
+            flexShrink: 0,
           }}>
             {(u.email || "U")[0].toUpperCase()}
           </Avatar>
-          <span style={{ color: "#1e293b", fontWeight: 600, fontSize: 13 }}>{u.email}</span>
+          <div>
+            <div style={{ color: "#1e293b", fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>{u.email}</div>
+            {u.isBlocked && (
+              <span style={{ fontSize: 10, color: "#e53935", fontWeight: 600 }}>🚫 Blocked</span>
+            )}
+          </div>
         </div>
       ),
     },
     {
-      title: "Role", key: "role", width: 120,
-      render: (_, u) => <RoleBadge roleName={resolveRoleName(u.roleId? u.roleId.name : 'user')} />,
+      title: "Role", key: "role", width: 130,
+      render: (_, u) => <RoleBadge roleName={getRoleName(u)} />,
+      filters: roles.map(r => ({ text: r.name, value: r._id })),
+      onFilter: (value, record) => getRoleId(record) === value,
     },
     {
-      title: "Complaints", dataIndex: "complaintCount", key: "cc", width: 110,
+      title: "Complaints", dataIndex: "complaintCount", key: "cc", width: 105, align: "center",
+      sorter: (a, b) => (a.complaintCount || 0) - (b.complaintCount || 0),
       render: v => (
         <span style={{
           fontFamily: "JetBrains Mono", fontSize: 13, fontWeight: 700,
@@ -734,93 +792,134 @@ export default function UsersSection({ addToast }) {
       ),
     },
     {
-      title: "Joined", dataIndex: "createdAt", key: "joined", width: 110,
-      render: v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 13, color: "#64748b" }}>{fmtDate(v)}</span>,
+      title: "Joined", dataIndex: "createdAt", key: "joined", width: 105,
+      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      render: v => <span style={{ fontFamily: "JetBrains Mono", fontSize: 12, color: "#64748b" }}>{fmtDate(v)}</span>,
     },
     {
-      title: "Status", key: "status", width: 130,
+      title: "Status", key: "status", width: 125,
+      filters: [
+        { text: "Active",    value: "active" },
+        { text: "Pending",   value: "pending" },
+        { text: "Suspended", value: "suspended" },
+        { text: "Blocked",   value: "blocked" },
+      ],
+      onFilter: (value, record) =>
+        value === "blocked" ? record.isBlocked : (!record.isBlocked && record.status === value),
       render: (_, u) => <StatusCell user={u} onStatusChange={changeStatus} />,
     },
-    ...user.isSystemRole ? [{
+    ...(loggedUser.isSystemRole ? [{
       title: "Change Role", key: "role_change", width: 150,
       render: (_, u) => (
         <span onClick={e => e.stopPropagation()}>
           <RoleChangeSelect
             user={u}
             roles={roles}
-            currentRole={u.roleId}
+            currentRoleId={getRoleId(u)}
             disabled={u.isBlocked}
             onConfirm={roleId => changeUserRole(u._id, roleId)}
           />
         </span>
       ),
-    },] : [],
-
-    ...canDelete ? [
-    {
-      title: "Actions", key: "actions", width: 160, fixed: "right",
+    }] : []),
+    ...(canDelete || canEdit ? [{
+      title: "Actions", key: "actions", width: 150, fixed: "right",
       render: (_, u) => (
         <Space size={6} onClick={e => e.stopPropagation()}>
-          <Popconfirm
-            title={u.isBlocked ? "Unblock this user?" : "Block this user?"}
-            description={u.isBlocked ? "User will regain complaint access." : "User will lose complaint access."}
-            onConfirm={() => blockUser(u._id, u.isBlocked)}
-            okText="Confirm"
-          >
-            <Button size="small"
-              icon={u.isBlocked ? <CheckCircleOutlined /> : <StopOutlined />}
-              style={{
-                background: u.isBlocked ? "rgba(22,163,74,0.1)" : "rgba(245,158,11,0.1)",
-                border: `1px solid ${u.isBlocked ? "rgba(22,163,74,0.25)" : "rgba(245,158,11,0.25)"}`,
-                color: u.isBlocked ? "#16a34a" : "#d97706",
-                borderRadius: 8, fontSize: 12, fontWeight: 600,
-              }}
-            >
-              {u.isBlocked ? "Unblock" : "Block"}
-            </Button>
-          </Popconfirm>
-          <Popconfirm
-            title="Delete user?" description="This cannot be undone."
-            onConfirm={() => deleteUser(u._id)}
-            okText="Delete" okButtonProps={{ danger: true }}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} style={{
-              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-              color: "#e53935", borderRadius: 8,
-            }} />
-          </Popconfirm>
+          {canEdit && (
+            <Tooltip title={u.isBlocked ? "Unblock user" : "Block user"}>
+              <Popconfirm
+                title={u.isBlocked ? "Unblock this user?" : "Block this user?"}
+                description={u.isBlocked ? "User will regain complaint access." : "User will lose complaint access."}
+                onConfirm={() => blockUser(u._id, u.isBlocked)}
+                okText="Confirm"
+              >
+                <Button size="small"
+                  icon={u.isBlocked ? <UnlockOutlined /> : <LockOutlined />}
+                  style={{
+                    background: u.isBlocked ? "rgba(22,163,74,0.08)" : "rgba(245,158,11,0.08)",
+                    border: `1px solid ${u.isBlocked ? "rgba(22,163,74,0.25)" : "rgba(245,158,11,0.25)"}`,
+                    color: u.isBlocked ? "#16a34a" : "#d97706",
+                    borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  }}
+                >
+                  {u.isBlocked ? "Unblock" : "Block"}
+                </Button>
+              </Popconfirm>
+            </Tooltip>
+          )}
+          {canDelete && (
+            <Tooltip title="Delete user">
+              <Popconfirm
+                title="Delete user?" description="This cannot be undone."
+                onConfirm={() => deleteUser(u._id)}
+                okText="Delete" okButtonProps={{ danger: true }}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} style={{
+                  background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#e53935", borderRadius: 8,
+                }} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
-    },
-  ] : [],
+    }] : []),
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* KPIs */}
-      <Row gutter={[14, 14]}>
-        <Col xs={12} sm={6}><KpiCard label="Total Users" value={kpi.total}   color="blue"   icon="👥" /></Col>
-        <Col xs={12} sm={6}><KpiCard label="Active"      value={kpi.active}  color="green"  icon="✅" sub="Currently active" /></Col>
-        <Col xs={12} sm={6}><KpiCard label="Blocked"     value={kpi.blocked} color="red"    icon="🚫" sub="Access restricted" /></Col>
-        <Col xs={12} sm={6}><KpiCard label="Admins"      value={kpi.admins}  color="purple" icon="🔑" sub="Admin role users" /></Col>
+      {/* ── KPI cards with equal heights ─────────────────────────────────── */}
+      <Row gutter={[14, 14]} align="stretch">
+        {[
+          { label: "Total Users",  value: kpi.total,   color: "#2563eb", bg: "rgba(37,99,235,0.08)",  border: "rgba(37,99,235,0.2)",  icon: "👥", sub: `${users.length} registered` },
+          { label: "Active",       value: kpi.active,  color: "#16a34a", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)",  icon: "✅", sub: "Access granted" },
+          { label: "Blocked",      value: kpi.blocked, color: "#e53935", bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.2)",  icon: "🚫", sub: "Access restricted" },
+          { label: "Admins",       value: kpi.admins,  color: "#7c3aed", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)", icon: "🔑", sub: "Admin role users" },
+        ].map(card => (
+          <Col xs={12} sm={6} key={card.label} style={{ display: "flex" }}>
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between",
+              padding: "16px 18px", borderRadius: 14,
+              background: card.bg, border: `1.5px solid ${card.border}`,
+              minHeight: 90,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: card.color,
+                  textTransform: "uppercase", letterSpacing: 0.8 }}>{card.label}</div>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>{card.icon}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "#1e293b",
+                  fontFamily: "JetBrains Mono", lineHeight: 1.1 }}>{fmtNum(card.value)}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{card.sub}</div>
+              </div>
+            </div>
+          </Col>
+        ))}
       </Row>
 
-      {/* Filters + buttons */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      <div style={{
+        display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
+        padding: "12px 14px", borderRadius: 12,
+        background: "#fff", border: "1.5px solid #e8ecf0",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      }}>
         <Input
           prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
           placeholder="Search by email or role…"
           value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 200 }}
-          className="pg-input" allowClear
+          style={{ flex: 1, minWidth: 200, borderRadius: 8 }}
+          allowClear
         />
         <Select
           value={roleFilter || undefined}
           onChange={v => setRole(v || "")}
           allowClear placeholder="All Roles"
-          style={{ minWidth: 140 }} className="pg-select"
+          style={{ minWidth: 140 }}
         >
           {roles.map(r => (
             <Option key={r._id} value={r._id}>
@@ -828,46 +927,80 @@ export default function UsersSection({ addToast }) {
             </Option>
           ))}
         </Select>
+
         <Button
           icon={<ReloadOutlined />}
           onClick={() => { fetchUsers(); fetchRoles(); }}
           loading={loading}
-          style={{ borderRadius: 10, borderColor: "#e2e8f0", color: "#64748b" }}
+          style={{ borderRadius: 8, borderColor: "#e2e8f0", color: "#64748b" }}
         >
           Refresh
         </Button>
 
-        {/* View Roles */}
-       {user?.isSystemRole && <Button
-          icon={<EyeOutlined />}
-          onClick={() => setViewRolesModal(true)}
-          style={{
-            borderRadius: 10,
-            background: "rgba(6,182,212,0.08)",
-            border: "1.5px solid rgba(6,182,212,0.3)",
-            color: "#0891b2", fontWeight: 700,
-          }}
-        >
-          View Roles
-        </Button>}
-
-        {/* Add Role */}
-       {user?.isSystemRole && <Button
-          type="primary" icon={<PlusOutlined />}
-          onClick={() => setAddRoleModal(true)}
-          style={{
-            borderRadius: 10,
-            background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
-            border: "none", fontWeight: 700,
-            boxShadow: "0 2px 8px rgba(124,58,237,0.25)",
-          }}
-        >
-          Add Role
-        </Button>}
+        {/* Only system roles see role management */}
+        {loggedUser?.isSystemRole && (
+          <>
+            <Divider type="vertical" style={{ height: 24, margin: "0 2px" }} />
+            <Button
+              icon={<EyeOutlined />}
+              onClick={() => setViewRolesModal(true)}
+              style={{
+                borderRadius: 8,
+                background: "rgba(6,182,212,0.07)",
+                border: "1.5px solid rgba(6,182,212,0.28)",
+                color: "#0891b2", fontWeight: 700,
+              }}
+            >
+              View Roles
+            </Button>
+            <Button
+              type="primary" icon={<PlusOutlined />}
+              onClick={openAddRole}
+              style={{
+                borderRadius: 8,
+                background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+                border: "none", fontWeight: 700,
+                boxShadow: "0 2px 8px rgba(124,58,237,0.25)",
+              }}
+            >
+              Add Role
+            </Button>
+          </>
+        )}
       </div>
 
-      {/* Table */}
-      <SectionCard title={`Manage Users (${fmtNum(filtered.length)})`} icon="👥">
+      {/* ── Table ────────────────────────────────────────────────────────── */}
+      <div style={{
+        borderRadius: 14, overflow: "hidden",
+        border: "1.5px solid #e8ecf0",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+        background: "#fff",
+      }}>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 18px", borderBottom: "1px solid #f1f5f9",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>👥</span>
+            <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 14 }}>
+              Manage Users
+            </span>
+            <span style={{
+              padding: "1px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+              background: "rgba(37,99,235,0.08)", color: "#2563eb",
+              border: "1px solid rgba(37,99,235,0.2)",
+            }}>
+              {fmtNum(filtered.length)}
+            </span>
+          </div>
+          {roleFilter && (
+            <Button size="small" type="link" onClick={() => setRole("")}
+              style={{ color: "#94a3b8", fontSize: 12 }}>
+              Clear filter ✕
+            </Button>
+          )}
+        </div>
+
         <Table
           dataSource={filtered} columns={columns}
           rowKey={u => u._id} size="middle" loading={loading}
@@ -876,51 +1009,54 @@ export default function UsersSection({ addToast }) {
             pageSize: 12, showSizeChanger: true,
             showTotal: t => <span style={{ color: "#64748b", fontSize: 13 }}>{fmtNum(t)} total</span>,
           }}
-          scroll={{ x: 1150 }}
+          scroll={{ x: 1100 }}
+          rowClassName={() => "pg-table-row"}
           onRow={u => ({
-            style: { cursor: "pointer", opacity: u.isBlocked ? 0.75 : 1 },
+            style: { cursor: "pointer", opacity: u.isBlocked ? 0.72 : 1 },
             onClick: () => openDrawer(u),
           })}
         />
-      </SectionCard>
+      </div>
 
-      {/* ── Drawer ─────────────────────────────────────────────────────────── */}
+      {/* ── Drawer ───────────────────────────────────────────────────────── */}
       <Drawer
         open={drawerOpen} onClose={() => setDrawer(false)}
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar size={38} style={{
+            <Avatar size={40} style={{
               background: "rgba(139,92,246,0.12)", color: "#7c3aed",
-              fontWeight: 700, fontSize: 14, border: "1.5px solid rgba(139,92,246,0.25)",
+              fontWeight: 700, fontSize: 15, border: "1.5px solid rgba(139,92,246,0.25)",
             }}>
               {(selected?.email || "U")[0].toUpperCase()}
             </Avatar>
             <div>
-              <div style={{ color: "#1e293b", fontWeight: 700, fontSize: 14 }}>{selected?.email}</div>
-              <RoleBadge roleName={resolveRoleName(selected?.role)} />
+              <div style={{ color: "#1e293b", fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{selected?.email}</div>
+              <RoleBadge roleName={selected ? getRoleName(selected) : "user"} />
             </div>
           </div>
         }
         styles={{
-          header: { background: "#fff", borderBottom: "1px solid #f0f2f5", paddingTop: 16, paddingBottom: 16 },
-          body:   { background: "#fff", padding: 20 },
+          header: { background: "#fafbfc", borderBottom: "1px solid #f0f2f5", paddingTop: 16, paddingBottom: 16 },
+          body:   { background: "#fafbfc", padding: 18 },
         }}
-        width={380}
+        width={390}
       >
         {selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+            {/* Detail rows */}
             {[
-              ["Email",  selected.email,                                                   true],
-              ["Role",   resolveRoleName(selected.role),                                  false],
-              ["Status", selected.isBlocked ? "Blocked" : (selected.status || "active"), false],
-              ["Joined", fmtDT(selected.createdAt),                                       false],
+              ["Email",  selected.email,                                                     true],
+              ["Role",   getRoleName(selected),                                              false],
+              ["Status", selected.isBlocked ? "Blocked" : (selected.status || "active"),   false],
+              ["Joined", fmtDT(selected.createdAt),                                         false],
             ].map(([label, value, mono]) => (
               <div key={label} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-                gap: 8, padding: "11px 0", borderBottom: "1px solid #f1f5f9",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                gap: 8, padding: "10px 0", borderBottom: "1px solid #f1f5f9",
               }}>
                 <span style={{
-                  color: "#94a3b8", fontSize: 11, fontFamily: "JetBrains Mono",
+                  color: "#94a3b8", fontSize: 10, fontFamily: "JetBrains Mono",
                   textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, flexShrink: 0,
                 }}>
                   {label}
@@ -937,56 +1073,54 @@ export default function UsersSection({ addToast }) {
               </div>
             ))}
 
+            {/* Complaint stats */}
             {selected.stats && (
               <div style={{
-                margin: "16px 0 4px", padding: 16,
-                borderRadius: 12, background: "#f8fafc", border: "1px solid #e8ecf0",
+                margin: "14px 0 0", padding: 14,
+                borderRadius: 12, background: "#fff", border: "1.5px solid #e8ecf0",
               }}>
-                <div style={{ color: "#1e293b", fontSize: 13, fontWeight: 700, marginBottom: 16 }}>📊 Complaint Stats</div>
+                <div style={{ color: "#1e293b", fontSize: 12, fontWeight: 700, marginBottom: 14 }}>📊 Complaint Stats</div>
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 12px", borderRadius: 8, background: "#fff",
-                  border: "1px solid #e8ecf0", marginBottom: 10,
+                  padding: "8px 10px", borderRadius: 8, background: "#f8fafc",
+                  border: "1px solid #e8ecf0", marginBottom: 12,
                 }}>
                   <span style={{ fontSize: 12, color: "#64748b" }}>Total</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", fontFamily: "JetBrains Mono" }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1e293b", fontFamily: "JetBrains Mono" }}>
                     {fmtNum(selected.stats.totalComplaints || 0)}
                   </span>
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: "#d97706", fontWeight: 600 }}>⏳ Pending</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#d97706", fontFamily: "JetBrains Mono" }}>
-                      {fmtNum(selected.stats.pendingComplaints || 0)}
-                    </span>
+                {[
+                  { label: "⏳ Pending",  val: selected.stats.pendingComplaints,  stroke: "#f59e0b", trail: "#fef3c7", color: "#d97706" },
+                  { label: "✅ Resolved", val: selected.stats.resolvedComplaints, stroke: "#16a34a", trail: "#dcfce7", color: "#16a34a" },
+                ].map(({ label, val, stroke, trail, color }) => (
+                  <div key={label} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color, fontWeight: 600 }}>{label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color, fontFamily: "JetBrains Mono" }}>
+                        {fmtNum(val || 0)}
+                      </span>
+                    </div>
+                    <Progress
+                      percent={selected.stats.totalComplaints ? Math.round(((val || 0) / selected.stats.totalComplaints) * 100) : 0}
+                      showInfo={false} strokeColor={stroke} trailColor={trail} size="small"
+                    />
                   </div>
-                  <Progress
-                    percent={selected.stats.totalComplaints ? Math.round((selected.stats.pendingComplaints / selected.stats.totalComplaints) * 100) : 0}
-                    showInfo={false} strokeColor="#f59e0b" trailColor="#fef3c7" size="small"
-                  />
-                </div>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>✅ Resolved</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", fontFamily: "JetBrains Mono" }}>
-                      {fmtNum(selected.stats.resolvedComplaints || 0)}
-                    </span>
-                  </div>
-                  <Progress
-                    percent={selected.stats.totalComplaints ? Math.round((selected.stats.resolvedComplaints / selected.stats.totalComplaints) * 100) : 0}
-                    showInfo={false} strokeColor="#16a34a" trailColor="#dcfce7" size="small"
-                  />
-                </div>
+                ))}
               </div>
             )}
 
+            {/* Actions */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
 
               {/* Status change */}
               {!selected.isBlocked && (NEXT_STATUSES[selected.status] || []).length > 0 && (
-                <div>
+                <div style={{
+                  padding: "12px 14px", borderRadius: 10,
+                  background: "#fff", border: "1.5px solid #e8ecf0",
+                }}>
                   <div style={{
-                    fontSize: 11, color: "#94a3b8", fontWeight: 700,
+                    fontSize: 10, color: "#94a3b8", fontWeight: 700,
                     textTransform: "uppercase", letterSpacing: 1, marginBottom: 8,
                   }}>Change Status</div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1012,81 +1146,91 @@ export default function UsersSection({ addToast }) {
                 </div>
               )}
 
-              {/* Role change in drawer */}
-              <div>
+              {/* Role change */}
+              {loggedUser?.isSystemRole && (
                 <div style={{
-                  fontSize: 11, color: "#94a3b8", fontWeight: 700,
-                  textTransform: "uppercase", letterSpacing: 1, marginBottom: 8,
-                }}>Change Role</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {roles.map(r => {
-                    const isCurrent = selected.role === r._id || selected.role === r.name;
-                    const s = getRoleBadgeStyle(r.name);
-                    return (
-                      <Popconfirm key={r._id}
-                        title={`Assign role "${r.name}"?`}
-                        description={`${selected.email} will get permissions of "${r.name}".`}
-                        onConfirm={() => changeUserRole(selected._id, r._id)}
-                        okText="Confirm" disabled={isCurrent}
-                      >
-                        <Button size="small" disabled={isCurrent} style={{
-                          background: isCurrent ? s.bg : "#f8fafc",
-                          border: `1px solid ${isCurrent ? s.border : "#e2e8f0"}`,
-                          color: isCurrent ? s.color : "#64748b",
-                          borderRadius: 8, fontWeight: 600, fontSize: 12,
-                          textTransform: "capitalize",
-                        }}>
-                          {isCurrent ? "✓ " : ""}{r.name}
-                        </Button>
-                      </Popconfirm>
-                    );
-                  })}
+                  padding: "12px 14px", borderRadius: 10,
+                  background: "#fff", border: "1.5px solid #e8ecf0",
+                }}>
+                  <div style={{
+                    fontSize: 10, color: "#94a3b8", fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: 1, marginBottom: 8,
+                  }}>Change Role</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {roles.map(r => {
+                      const isCurrent = getRoleId(selected) === r._id || selected.role === r.name;
+                      const s = getRoleBadgeStyle(r.name);
+                      return (
+                        <Popconfirm key={r._id}
+                          title={`Assign role "${r.name}"?`}
+                          description={`${selected.email} will get permissions of "${r.name}".`}
+                          onConfirm={() => changeUserRole(selected._id, r._id)}
+                          okText="Confirm" disabled={isCurrent}
+                        >
+                          <Button size="small" disabled={isCurrent} style={{
+                            background: isCurrent ? s.bg : "#f8fafc",
+                            border: `1px solid ${isCurrent ? s.border : "#e2e8f0"}`,
+                            color: isCurrent ? s.color : "#64748b",
+                            borderRadius: 8, fontWeight: 600, fontSize: 12,
+                            textTransform: "capitalize",
+                          }}>
+                            {isCurrent ? "✓ " : ""}{r.name}
+                          </Button>
+                        </Popconfirm>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Block / Unblock */}
-              <Popconfirm
-                title={selected.isBlocked ? "Unblock this user?" : "Block this user?"}
-                description={selected.isBlocked ? "User will regain access." : "User will lose complaint access."}
-                onConfirm={() => blockUser(selected._id, selected.isBlocked)}
-                okText="Confirm"
-              >
-                <Button block style={{
-                  background: selected.isBlocked ? "rgba(22,163,74,0.08)" : "rgba(245,158,11,0.08)",
-                  border: `1.5px solid ${selected.isBlocked ? "rgba(22,163,74,0.3)" : "rgba(245,158,11,0.3)"}`,
-                  color: selected.isBlocked ? "#16a34a" : "#d97706",
-                  borderRadius: 10, fontWeight: 700, height: 42, fontSize: 13,
-                }}>
-                  {selected.isBlocked ? "✅  Unblock User" : "🚫  Block User"}
-                </Button>
-              </Popconfirm>
+              {canEdit && (
+                <Popconfirm
+                  title={selected.isBlocked ? "Unblock this user?" : "Block this user?"}
+                  description={selected.isBlocked ? "User will regain access." : "User will lose complaint access."}
+                  onConfirm={() => blockUser(selected._id, selected.isBlocked)}
+                  okText="Confirm"
+                >
+                  <Button block style={{
+                    background: selected.isBlocked ? "rgba(22,163,74,0.07)" : "rgba(245,158,11,0.07)",
+                    border: `1.5px solid ${selected.isBlocked ? "rgba(22,163,74,0.3)" : "rgba(245,158,11,0.3)"}`,
+                    color: selected.isBlocked ? "#16a34a" : "#d97706",
+                    borderRadius: 10, fontWeight: 700, height: 42, fontSize: 13,
+                  }}>
+                    {selected.isBlocked ? "✅  Unblock User" : "🚫  Block User"}
+                  </Button>
+                </Popconfirm>
+              )}
 
               {/* Delete */}
-              <Popconfirm
-                title="Permanently delete this user?"
-                description="This action cannot be undone."
-                onConfirm={() => deleteUser(selected._id)}
-                okText="Delete" okButtonProps={{ danger: true }}
-              >
-                <Button block danger style={{
-                  background: "rgba(239,68,68,0.06)",
-                  border: "1.5px solid rgba(239,68,68,0.2)",
-                  color: "#e53935", borderRadius: 10, fontWeight: 700, height: 42, fontSize: 13,
-                }}>
-                  🗑  Delete User
-                </Button>
-              </Popconfirm>
+              {canDelete && (
+                <Popconfirm
+                  title="Permanently delete this user?"
+                  description="This action cannot be undone."
+                  onConfirm={() => deleteUser(selected._id)}
+                  okText="Delete" okButtonProps={{ danger: true }}
+                >
+                  <Button block danger style={{
+                    background: "rgba(239,68,68,0.05)",
+                    border: "1.5px solid rgba(239,68,68,0.2)",
+                    color: "#e53935", borderRadius: 10, fontWeight: 700, height: 42, fontSize: 13,
+                  }}>
+                    🗑  Delete User
+                  </Button>
+                </Popconfirm>
+              )}
             </div>
           </div>
         )}
       </Drawer>
 
-      {/* ── Add Role modal ────────────────────────────────────────────────── */}
-      <AddRoleModal
-        open={addRoleModal}
-        onConfirm={handleCreateRole}
-        onCancel={() => setAddRoleModal(false)}
-        loading={addRoleLoading}
+      {/* ── Role Form modal (Add + Edit) ──────────────────────────────────── */}
+      <RoleFormModal
+        open={roleFormModal}
+        onConfirm={handleRoleFormSubmit}
+        onCancel={() => { setRoleFormModal(false); setEditingRole(null); }}
+        loading={roleFormLoading}
+        initialData={editingRole}
       />
 
       {/* ── View Roles modal ──────────────────────────────────────────────── */}
@@ -1095,6 +1239,7 @@ export default function UsersSection({ addToast }) {
         onClose={() => setViewRolesModal(false)}
         roles={roles}
         rolesLoading={rolesLoading}
+        onEditRole={openEditRole}
         onDeleteRole={handleDeleteRole}
       />
     </div>

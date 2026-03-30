@@ -89,6 +89,10 @@ function App() {
                 <Route path="production" element={<ProductionEntryForm />} />
               </Route>
 
+              <Route element={<ProtectedRoute requiredPermission="BulkUpload" />}>
+                <Route path="bulk-upload" element={<BulkUpload />} />
+              </Route>
+
             </Route>
           </Route>
 
