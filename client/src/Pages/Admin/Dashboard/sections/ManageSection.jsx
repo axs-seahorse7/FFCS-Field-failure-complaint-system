@@ -1,6 +1,6 @@
 // sections/ManageSection.jsx
 import { useState, useEffect, useCallback } from "react";
-import { Input, Select, Table, Button, Space, Popconfirm, Tooltip } from "antd";
+import { Input, Select, Table, Button, Space, Popconfirm, Tooltip, message } from "antd";
 import { SearchOutlined, ReloadOutlined, DeleteOutlined } from "@ant-design/icons";
 import SectionCard from "../components/SectionCard";
 import StatusBadge from "../components/StatusBadge";
@@ -10,7 +10,7 @@ import { useApiQuery } from "../components/useApiQuery.js";
 import { fmtNum, fmtDate } from "../components/utils";
 
 const { Option } = Select;
-const STATUSES = ["Open","Active","Pending","Resolved","Closed"];
+const STATUSES = ["Open","Pending","Resolved"];
 
 const STATUS_COLORS = {
   Open: "#3b82f6", Active: "#22c55e", Pending: "#f59e0b", Resolved: "#16a34a", Closed: "#94a3b8"
@@ -32,7 +32,6 @@ export default function ManageSection({ addToast }) {
 
   const user = JSON.parse(localStorage.getItem("User")) || {};
 
-  console.log("User:", user);
 
   const list = data?.complaints || [];
   const total = data?.total || 0;
@@ -45,10 +44,10 @@ export default function ManageSection({ addToast }) {
     setUpdatingId(id);
     try {
       await api.post("/complaints/status", { id, status });
-      addToast(`Status updated to "${status}"`, "success");
+      message.success(`Status updated to "${status}"`);
       refetch();
     } catch {
-      addToast("Update failed", "error");
+      message.error("Update failed");
     } finally {
       setUpdatingId(null);
     }
@@ -57,11 +56,11 @@ export default function ManageSection({ addToast }) {
   const deleteComplaint = async (id) => {
     try {
       await api.post("/complaints/delete", { id });
-      addToast("Complaint deleted", "success");
+      message.success("Complaint deleted");
       refetch();
       if (selected?._id === id) setSelected(null);
     } catch {
-      addToast("Delete failed", "error");
+      message.error("Delete failed");
     }
   };
 
@@ -70,64 +69,71 @@ export default function ManageSection({ addToast }) {
     const canDelete = user.isSystemRole || actions.includes("delete");
     const canUpdate = user.isSystemRole || actions.includes("edit");
 
-    const columns = [
-      { title: "S.N.", width: 46, render: (_, __, i) => i + 1 + (page - 1) * pageSize },
-      { title: "Complaint No", dataIndex: "complaintNo", width: 130 },
-      { title: "Complaint Date", dataIndex: "complaintDate", width: 100, render: v => fmtDate(v) },
-      { title: "Customer", dataIndex: "customerName", width: 110 },
-      { title: "Commodity", dataIndex: "commodity", width: 110 },
-      { title: "Model", dataIndex: "modelName", width: 120, ellipsis: true },
-      { title: "Defect", dataIndex: "defectDetails", width: 140, ellipsis: true },
-      { title: "Part", dataIndex: "defectivePart", width: 120, ellipsis: true },
-      { title: "DOA", dataIndex: "doa", width: 60 },
+  const columns = [
+  { title: "S.N.",           width: 46,  fixed: "left", render: (_, __, i) => i + 1 + (page - 1) * pageSize },
+  { title: "Complaint No",   dataIndex: "complaintNo",        width: 130, fixed: "left" },
+  { title: "Complaint Date", dataIndex: "complaintDate",      width: 110, render: v => fmtDate(v) },
+  { title: "Customer",       dataIndex: "customerName",       width: 110 },
+  { title: "Commodity",      dataIndex: "commodity",          width: 90  },
+  { title: "Model",          dataIndex: "modelName",          width: 120, ellipsis: true },
+  { title: "Defect",         dataIndex: "defectDetails",      width: 140, ellipsis: true },
+  { title: "Part",           dataIndex: "defectivePart",      width: 120, ellipsis: true },
+  { title: "DOA",            dataIndex: "doa",                width: 60  },
+  { title: "Mfg. Plant",     dataIndex: "manufacturingPlant", width: 110, ellipsis: true },
+  { title: "Mfg. Date",      dataIndex: "manufacturingDate",  width: 110, render: v => fmtDate(v) },
+  { title: "City",           dataIndex: "city",               width: 100, ellipsis: true },
+  { title: "State",          dataIndex: "state",              width: 100, ellipsis: true },
+  { title: "Data Base",      dataIndex: "dataBase",           width: 100 },
+  { title: "Symptoms",       dataIndex: "symptom",            width: 140, ellipsis: true },
+  { title: "Product Aging",  dataIndex: "productAging",       width: 110, render: v => v != null ? `${v} days` : "—" },
+  {
+    title: "Status",
+    dataIndex: "status",
+    width: 100,
+    render: v => <StatusBadge status={v} />,
+  },
 
-      {
-        title: "Status",
-        dataIndex: "status",
-        width: 100,
-        render: v => <StatusBadge status={v} />
-      },
-        ...(canUpdate? [{
-          title: "Change Status",
-          width: 130,
-          render: (_, r) => (
-            <Select
-              value={r.status}
-              size="small"
-              loading={updatingId === r._id}
-              onChange={v => updateStatus(r._id, v)}
-              onClick={e => e.stopPropagation()}
-              style={{ width: 120 }}
-              disabled={!canUpdate}
-            >
-              {STATUSES.map(s => <Option key={s}>{s}</Option>)}
-            </Select>
-          )
-        }]: []),
+  // ── Change Status (role-gated) ──
+  ...(canUpdate ? [{
+    title: "Change Status",
+    width: 130,
+    render: (_, r) => (
+      <Select
+        value={r.status}
+        size="small"
+        loading={updatingId === r._id}
+        onChange={v => updateStatus(r._id, v)}
+        onClick={e => e.stopPropagation()}
+        style={{ width: 120 }}
+        disabled={!canUpdate}
+      >
+        {STATUSES.map(s => <Option key={s}>{s}</Option>)}
+      </Select>
+    ),
+  }] : []),
 
-          
-      //  CONDITIONAL COLUMN
-      ...(canDelete 
-        ? [{
-            title: "Actions",
-            width: 70,
-            render: (_, r) => (
-              <Popconfirm
-                title="Delete this complaint?"
-                onConfirm={() => deleteComplaint(r._id)}
-              >
-                <Button
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={e => e.stopPropagation()}
-                />
-              </Popconfirm>
-            )
-          }]
-        : [])
-    ];
-
+  // ── Actions (role-gated, pinned right) ──
+  ...(canDelete ? [{
+    title: "Actions",
+    width: 70,
+    fixed: "right",
+    render: (_, r) => (
+      <Popconfirm
+        title="Delete this complaint?"
+        onConfirm={() => deleteComplaint(r._id)}
+        okText="Yes"
+        cancelText="No"
+      >
+        <Button
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={e => e.stopPropagation()}
+        />
+      </Popconfirm>
+    ),
+  }] : []),
+];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 

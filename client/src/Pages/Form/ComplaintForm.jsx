@@ -57,6 +57,10 @@ const DEFECT_LIST = [
   "BEARING BUSH MISSING","CAPACITOR BURNT / NG","PART BROKEN / OPEN","OTHER",
 ];
 
+// ── NEW CONSTANTS ──
+const MANUFACTURING_PLANTS = ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi"];
+const DATABASE_OPTIONS      = ["Evidence", "Verification", "Data"];
+
 const MAX_FILE_SIZE = 200 * 1024; // 200 KB
 
 const initialForm = {
@@ -77,7 +81,23 @@ const initialForm = {
   symptom: "",
   defectDetails: "",
   status: "Open",
+  // ── new fields ──
+  manufacturingPlant: "",
+  manufacturingDate: "",
+  city: "",
+  state: "",
+  dataBase: "",
 };
+
+/* ─────────────────────────────────────────
+   HELPER — product aging in days
+───────────────────────────────────────── */
+function calcProductAging(complaintDate, purchaseDate) {
+  if (!complaintDate || !purchaseDate) return "";
+  const diff = new Date(complaintDate) - new Date(purchaseDate);
+  if (isNaN(diff) || diff < 0) return "";
+  return Math.floor(diff / 86400000) + " days";
+}
 
 /* ─────────────────────────────────────────
    SUB-COMPONENTS
@@ -115,13 +135,13 @@ const inputCls =
   "w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-sm " +
   "outline-none transition-all duration-150 " +
   "focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-500/10 " +
-  "placeholder:text-slate-300 font-[\'Sora\',sans-serif]";
+  "placeholder:text-slate-300 font-['Sora',sans-serif]";
 
 const selectCls =
   "w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-sm " +
   "outline-none transition-all duration-150 cursor-pointer appearance-none " +
   "focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-500/10 " +
-  "font-[\'Sora\',sans-serif]";
+  "font-['Sora',sans-serif]";
 
 function SelectF({ id, value, onChange, options, placeholder }) {
   return (
@@ -145,14 +165,14 @@ function SelectF({ id, value, onChange, options, placeholder }) {
    MAIN COMPONENT
 ───────────────────────────────────────── */
 export default function ComplaintForm({ editId, userEmail }) {
-  const [form, setForm] = useState(initialForm);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState({ text: "", type: "" });
-  const [touched, setTouched] = useState({});
-  const [invoiceFile, setInvoiceFile] = useState(null);
+  const [form, setForm]             = useState(initialForm);
+  const [loading, setLoading]       = useState(false);
+  const [msg, setMsg]               = useState({ text: "", type: "" });
+  const [touched, setTouched]       = useState({});
+  const [invoiceFile, setInvoiceFile]   = useState(null);
   const [invoiceError, setInvoiceError] = useState("");
   const fileInputRef = useRef(null);
-  const navigate = useNavigate();
+  const navigate     = useNavigate();
 
   useEffect(() => {
     const ts = Date.now().toString().slice(-6);
@@ -164,6 +184,15 @@ export default function ComplaintForm({ editId, userEmail }) {
     setTouched((t) => ({ ...t, [field]: true }));
     if (msg.text) setMsg({ text: "", type: "" });
   };
+
+  // ── clear evidence file when dataBase changes away from "Evidence"
+  useEffect(() => {
+    if (form.dataBase !== "Evidence") {
+      setInvoiceFile(null);
+      setInvoiceError("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [form.dataBase]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -180,7 +209,7 @@ export default function ComplaintForm({ editId, userEmail }) {
     setInvoiceFile(file);
   };
 
-  const removeInvoice = () => {
+  const removeFile = () => {
     setInvoiceFile(null);
     setInvoiceError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -191,6 +220,8 @@ export default function ComplaintForm({ editId, userEmail }) {
     "defectCategory", "defectivePart", "defectDetails",
   ];
   const isValid = requiredFields.every((f) => form[f]?.trim?.() || form[f]);
+
+  const productAging = calcProductAging(form.complaintDate, form.purchaseDate);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -205,16 +236,15 @@ export default function ComplaintForm({ editId, userEmail }) {
     setMsg({ text: "", type: "" });
     try {
       const payload = new FormData();
-      console.log("Form data:", form);
       Object.entries(form).forEach(([k, v]) => {
         if (v !== null && v !== undefined) payload.append(k, v);
-        });
-        // if (invoiceFile) payload.append("invoice", invoiceFile);
-        const {data} = await api.post("/create-complaint", payload, {
-          headers: { "Content-Type": "application/json" },
-        });
-          message.success(data.message || "Complaint created successfully!");
-          setForm(initialForm);
+      });
+      if (invoiceFile) payload.append("evidence", invoiceFile);
+      const { data } = await api.post("/create-complaint", payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+      message.success(data.message || "Complaint created successfully!");
+      setForm(initialForm);
     } catch (err) {
       message.error(err.data?.message || "Failed to create complaint. Please try again.");
     } finally {
@@ -330,13 +360,21 @@ export default function ComplaintForm({ editId, userEmail }) {
                   </Field>
                 </div>
 
-                {/* Row 2 — DOA, Purchase Date */}
+                {/* Row 2 — DOA, Purchase Date, Product Aging */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Field label="DOA / Warranty">
                     <SelectF value={form.doa} onChange={set("doa")} options={["DOA", "IW", "OW"]} placeholder="-- Select --" />
                   </Field>
                   <Field label="Purchase Date">
                     <input type="date" className={inputCls} value={form.purchaseDate} onChange={set("purchaseDate")} />
+                  </Field>
+                  <Field label="Product Aging" hint="Auto-calculated from Complaint Date − Purchase Date">
+                    <input
+                      className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
+                      value={productAging}
+                      readOnly
+                      placeholder="Set Complaint & Purchase dates"
+                    />
                   </Field>
                 </div>
 
@@ -411,57 +449,143 @@ export default function ComplaintForm({ editId, userEmail }) {
                     <SelectF value={form.defectDetails} onChange={set("defectDetails")} options={DEFECT_LIST} placeholder="-- Select Defect --" />
                     {touched.defectDetails && !form.defectDetails && <p className="text-[10px] text-red-500 mt-0.5">Required</p>}
                   </Field>
+                  <Field label="Symptoms" hint="Describe observed symptoms">
+                    <input
+                      type="text"
+                      className={inputCls}
+                      placeholder="e.g. Unit not cooling, loud noise on startup"
+                      value={form.symptom}
+                      onChange={set("symptom")}
+                    />
+                  </Field>
                 </div>
 
               </div>
             </div>
 
-            {/* ════ SECTION 3: Invoice ════ */}
+            {/* ════ SECTION 3 — Manufacturing & Location ════ */}
             <div className="bg-white rounded-2xl shadow-lg shadow-slate-200 border border-slate-200 overflow-hidden mb-5">
               <div className="px-5 pt-5 pb-1 border-b border-slate-50">
-                <SectionHeader icon="🧾" subtitle="Section 03" title="Invoice Upload" />
+                <SectionHeader icon="🏭" subtitle="Section 03" title="Manufacturing & Location" />
               </div>
-              <div className="p-5">
-                <Field label="Upload Invoice" hint="Accepted: JPG, PNG, PDF · Max size: 200 KB">
-                  <div
-                    className={`relative flex flex-col items-center justify-center gap-2 px-4 py-7 rounded-xl border-2 border-dashed transition-all duration-150 cursor-pointer
-                      ${invoiceError ? "border-red-400 bg-red-50/40" : invoiceFile ? "border-green-400 bg-green-50/40" : "border-slate-200 bg-slate-50 hover:border-red-400 hover:bg-red-50/20"}`}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleFileChange} />
-                    {invoiceFile ? (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-green-100 border border-green-200 flex items-center justify-center text-lg">✅</div>
-                        <p className="text-sm font-semibold text-green-700">{invoiceFile.name}</p>
-                        <p className="text-[10px] text-green-500 font-mono">{(invoiceFile.size / 1024).toFixed(1)} KB</p>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); removeInvoice(); }}
-                          className="mt-1 flex items-center gap-1 px-3 py-1 rounded-lg bg-red-50 border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-100 transition-all"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+              <div className="p-5 space-y-5">
+
+                {/* Row — Manufacturing Plant + Manufacturing Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Field label="Manufacturing Plant">
+                    <SelectF
+                      value={form.manufacturingPlant}
+                      onChange={set("manufacturingPlant")}
+                      options={MANUFACTURING_PLANTS}
+                      placeholder="-- Select Plant --"
+                    />
+                  </Field>
+                  <Field label="Manufacturing Date">
+                    <input type="date" className={inputCls} value={form.manufacturingDate} onChange={set("manufacturingDate")} />
+                  </Field>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 font-mono">Field Location</span>
+                  <div className="flex-1 h-px bg-slate-100" />
+                </div>
+
+                {/* Row — City + State */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="City">
+                    <input type="text" className={inputCls} placeholder="e.g. Mumbai" value={form.city} onChange={set("city")} />
+                  </Field>
+                  <Field label="State">
+                    <input type="text" className={inputCls} placeholder="e.g. Maharashtra" value={form.state} onChange={set("state")} />
+                  </Field>
+                </div>
+
+              </div>
+            </div>
+
+            {/* ════ SECTION 4 — Data Base & Evidence ════ */}
+            <div className="bg-white rounded-2xl shadow-lg shadow-slate-200 border border-slate-200 overflow-hidden mb-5">
+              <div className="px-5 pt-5 pb-1 border-b border-slate-50">
+                <SectionHeader icon="🗄️" subtitle="Section 04" title="Data Base & Evidence" />
+              </div>
+              <div className="p-5 space-y-5">
+
+                {/* Data Base dropdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Field label="Data Base" hint="Select 'Evidence' to attach a file">
+                    <SelectF
+                      value={form.dataBase}
+                      onChange={set("dataBase")}
+                      options={DATABASE_OPTIONS}
+                      placeholder="-- Select --"
+                    />
+                  </Field>
+                </div>
+
+                {/* ── File upload — only when "Evidence" is selected ── */}
+                {form.dataBase === "Evidence" && (
+                  <div className="animate-in fade-in duration-200">
+                    <Field label="Upload Evidence" hint="Accepted: JPG, PNG, PDF · Max size: 200 KB">
+                      <div
+                        className={`relative flex flex-col items-center justify-center gap-2 px-4 py-7 rounded-xl border-2 border-dashed transition-all duration-150 cursor-pointer
+                          ${invoiceError
+                            ? "border-red-400 bg-red-50/40"
+                            : invoiceFile
+                              ? "border-green-400 bg-green-50/40"
+                              : "border-slate-200 bg-slate-50 hover:border-red-400 hover:bg-red-50/20"
+                          }`}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleFileChange} />
+
+                        {invoiceFile ? (
+                          <>
+                            <div className="w-10 h-10 rounded-full bg-green-100 border border-green-200 flex items-center justify-center text-lg">✅</div>
+                            <p className="text-sm font-semibold text-green-700">{invoiceFile.name}</p>
+                            <p className="text-[10px] text-green-500 font-mono">{(invoiceFile.size / 1024).toFixed(1)} KB</p>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removeFile(); }}
+                              className="mt-1 flex items-center gap-1 px-3 py-1 rounded-lg bg-red-50 border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-100 transition-all"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              Remove
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xl">📎</div>
+                            <p className="text-sm font-semibold text-slate-600">Click to upload evidence file</p>
+                            <p className="text-[10px] text-slate-400 font-mono">JPG · PNG · PDF &nbsp;|&nbsp; Max 200 KB</p>
+                          </>
+                        )}
+                      </div>
+
+                      {invoiceError && (
+                        <p className="text-[10.5px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
+                          <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
                           </svg>
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xl">📎</div>
-                        <p className="text-sm font-semibold text-slate-600">Click to upload invoice</p>
-                        <p className="text-[10px] text-slate-400 font-mono">JPG · PNG · PDF &nbsp;|&nbsp; Max 200 KB</p>
-                      </>
-                    )}
+                          {invoiceError}
+                        </p>
+                      )}
+                    </Field>
                   </div>
-                  {invoiceError && (
-                    <p className="text-[10.5px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
-                      <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                      </svg>
-                      {invoiceError}
+                )}
+
+                {/* Placeholder message when Verification or Data is selected */}
+                {form.dataBase && form.dataBase !== "Evidence" && (
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-lg">ℹ️</span>
+                    <p className="text-xs text-slate-500 font-semibold">
+                      No file attachment required for <span className="text-slate-700">{form.dataBase}</span>.
                     </p>
-                  )}
-                </Field>
+                  </div>
+                )}
+
               </div>
             </div>
 
@@ -495,7 +619,7 @@ export default function ComplaintForm({ editId, userEmail }) {
                     <path d="M3 12a9 9 0 109-9 9 9 0 00-9 9" strokeLinecap="round"/>
                     <polyline points="3 3 3 9 9 9" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                    Reset Form
+                  Reset Form
                 </button>
                 <p className="sm:ml-auto text-[10.5px] text-slate-400 text-center sm:text-right font-mono">
                   Fields marked <span className="text-red-500 font-bold">*</span> are required

@@ -3,9 +3,8 @@ import express from "express";
 import {
   getComplaints, createComplaint, updateComplaintStatus, deleteComplaint,
   getComplaintStats, getMonthlyTrend, getByCategory, getTopDefects,
-  getBySupplier, getByPart, getByCustomer, getPpmTrend,
-  // New endpoints
-  getDailyTrend, getByStatus, getCategoryVsPart,
+  getBySupplier, getByPart, getByCustomer,
+  getWeeklyTrend, getByStatus, getCategoryVsPart,
   getCustomerVsStatus, getCustomerVsCategory,
   getByDoa, getByCommodity, getCommodityVsCategory,
   getByReplacement, getByCreatedUser, getByUpdatedUser, getAging, getProductionStats,
@@ -30,14 +29,13 @@ router.post("/create-complaint", isAuthenticated, createComplaint);
 const A = isAuthenticated;
 router.get("/complaints/stats",                isAuthenticated, getComplaintStats);
 router.get("/complaints/monthly",              isAuthenticated, getMonthlyTrend);
-router.get("/complaints/daily",                isAuthenticated, getDailyTrend);
+router.get("/complaints/weekly",               isAuthenticated, getWeeklyTrend);
 router.get("/complaints/by-status",            isAuthenticated, getByStatus);
 router.get("/complaints/by-category",          isAuthenticated, getByCategory);
 router.get("/complaints/top-defects",          isAuthenticated, getTopDefects);
 router.get("/complaints/by-supplier",          isAuthenticated, getBySupplier);
 router.get("/complaints/by-part",              isAuthenticated, getByPart);
 router.get("/complaints/by-customer",          isAuthenticated, getByCustomer);
-router.get("/complaints/ppm-trend",            isAuthenticated, getPpmTrend);
 router.get("/complaints/category-vs-part",     isAuthenticated, getCategoryVsPart);
 router.get("/complaints/customer-vs-status",   isAuthenticated, getCustomerVsStatus);
 router.get("/complaints/customer-vs-category", isAuthenticated, getCustomerVsCategory);

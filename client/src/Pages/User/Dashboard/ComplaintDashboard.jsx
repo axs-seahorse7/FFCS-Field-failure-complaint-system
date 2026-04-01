@@ -5,29 +5,35 @@ import { useNavigate } from "react-router-dom";
 /* ─────────────────────────────────────────
    CONSTANTS
 ───────────────────────────────────────── */
-const STATUSES = ["All", "Open", "Active", "Pending", "Resolved", "Closed"];
+const STATUSES = ["All", "Open", "Pending", "Resolved", ];
 const PAGE_SIZE = 10;
 
 const STATUS_STYLES = {
   Open:     { pill: "bg-blue-50 text-blue-600 border-blue-200",     dot: "bg-blue-500" },
-  Active:   { pill: "bg-emerald-50 text-emerald-600 border-emerald-200", dot: "bg-emerald-500" },
   Pending:  { pill: "bg-amber-50 text-amber-600 border-amber-200",  dot: "bg-amber-400" },
   Resolved: { pill: "bg-teal-50 text-teal-600 border-teal-200",     dot: "bg-teal-500" },
-  Closed:   { pill: "bg-slate-100 text-slate-500 border-slate-200", dot: "bg-slate-400" },
 };
 
 const COLUMNS = [
-  { key: "complaintNo",   label: "Complaint No.",    mono: true },
-  { key: "complaintDate", label: "Complaint Date", date: true },
-  { key: "customerName",  label: "Customer"                      },
-  { key: "commodity",     label: "Commodity"                     },
-  { key: "modelName",     label: "Model Name"                    },
-  { key: "defectCategory",label: "Defect Category"               },
-  { key: "defectivePart", label: "Defective Part"                },
-  { key: "defectDetails", label: "Defect Details"                },
-  { key: "doa",           label: "DOA"                           },
-  { key: "status",        label: "Status",           status: true },
-  { key: "createdAt",     label: "Created At",        date: true  },
+  { key: "complaintNo",        label: "Complaint No.",     mono: true  },
+  { key: "complaintDate",      label: "Complaint Date",    date: true  },
+  { key: "customerName",       label: "Customer"                       },
+  { key: "commodity",          label: "Commodity"                      },
+  { key: "modelName",          label: "Model Name"                     },
+  { key: "defectCategory",     label: "Defect Category"                },
+  { key: "defectivePart",      label: "Defective Part"                 },
+  { key: "defectDetails",      label: "Defect Details"                 },
+  { key: "symptom",            label: "Symptoms"                       },
+  { key: "doa",                label: "DOA"                            },
+  { key: "purchaseDate",       label: "Purchase Date",     date: true  },
+  { key: "productAging",       label: "Product Aging",     aging: true },
+  { key: "manufacturingPlant", label: "Mfg. Plant"                     },
+  { key: "manufacturingDate",  label: "Mfg. Date",         date: true  },
+  { key: "city",               label: "City"                           },
+  { key: "state",              label: "State"                          },
+  { key: "dataBase",           label: "Data Base"                      },
+  { key: "status",             label: "Status",            status: true},
+  { key: "createdAt",          label: "Created At",        date: true  },
 ];
 
 /* ─────────────────────────────────────────
@@ -83,11 +89,12 @@ function StatCard({ label, value, icon, color }) {
 function Skeleton() {
   return (
     <tr className="animate-pulse">
-      {COLUMNS.map((c) => (
+      {COLUMNS.map((c) => {
+        
         <td key={c.key} className="px-4 py-3.5">
           <div className="h-3 bg-slate-200 rounded-full" style={{ width: "40%" }} />
         </td>
-      ))}
+      })}
       <td className="px-4 py-3.5"><div className="h-3 w-12 bg-slate-200 rounded-full" /></td>
     </tr>
   );
@@ -128,27 +135,34 @@ function DetailDrawer({ complaint, onClose }) {
   if (!complaint) return null;
 
   const rows = [
-    ["Complaint No.",    complaint.complaintNo,    true],
-    ["Complaint Date",   fmtDate(complaint.complaintDate)],
-    ["Created At",       fmtDateTime(complaint.createdAt)],
-    ["Customer Name",    complaint.customerName],
-    ["Commodity",        complaint.commodity],
-    ["Replacement Cat.", complaint.replacementCategory || "—"],
-    ["Model Name",       complaint.modelName],
-    ["Purchase Date",    fmtDate(complaint.purchaseDate)],
-    ["DOA",              complaint.doa || "—"],
-    ["Defect Category",  complaint.defectCategory],
-    ["Defective Part",   complaint.defectivePart],
-    ["Symptom",          complaint.symptom || "—"],
-    ["Defect Details",   complaint.defectDetails],
-    ["Status",           complaint.status, false, true],
-    ["Created By",       complaint.createdBy.email || "—"],
-  ];
+  ["Complaint No.",      complaint.complaintNo,                    true],
+  ["Complaint Date",     fmtDate(complaint.complaintDate)],
+  ["Created At",         fmtDateTime(complaint.createdAt)],
+  ["Customer Name",      complaint.customerName],
+  ["Commodity",          complaint.commodity],
+  ["Replacement Cat.",   complaint.replacementCategory || "—"],
+  ["Model Name",         complaint.modelName],
+  ["Serial No.",         complaint.serialNo || "—"],
+  ["Part No.",           complaint.partNo || "—"],
+  ["Part Model",         complaint.partModel || "—"],
+  ["Purchase Date",      fmtDate(complaint.purchaseDate)],
+  ["DOA",                complaint.doa || "—"],
+  ["Product Aging",      complaint.productAging != null ? `${complaint.productAging} days` : "—"],
+  ["Defect Category",    complaint.defectCategory],
+  ["Defective Part",     complaint.defectivePart],
+  ["Symptom",            complaint.symptom || "—"],
+  ["Defect Details",     complaint.defectDetails],
+  ["Mfg. Plant",         complaint.manufacturingPlant || "—"],
+  ["Mfg. Date",          fmtDate(complaint.manufacturingDate)],
+  ["City",               complaint.city || "—"],
+  ["State",              complaint.state || "—"],
+  ["Data Base",          complaint.dataBase || "—"],
+  ["Status",             complaint.status,                         false, true],
+  ["Resolved Date",      fmtDate(complaint.resolvedDate) || "Not resolved yet"],
+  ["Remarks",            complaint.remarks || "Under investigation"],
+];
 
-   const handleDownloadDocument = () => {
-    // Implement document generation and downloading logic here
-    alert("Download functionality is coming soon.");
-  };
+
 
   return (
     <>
@@ -282,7 +296,6 @@ export default function ComplaintDashboard({  userEmail, }) {
   const stats = {
     total:    complaints.length,
     open:     complaints.filter((c) => c.status === "Open").length,
-    active:   complaints.filter((c) => c.status === "Active").length,
     pending:  complaints.filter((c) => c.status === "Pending").length,
     resolved: complaints.filter((c) => c.status === "Resolved").length,
   };
@@ -388,7 +401,6 @@ export default function ComplaintDashboard({  userEmail, }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
             <StatCard label="Total"    value={stats.total}    icon="" color="slate"   />
             <StatCard label="Open"     value={stats.open}     icon="" color="blue"    />
-            <StatCard label="Active"   value={stats.active}   icon="" color="emerald" />
             <StatCard label="Pending"  value={stats.pending}  icon="" color="amber"   />
             <StatCard label="Resolved" value={stats.resolved} icon="" color="red"     />
           </div>

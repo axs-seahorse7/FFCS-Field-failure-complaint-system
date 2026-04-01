@@ -85,49 +85,146 @@ const Shadow3DBar = (props) => {
 /* ════════════════════════════════════════
    KPI CARD
 ════════════════════════════════════════ */
-function MiniKpiCard({ label, value, sub, icon, color, loading, pinned, onPin }) {
+function MiniKpiCard({
+  label,
+  value,
+  prev,
+  icon,
+  color = "blue",
+  trendData,
+  loading,
+  pinned,
+  onPin
+
+}) {
   const colorMap = {
     blue:   { bg: "#eff6ff", accent: "#3b82f6", border: "#bfdbfe" },
     red:    { bg: "#fff1f0", accent: "#e53935", border: "#fecaca" },
     green:  { bg: "#f0fdf4", accent: "#16a34a", border: "#bbf7d0" },
     amber:  { bg: "#fffbeb", accent: "#d97706", border: "#fde68a" },
     purple: { bg: "#faf5ff", accent: "#7c3aed", border: "#ddd6fe" },
-    indigo: { bg: "#eef2ff", accent: "#4f46e5", border: "#c7d2fe" },
   };
-  const c = colorMap[color] || colorMap.blue;
+
+  const c = colorMap[color];
+
+  const trendConfig = {
+      good: {
+        color: "#16a34a",
+        bg: "#ecfdf5"
+      },
+      bad: {
+        color: "#e53935",
+        bg: "#fef2f2"
+      },
+      neutral: {
+        color: "#64748b",
+        bg: "#f1f5f9"
+      }
+    };
+
+    const arrow =
+      trendData?.direction === "up"
+        ? "▲"
+        : trendData?.direction === "down"
+        ? "▼"
+        : "•";
+
+  const t = trendConfig[trendData?.trend || "neutral"];
+
   return (
-    <div
-      style={{
-        background: "#fff", border: `1px solid ${c.border}`, borderRadius: 9,
-        padding: "8px 12px", height: 76,
-        display: "flex", alignItems: "center", gap: 8,
-        boxShadow: "0 3px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)",
-        transition: "box-shadow 0.2s, transform 0.2s",
-        cursor: "default", width: "100%", position: "relative",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.11)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 3px 12px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.04)"; e.currentTarget.style.transform = ""; }}
-    >
-      <div style={{
-        width: 34, height: 34, borderRadius: 8, background: c.bg,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 16, flexShrink: 0,
-      }}>{icon}</div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 9, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: c.accent, lineHeight: 1.1 }}>
-          {loading ? <span style={{ fontSize: 12, color: "#cbd5e1" }}>—</span> : value}
+    <div 
+    title={`${label}: ${value} (Prev: ${prev})`}
+    style={{
+      background: "#fff",
+      border: `1px solid ${c?.border}`,
+      borderRadius: 14,
+      padding: "12px",
+      height: 90,
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      position: "relative",
+      transition: "0.2s",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.05)"
+    }}>
+      
+      {/* ICON */}
+      {/* <div style={{
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        background: c?.bg || "#e5e7eb",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        {icon}
+      </div> */}
+
+      {/* MAIN */}
+      <div style={{ flex: 1 }}>
+        <div style={{
+          fontSize: 9,
+          color: "#64748b",
+          fontWeight: 600,
+          textTransform: "uppercase"
+        }}>
+          {label}
         </div>
-        {sub && <div style={{ fontSize: 9, color: "#64748b", marginTop: 1 }}>{sub}</div>}
+
+        <div style={{
+          fontSize: 24,
+          fontWeight: 800,
+          color: c?.accent || "#3b82f6"
+        }}>
+          {loading ? "—" : value}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+
+          {/* <div style={{
+            fontSize: 11,
+            color: "#3A8B95"
+            }}>
+            Prev: {prev ?? "-"}
+          </div> */}
+
+          <Tag color="#3A8B95" size="small" variant="solid" >Prev: {prev ?? "-"}</Tag>
+
+            {/* TREND BADGE */}
+            {trendData && (
+              <div style={{
+                background: t.bg,
+                color: t.color,
+                padding: "6px 8px",
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 4
+              }}>
+                <span>{arrow}</span>
+                <span>{trendData.percent}%</span>
+              </div>
+            )}
+        </div>
+        
       </div>
+
+
+
+      {/* PIN */}
       <button
         onClick={onPin}
-        title={pinned ? "Unpin KPIs" : "Pin KPIs to top"}
         style={{
-          position: "absolute", top: 5, right: 5,
-          background: "none", border: "none", cursor: "pointer",
-          color: pinned ? c.accent : "#cbd5e1", fontSize: 12, padding: 2,
-          transition: "color 0.2s",
+          position: "absolute",
+          top: 6,
+          right: 6,
+          border: "none",
+          background: "none",
+          cursor: "pointer",
+          color: pinned ? c?.accent : "#cbd5e1"
         }}
       >
         {pinned ? <PushpinFilled /> : <PushpinOutlined />}
@@ -218,55 +315,59 @@ export default function OverviewSection({ addToast,  }) {
   /* Year-scoped filters */
   const yearFilters = useMemo(() => ({
     ...filters,
-    from: `${filters?.year}-01-01T00:00:00.000Z`,
-    to:   `${filters?.year}-12-31T23:59:59.999Z`,
+    from: filters?.from,
+    to:   filters?.to,
   }), [filters]);
 
   const lastYearFilters = useMemo(() => ({
     ...filters,
-    from: `${selectedYear - 1}-01-01T00:00:00.000Z`,
-    to:   `${selectedYear - 1}-12-31T23:59:59.999Z`,
+    from: filters?.from,
+    to:   filters?.to,
   }), [filters, selectedYear]);
+
+  console.log("filters from overview -> :", filters);
 
 
   const { data, isLoading } = useBatchQuery([
-    { key: "stats", url: "/complaints/stats", params: yearFilters },
-    { key: "statsLY", url: "/complaints/stats", params: lastYearFilters },
-    { key: "monthly", url: "/complaints/monthly", params: yearFilters },
-    { key: "daily", url: "/complaints/daily", params: yearFilters },
-    { key: "byStatus", url: "/complaints/by-status", params: yearFilters },
-    { key: "byCustomer", url: "/complaints/by-customer", params: yearFilters },
-    { key: "byCategory", url: "/complaints/by-category", params: yearFilters },
-    { key: "byPart", url: "/complaints/by-part", params: yearFilters },
-    { key: "byCommodity", url: "/complaints/by-commodity", params: yearFilters },
-    { key: "byDoa", url: "/complaints/by-doa", params: yearFilters },
-    { key: "ppmTrend", url: "/complaints/ppm-trend", params: yearFilters },
-    { key: "aging", url: "/complaints/aging", params: yearFilters },
-    { key: "production", url: "/complaints/production-stats", params: yearFilters },
-    { key: "catVsCust", url: "/complaints/customer-vs-category", params: yearFilters },
+    { key: "stats",       url: "/complaints/stats",             params: yearFilters },
+    { key: "statsLY",     url: "/complaints/stats",             params: lastYearFilters },
+    { key: "monthly",     url: "/complaints/monthly",           params: yearFilters },
+    { key: "weekly",      url: "/complaints/weekly",            params: yearFilters },
+    { key: "byStatus",    url: "/complaints/by-status",         params: yearFilters },
+    { key: "byCustomer",  url: "/complaints/by-customer",       params: yearFilters },
+    { key: "byCategory",  url: "/complaints/by-category",       params: yearFilters },
+    { key: "byPart",      url: "/complaints/by-part",           params: yearFilters },
+    { key: "byCommodity", url: "/complaints/by-commodity",      params: yearFilters },
+    { key: "byDoa",       url: "/complaints/by-doa",            params: yearFilters },
+    { key: "aging",       url: "/complaints/aging",             params: yearFilters },
+    { key: "production",  url: "/complaints/production-stats",  params: yearFilters },
+    { key: "catVsCust",   url: "/complaints/customer-vs-category", params: yearFilters },
   ]);
 
   const {
     stats,
     statsLY,
     monthly,
-    daily,
+    weekly,
     byStatus,
     byCustomer,
     byCategory,
     byPart,
     byCommodity,
     byDoa,
-    ppmTrend,
     aging,
     production,
     catVsCust
   } = data || {};
 
+  const curr = stats?.current || {};
+  const prev = stats?.previous || {};
+
+
   /* ── Memos ── */
   const statusData     = useMemo(() => (byStatus || []).map(s => ({ name: s._id, value: s.count })), [byStatus]);
   const statusTotal    = useMemo(() => statusData.reduce((s, d) => s + d.value, 0), [statusData]);
-  const areaData       = useMemo(() => (monthly || []).map(m => ({ ...m, resolved: Math.round((m.defects || 0) * 0.7) })), [monthly]);
+  const areaData = useMemo(() => monthly || [], [monthly]);  
   const catParetoData  = useMemo(() => buildPareto(byCategory || [], "_id", "count"), [byCategory]);
   const commodityData  = useMemo(() => (byCommodity || []).map(c => ({ name: c._id || "Unknown", value: c.count })), [byCommodity]);
 
@@ -279,18 +380,12 @@ export default function OverviewSection({ addToast,  }) {
     return DOA_KEYS.map(key => ({ name: key, value: lookup[key] ?? 0 }));
   }, [byDoa]);
 
-  const doaTotal = useMemo(() => doaData.reduce((s, d) => s + d.value, 0), [doaData]);
 
   const sortedCustomers = useMemo(() => [...(byCustomer || [])]
     .sort((a, b) => (b.complaints || 0) - (a.complaints || 0)),
     [byCustomer]
   );
 
-  const radarData = useMemo(() => sortedCustomers.slice(0, 7).map(c => ({
-    customer: (c.name || "Unknown").slice(0, 8),
-    complaints: c.complaints || 0,
-    ppm: c.ppm || 0,
-  })), [sortedCustomers]);
 
   const radialData = useMemo(() => sortedCustomers.slice(0, 6).map((c, i) => ({
     name: c.name || "Unknown",
@@ -319,7 +414,6 @@ export default function OverviewSection({ addToast,  }) {
     }).filter(d => d.value > 0);
   }, [catVsCust, byCustomer, defectDropdown]);
 
-  const defectBrandTotal = useMemo(() => defectBrandData.reduce((s, d) => s + d.value, 0), [defectBrandData]);
 
   /* Pareto for defectBrand */
   const defectBrandPareto = useMemo(() => {
@@ -354,10 +448,16 @@ export default function OverviewSection({ addToast,  }) {
     });
   }, [byPart]);
 
+
+   const defectOptions = useMemo(() => [
+        { value: "overall", label: "All Defect Types" },
+        ...allCategories.map(c => ({ value: c, label: c })),
+      ], [allCategories]);
+
   /* Pareto for daily */
   const dailyParetoData = useMemo(() => {
     const today = new Date();
-    const filtered = (daily || []).filter(d => {
+    const filtered = (weekly || []).filter(d => {
       const date = new Date(d.d);
       const diff = (today - date) / (1000 * 60 * 60 * 24);
       return diff >= 0 && diff <= 30;
@@ -369,7 +469,7 @@ export default function OverviewSection({ addToast,  }) {
       const [, m, day] = d.d.split("-");
       return { name: `${day}/${m}`, count: d.count || 0, cumPct: total > 0 ? +((cum / total) * 100).toFixed(1) : 0 };
     });
-  }, [daily]);
+  }, [weekly]);
 
   const agingTotal = useMemo(() => (aging || []).reduce((s, b) => s + (b.count || 0), 0), [aging]);
   const agingPct   = useMemo(() => (aging || []).map(b => ({
@@ -394,7 +494,7 @@ export default function OverviewSection({ addToast,  }) {
   /* Monthly Volume */
   const MonthlyLine = ({ h = 190 }) => {
     const data = monthly || [];
-    if (!data.length || data.every(d => !d.defects)) return <ZeroData />;
+    if (!data.length || data.every(d => !d.complaints)) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
         <LineChart data={data} margin={{ top: 20, right: 20, bottom: 4, left: 10 }}>
@@ -403,10 +503,10 @@ export default function OverviewSection({ addToast,  }) {
           <YAxis tick={{ fontSize: 10, color: "#000" }} width={30} />
           <ReTooltip content={<ChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 10, color: "blue" }} />
-          <Line type="monotone" dataKey="defects" name="Total Complaints" stroke="#e53935" strokeWidth={2}
+          <Line type="monotone" dataKey="complaints" name="Total Complaints" stroke="#e53935" strokeWidth={2}
             dot={{ r: 3, fill: "#e53935", filter: "drop-shadow(0 2px 3px rgba(229,57,53,0.5))" }}
             activeDot={{ r: 5 }}>
-            <LabelList dataKey="defects" position="top" style={{ fontSize: 10, fill: "#1e293b", fontWeight: 600 }} formatter={v => v || ""} />
+            <LabelList dataKey="complaints" position="top" style={{ fontSize: 10, fill: "#1e293b", fontWeight: 600 }} formatter={v => v || ""} />
           </Line>
         </LineChart>
       </ResponsiveContainer>
@@ -535,73 +635,228 @@ export default function OverviewSection({ addToast,  }) {
   };
 
   /* Area Trend */
-  const AreaTrend = ({ h = 190 }) => {
-    if (!areaData.length || areaData.every(d => !d.defects)) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <AreaChart data={areaData}  margin={{ top: 14, right: 20, bottom: 4, left: 12 }}>
-          <defs>
-            <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#e53935" stopOpacity={0.18}/><stop offset="95%" stopColor="#e53935" stopOpacity={0}/></linearGradient>
-            <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22c55e" stopOpacity={0.18}/><stop offset="95%" stopColor="#22c55e" stopOpacity={0}/></linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="m" tick={{ fontSize: 10, fill: "#1e293b" }} angle={-10} tickFormatter={fmtMonth} />
-          <YAxis tick={{ fontSize: 10, fill: "#1e293b" }} width={30} />
-          <ReTooltip content={<ChartTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 10, color: "#1e293b" }} />
-          <Area type="monotone" dataKey="defects"  name="New Complaints"      stroke="#e53935" fill="url(#gC)" strokeWidth={2} />
-          <Area type="monotone" dataKey="resolved" name="Resolved Complaints" stroke="#22c55e" fill="url(#gR)" strokeWidth={2} />
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  };
+ const AreaTrend = ({ h = 190 }) => {
+  if (!areaData.length || areaData.every(d => !d.complaints && !d.resolved))
+    return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <AreaChart
+        data={areaData}
+        margin={{ top: 14, right: 20, bottom: 4, left: 12 }}
+      >
+        <defs>
+          <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+          </linearGradient>
+
+          <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2}/>
+            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+          </linearGradient>
+
+          <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
+            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+          </linearGradient>
+        </defs>
+
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+
+        <XAxis
+          dataKey="m"
+          tick={{ fontSize: 10 }}
+          angle={-10}
+          tickFormatter={fmtMonth}
+        />
+
+        <YAxis tick={{ fontSize: 10 }} width={30} />
+
+        <ReTooltip content={<ChartTooltip />} />
+        <Legend wrapperStyle={{ fontSize: 10 }} />
+
+        {/* 🔴 Complaints Raised */}
+        <Area
+          type="monotone"
+          dataKey="complaints"
+          name="Complaints"
+          stroke="#ef4444"
+          fill="url(#gC)"
+          strokeWidth={2}
+        />
+
+        {/* 🟢 Resolved */}
+        <Area
+          type="monotone"
+          dataKey="resolved"
+          name="Resolved"
+          stroke="#22c55e"
+          fill="url(#gR)"
+          strokeWidth={2}
+        />
+
+        {/* 🟡 Backlog */}
+        <Area
+          type="monotone"
+          dataKey="backlog"
+          name="Backlog"
+          stroke="#f59e0b"
+          fill="url(#gB)"
+          strokeWidth={2}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* PPM Trend */
   const PpmTrend = ({ h = 190 }) => {
-    if (!ppmTrend?.length || ppmTrend.every(d => !d.defects && !d.ppm)) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <ComposedChart data={ppmTrend || []} margin={{ top: 18, right: 20, bottom: 4, left: 12 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="m" tick={{ fontSize: 10, fill: "#1e293b" }} tickFormatter={fmtMonth} />
-          <YAxis yAxisId="l" tick={{ fontSize: 10, fill: "#1e293b" }} width={30} />
-          <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 10, fill: "#6366f1" }} width={44}
-            label={{ angle: 0, position: "insideTopRight", dy: -4, style: { fontSize: 9, fill: "#6366f1" } }} />
-          <ReTooltip content={<ChartTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 10, color: "#1e293b" }} />
-          <Bar yAxisId="l" dataKey="defects" name="Defect Volume" fill="#93c5fd" radius={[3, 3, 0, 0]} shape={<Shadow3DBar fill="#93c5fd" />} />
-          <Line yAxisId="r" type="monotone" dataKey="ppm" name="PPM Rate" stroke="#6366f1" strokeWidth={2}
-            dot={{ r: 3, fill: "#6366f1" }} activeDot={{ r: 5 }}>
-            <LabelList dataKey="ppm" position="top" style={{ fontSize: 9, fill: "#6366f1", fontWeight: 600 }} formatter={v => v > 0 ? v : ""} />
-          </Line>
-        </ComposedChart>
-      </ResponsiveContainer>
-    );
-  };
+  if (!areaData?.length || areaData.every(d => !d.complaints && !d.ppm))
+    return <ZeroData />;
+    const ppmTrend = monthly.filter(d => d.production > 0);
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <ComposedChart
+        data={ppmTrend}
+        margin={{ top: 18, right: 20, bottom: 4, left: 12 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+
+        <XAxis
+          dataKey="m"
+          tick={{ fontSize: 10 }}
+          tickFormatter={fmtMonth}
+        />
+
+        {/* LEFT → complaints volume */}
+        <YAxis
+          yAxisId="l"
+          tick={{ fontSize: 10 }}
+          width={30}
+        />
+
+        {/* RIGHT → PPM */}
+        <YAxis
+          yAxisId="r"
+          orientation="right"
+          tick={{ fontSize: 10, fill: "#6366f1" }}
+          width={44}
+          label={{
+            angle: 0,
+            position: "insideTopRight",
+            dy: -4,
+            style: { fontSize: 9, fill: "#6366f1" }
+          }}
+        />
+
+        <ReTooltip content={<ChartTooltip />} />
+        <Legend wrapperStyle={{ fontSize: 10 }} />
+
+        {/* 🔵 Complaints Volume */}
+        <Bar
+          yAxisId="l"
+          dataKey="complaints"
+          name="Complaints"
+          fill="#93c5fd"
+          radius={[3, 3, 0, 0]}
+          shape={<Shadow3DBar fill="#93c5fd" />}
+        />
+
+        {/* 🟣 PPM Trend */}
+        <Line
+          yAxisId="r"
+          type="monotone"
+          dataKey="ppm"
+          name="PPM"
+          stroke="#6366f1"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
+        >
+          <LabelList
+            dataKey="ppm"
+            position="top"
+            style={{ fontSize: 9, fill: "#6366f1", fontWeight: 600 }}
+            formatter={v => (v > 0 ? v : "")}
+          />
+        </Line>
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* Daily Pareto */
-  const DailyParetoChart = ({ h = 190 }) => {
-    const hasData = dailyParetoData.some(d => d.count > 0);
-    if (!dailyParetoData.length || !hasData) return <ZeroData />;
-    const data = dailyParetoData;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <ComposedChart data={data} margin={{ top: 15, right: 10, bottom: 5, left: 12 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="name" tick={{ fontSize: 15, fill: "#1e293b" }} angle={-40} textAnchor="end" height={56} interval={Math.floor(data.length / 12)} />
-          <YAxis yAxisId="l" tick={{ fontSize: 10, fill: "#1e293b" }} width={30} />
-          <YAxis yAxisId="r" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 9, fill: PARETO_LINE }} width={36} />
-          <ReTooltip content={<ChartTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 10, color: "#1e293b" }} />
-          <Bar yAxisId="l" dataKey="count" name="Complaints" fill="#3b82f6" radius={[3, 3, 0, 0]} shape={<Shadow3DBar fill="#3b82f6" />}>
-            <LabelList dataKey="count" position="top" style={{ fontSize: 8, fill: "#1e293b", fontWeight: 600 }} />
-          </Bar>
-          <Line yAxisId="r" type="monotone" dataKey="cumPct" name="Cumulative %" stroke={PARETO_LINE} strokeWidth={2}
-            dot={{ r: 2, fill: PARETO_LINE }} activeDot={{ r: 4 }} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    );
-  };
+ const DailyParetoChart = ({ h = 190 }) => {
+  const hasData = weekly?.some(d => d.count > 0);
+
+  if (!weekly?.length || !hasData) return <ZeroData />;
+
+  const data = weekly;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <ComposedChart
+        data={data}
+        margin={{ top: 15, right: 10, bottom: 5, left: 12 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+
+        <XAxis
+          dataKey="week"
+          tick={{ fontSize: 12 }}
+          angle={-30}
+          textAnchor="end"
+        />
+
+        <YAxis
+          yAxisId="l"
+          tick={{ fontSize: 10 }}
+          width={30}
+        />
+
+        <YAxis
+          yAxisId="r"
+          orientation="right"
+          domain={[0, 100]}
+          tickFormatter={v => `${v}%`}
+          tick={{ fontSize: 9 }}
+          width={36}
+        />
+
+        <ReTooltip content={<ChartTooltip />} />
+        <Legend wrapperStyle={{ fontSize: 10 }} />
+
+        {/* 🔵 Weekly complaints */}
+        <Bar
+          yAxisId="l"
+          dataKey="count"
+          name="Complaints"
+          fill="#3b82f6"
+          radius={[3, 3, 0, 0]}
+          shape={<Shadow3DBar fill="#3b82f6" />}
+        >
+          <LabelList
+            dataKey="count"
+            position="top"
+            style={{ fontSize: 9, fontWeight: 600 }}
+          />
+        </Bar>
+
+        {/* 🟣 Cumulative % */}
+        <Line
+          yAxisId="r"
+          type="monotone"
+          dataKey="cumPct"
+          name="Cumulative %"
+          stroke="#f59e0b"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+};
 
   /* Category Pareto */
   const CategoryPareto = ({ h = 190 }) => {
@@ -670,7 +925,7 @@ export default function OverviewSection({ addToast,  }) {
   };
 
   /* Aging bar */
-  const AgingChart = ({ h = 220 }) => {
+  const AgingChart = ({ h = 280 }) => {
     if (!agingPct.length || agingTotal === 0) return <ZeroData />;
     return (
       <ResponsiveContainer width="100%" height={h}>
@@ -688,22 +943,6 @@ export default function OverviewSection({ addToast,  }) {
     );
   };
 
-  /* Radar */
-  const CustomerRadar = ({ h = 240 }) => {
-    if (!radarData.length) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
-          <PolarGrid stroke="#e2e8f0" />
-          <PolarAngleAxis dataKey="customer" tick={{ fontSize: 10, fill: "#1e293b" }} />
-          <PolarRadiusAxis angle={30} tick={{ fontSize: 9, fill: "#1e293b" }} />
-          <Radar name="Complaint Volume" dataKey="complaints" stroke={RADAR_COLOR} fill={RADAR_COLOR} fillOpacity={0.22} strokeWidth={2} />
-          <Legend wrapperStyle={{ fontSize: 10, color: "#1e293b" }} />
-          <ReTooltip content={<ChartTooltip />} />
-        </RadarChart>
-      </ResponsiveContainer>
-    );
-  };
 
   /* Radial */
 const CustomerRadial = ({ h = 200, isPopup = false }) => {
@@ -821,10 +1060,10 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
   /* YoY Compare */
   const YoYCompare = () => {
     const pairs = [
-      { label: "Total",    curr: stats?.total    || 0, prev: statsLY?.total    || 0 },
-      { label: "Open",     curr: stats?.open     || 0, prev: statsLY?.open     || 0 },
-      { label: "Resolved", curr: stats?.resolved || 0, prev: statsLY?.resolved || 0 },
-      { label: "Pending",  curr: stats?.pending  || 0, prev: statsLY?.pending  || 0 },
+      { label: "Total",    curr: stats?.current?.total    || 0, prev: stats?.previous?.total    || 0 },
+      { label: "Open",     curr: stats?.current?.open     || 0, prev: stats?.previous?.open     || 0 },
+      { label: "Resolved", curr: stats?.current?.resolved || 0, prev: stats?.previous?.resolved || 0 },
+      { label: "Pending",  curr: stats?.current?.pending  || 0, prev: stats?.previous?.pending  || 0 },
     ];
     const chartData = pairs.map(p => ({ name: p.label, [selectedYear]: p.curr, [selectedYear - 1]: p.prev }));
     return (
@@ -846,22 +1085,86 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
     );
   };
 
+
+  function getTrend(current, previous, type) {
+    if (previous === 0 && current === 0) {
+      return { trend: "neutral", percent: 0, direction: "flat" };
+    }
+
+    const percent =
+      previous === 0 ? 100 : ((current - previous) / previous) * 100;
+
+    const isIncrease = current > previous;
+
+    let trendType = "neutral";
+
+    if (type === "complaint") {
+      trendType = isIncrease ? "bad" : "good";
+    } else if (type === "production") {
+      trendType = isIncrease ? "good" : "bad";
+    }
+
+    return {
+      trend: trendType,
+      percent: Math.abs(percent).toFixed(1),
+      direction: isIncrease ? "up" : current < previous ? "down" : "flat"
+    };
+  }
+
   /* ── KPI DATA — icons colored to match chart theme ── */
+  const s = stats;
+
   const kpis = [
-    { label: "Total Complaints",  value: fmtNum(stats?.total    || 0), color: "blue",   icon: <RiFileList3Line color="#3b82f6" />, sub: `Year ${selectedYear}` },
-    { label: "Open",              value: fmtNum(stats?.open     || 0), color: "red",    icon: <RiAlarmWarningLine color="#e53935" />, sub: "Needs attention" },
-    { label: "Resolved",          value: fmtNum(stats?.resolved || 0), color: "green",  icon: <RiCheckboxCircleLine color="#16a34a" />, sub: "Closed successfully" },
-    { label: "Pending",           value: fmtNum(stats?.pending  || 0), color: "amber",  icon: <RiClockwiseLine color="#d97706" />, sub: "Awaiting action" },
-    { label: "Avg Resolution",    value: `${stats?.avgDays || 0}d`,    color: "purple", icon: <RiTimerLine color="#7c3aed" />,  sub: "Days to close" },
-    { label: "Total Production",  value: fmtNum(production?.total || 0), color: "indigo", icon: <TbBuildingFactory color="#4f46e5" />, sub: "Units dispatched" },
+    {
+      label: "Total Complaints",
+      value: s?.current.total,
+      prev: s?.previous.total,
+      trendData: getTrend(s?.current.total, s?.previous.total, "complaint"),
+      icon: "📉",
+      color: "red"
+    },
+    {
+      label: "Open Complaints",
+      value: s?.current.open,
+      prev: s?.previous.open,
+      trendData: getTrend(s?.current.open, s?.previous.open, "complaint"),
+      icon: "📂",
+      color: "amber"
+    },
+    {
+      label: "Resolved",
+      value: s?.current.resolved,
+      prev: s?.previous.resolved,
+      trendData: getTrend(s?.current.resolved, s?.previous.resolved, "production"),
+      icon: "✅",
+      color: "green"
+    },
+    {
+      label: "Backlog",
+      value: s?.current.backlog,
+      prev: s?.previous.backlog,
+      trendData: getTrend(s?.current.backlog, s?.previous.backlog, "complaint"),
+      icon: "📦",
+      color: "purple"
+    },
+    {
+      label: "Production",
+      value: s?.current.production,
+      prev: s?.previous.production,
+      trendData: getTrend(s?.current.production, s?.previous.production, "production"),
+      icon: "🏭",
+      color: "blue"
+    },
+    {
+      label: "PPM",
+      value: s?.current.avgPpm,
+      prev: s?.previous.avgPpm,
+      trendData: getTrend(s?.current.avgPpm, s?.previous.avgPpm, "complaint"),
+      icon: "⚡",
+      color: "indigo"
+    }
   ];
 
-  /* Defect dropdown */
-  const defectOptions = useMemo(() => [
-    { value: "overall", label: "All Defect Types" },
-    ...allCategories.map(c => ({ value: c, label: c })),
-  ], [allCategories]);
-  
   /* ════════════════════════════════════════
      RENDER
   ════════════════════════════════════════ */
@@ -869,18 +1172,28 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
     <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 60 }}>
 
       {/* ── KPI Strip ── */}
-      <div style={{
-        position: kpiPinned ? "sticky" : "relative", top: kpiPinned ? 50 : "auto", zIndex: 90,
-        background: kpiPinned ? "rgba(245,246,250,0.96)" : "transparent",
-        backdropFilter: "blur(8px)",
-        borderBottom: "1px solid #e8ecf0",
-        padding: "6px 0",
-        marginBottom: 2,
-      }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {kpis.map(k => (
-            <div key={k.label} style={{ flex: "1 1 120px", minWidth: 120 }}>
-              <MiniKpiCard {...k} loading={isLoading} pinned={kpiPinned} onPin={() => setKpiPinned(p => !p)} />
+      <div
+        style={{
+          position: kpiPinned ? "sticky" : "relative",
+          top: kpiPinned ? 50 : "auto",
+          zIndex: 90,
+          background: kpiPinned ? "rgba(245,246,250,0.96)" : "transparent",
+          backdropFilter: "blur(8px)",
+          borderBottom: "1px solid #e8ecf0",
+          padding: "8px 4px",
+          marginBottom: 6,
+          borderRadius: kpiPinned ? 10 : 0
+        }}
+      >
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {kpis.map((k) => (
+            <div key={k.label} style={{ flex: "1 1 140px", minWidth: 140 }}>
+              <MiniKpiCard
+                {...k}
+                loading={isLoading}
+                pinned={kpiPinned}
+                onPin={() => setKpiPinned((p) => !p)}
+              />
             </div>
           ))}
         </div>
@@ -952,10 +1265,10 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
           <PpmTrend />
         </ChartCard>
 
-        <ChartCard title="Day-by-Day Complaint Load — Pareto (Last 30 Days)"
+        <ChartCard title="Weekly Complaint "
           icon={<MdCalendarToday size={15} color="#3b82f6" />}
           loading={isLoading}
-          onExpand={() => openPreview("Daily Complaint Pareto", <DailyParetoChart h={380} />)}>
+          onExpand={() => openPreview("Weekly Complaint Pareto", <DailyParetoChart h={380} />)}>
           <DailyParetoChart />
         </ChartCard>
 
@@ -977,30 +1290,29 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
           <CustomerParetoChart />
         </ChartCard>
 
-        <ChartCard title="Brand Complaint Spread Overview"
-          icon={<GiSpiderWeb size={15} color="#6366f1" />}
-          loading={isLoading}
-          onExpand={() => openPreview("Brand Radar", <CustomerRadar h={380} />)}>
-          <CustomerRadar />
-        </ChartCard>
 
-        <ChartCard title="Most Reported Defective Parts (Top 10)"
+        <ChartCard title="Defective Parts (Top 10)"
           icon={<MdBuild size={15} color="#f59e0b" />}
-          tag="Top 10" tagColor="orange" loading={isLoading}
-          onExpand={() => openPreview("Most Reported Parts", <PartsParetoChart h={400} />)}>
+          tag="Top 10" 
+          tagColor="orange" 
+          loading={isLoading}
+          onExpand={() => openPreview("Most Reported Parts", <PartsParetoChart h={400} />)}
+          >
           <PartsParetoChart />
         </ChartCard>
+
+        <ChartCard title="Complaint Age Breakdown"
+          icon={<MdAccessTime size={15} color="#ef4444" />}
+          tag="Overdue %" tagColor="red" loading={isLoading}
+          onExpand={() => openPreview("Complaint Age Breakdown", <AgingChart h={340} />)}>
+          <AgingChart h={240} />
+        </ChartCard>
+
       </Grid>
 
 
       {/* ROW G — aging + defect donut + all defects donut = 3 donuts/charts */}
       <Grid cols={3}>
-        <ChartCard title="Complaint Age Breakdown"
-          icon={<MdAccessTime size={15} color="#ef4444" />}
-          tag="Overdue %" tagColor="red" loading={isLoading}
-          onExpand={() => openPreview("Complaint Age Breakdown", <AgingChart h={340} />)}>
-          <AgingChart h={200} />
-        </ChartCard>
 
         <ChartCard title="Defect Distribution Across Brands"
           icon={<TfiBarChartAlt size={15} color="#06b6d4" />}
@@ -1008,7 +1320,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
           headerExtra={
             <Select size="small" value={defectDropdown} onChange={setDefectDropdown}
               style={{ minWidth: 120, fontSize: 10 }} dropdownMatchSelectWidth={false}>
-              {defectOptions.map(o => <Option key={o.value} value={o.value}>{o.label}</Option>)}
+              {defectOptions?.map(o => <Option key={o.value} value={o.value}>{o.label}</Option>)}
             </Select>
           }
           loading={isLoading}

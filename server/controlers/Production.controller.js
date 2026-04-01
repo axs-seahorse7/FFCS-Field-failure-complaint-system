@@ -7,57 +7,55 @@ import Production from "../Database/models/Production/productions.model.js";
 ═══════════════════════════════════════════════════════ */
 export const createProduction = async (req, res) => {
   try {
-    const { customer, commodity, month, production, fieldComplaint, warrantyComplaint } = req.body;
-
-    if (!customer || !commodity || !month || production == null) {
-      return res.status(400).json({ message: "customer, commodity, month, and production are required." });
-    }
-
-    // Prevent duplicate: same customer + commodity + month
-    const monthStart = new Date(month);
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const monthEnd = new Date(monthStart);
-    monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-    const exists = await Production.findOne({
+    const {
       customer,
-      commodity,
-      month: { $gte: monthStart, $lt: monthEnd },
-    });
+      location,
+      month,
+      idu,
+      odu,
+      wac,
+      fieldComplaint,
+      warrantyComplaint
+    } = req.body;
 
-    if (exists) {
-      return res.status(409).json({
-        message: `Entry already exists for ${customer} – ${commodity} in ${monthStart.toLocaleString("default", { month: "short", year: "numeric" })}. Use update instead.`,
+    if (!customer || !location || !month) {
+      return res.status(400).json({
+        message: "customer, location, and month are required."
       });
     }
 
-    // Calculate cumulative production (all previous months for same customer+commodity)
-    const previousTotal = await Production.aggregate([
-      {
-        $match: {
-          customer,
-          commodity,
-          month: { $lt: monthStart },
-        },
-      },
-      { $group: { _id: null, total: { $sum: "$production" } } },
-    ]);
-    const prevSum = previousTotal[0]?.total || 0;
+    const rawDate = new Date(month);
 
+      // Convert to PURE UTC month start
+    const monthStart = new Date(Date.UTC(
+      rawDate.getUTCFullYear(),
+      rawDate.getUTCMonth(),
+      1
+    ));
+
+    //  Your schema already has UNIQUE index → no need manual duplicate check
     const record = await Production.create({
       customer,
-      commodity,
-      month:             monthStart,
-      production:        Number(production),
-      fieldComplaint:    Number(fieldComplaint    || 0),
+      location,
+      month: monthStart,
+      idu: Number(idu || 0),
+      odu: Number(odu || 0),
+      wac: Number(wac || 0),
+      fieldComplaint: Number(fieldComplaint || 0),
       warrantyComplaint: Number(warrantyComplaint || 0),
-      cumulativeProduction: prevSum + Number(production),
     });
 
     return res.status(201).json({ data: record });
+
   } catch (err) {
-    console.log("Error in createProduction:", err);
+    // Handle duplicate error (from unique index)
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: "Record already exists for this customer, location, and month."
+      });
+    }
+
+    console.log("Error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
@@ -68,30 +66,18 @@ export const createProduction = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const listProduction = async (req, res) => {
   try {
-    const { customer, commodity, year } = req.query;
-    console.log("List filter:", { customer, commodity, year });
-    const query = {};
-
-    if (customer) query.customer = customer;
-    if (commodity) query.commodity = commodity;
-
-    if (year) {
-      const start = new Date(Date.UTC(year, 0, 1));   // Jan 1, 00:00 UTC
-      const end   = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)); // Dec 31 end UTC
-
-      query.month = { $gte: start, $lte: end };
-    }
+    const { customer, location, year } = req.query;
 
     const data = await Production.aggregate([
       {
         $match: {
           ...(customer && { customer }),
-          ...(commodity && { commodity }),
+          ...(location && { location }), // ✅ use location instead
         }
       },
       {
         $addFields: {
-          year: { $year: "$month" }
+          year: { $year: { date: "$month", timezone: "UTC" } }
         }
       },
       {
@@ -104,12 +90,28 @@ export const listProduction = async (req, res) => {
       }
     ]);
 
+
+      const query = {};
+      if (customer) query.customer = customer;
+      if (location) query.location = location
+          if (year) {
+        const start = new Date(`${year}-01-01T00:00:00.000Z`);
+        const end   = new Date(`${year}-12-31T23:59:59.999Z`);
+
+        query.month = { $gte: start, $lte: end };
+      }
+
+      const datas = await Production.find(query).sort({ month: -1 });
+      console.log("Queried production records:", datas);
+
     return res.json({ data });
 
   } catch (err) {
+    console.log("Error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
+
 /* ═══════════════════════════════════════════════════════
    POST /production/update
    Body: { id, production?, fieldComplaint?, warrantyComplaint? }
@@ -117,25 +119,68 @@ export const listProduction = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const updateProduction = async (req, res) => {
   try {
-    const { id, production, fieldComplaint, warrantyComplaint } = req.body;
+    const {
+      id,
+      idu,
+      odu,
+      wac,
+      fieldComplaint,
+      warrantyComplaint,
+      location,
+      customer,
+      month
+    } = req.body;
 
-    if (!id) return res.status(400).json({ message: "id is required" });
+    if (!id) {
+      return res.status(400).json({ message: "id is required" });
+    }
 
     const record = await Production.findById(id);
-    if (!record) return res.status(404).json({ message: "Record not found" });
+    if (!record) {
+      return res.status(404).json({ message: "Record not found" });
+    }
 
-    if (production        != null) record.production        = Number(production);
-    if (fieldComplaint    != null) record.fieldComplaint    = Number(fieldComplaint);
-    if (warrantyComplaint != null) record.warrantyComplaint = Number(warrantyComplaint);
+    // ✅ Update ONLY raw inputs
+    if (idu != null) record.idu = Number(idu);
+    if (odu != null) record.odu = Number(odu);
+    if (wac != null) record.wac = Number(wac);
 
-    await record.save(); // triggers pre-save to recalculate warrantyPPM
+    if (fieldComplaint != null)
+      record.fieldComplaint = Number(fieldComplaint);
+
+    if (warrantyComplaint != null)
+      record.warrantyComplaint = Number(warrantyComplaint);
+
+    // Optional updates
+    if (location) record.location = location;
+    if (customer) record.customer = customer;
+    if (month) {
+      const rawDate = new Date(month);
+
+      // Convert to PURE UTC month start
+      const m = new Date(Date.UTC(
+        rawDate.getUTCFullYear(),
+        rawDate.getUTCMonth(),
+        1
+      ));
+      record.month = m;
+    }
+
+    // ✅ This triggers your pre-save hook
+    await record.save();
 
     return res.json({ data: record });
+
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: "Duplicate entry for this customer, location, and month."
+      });
+    }
+
     return res.status(500).json({ message: err.message });
   }
 };
-
 /* ═══════════════════════════════════════════════════════
    POST /production/delete
    Body: { id }

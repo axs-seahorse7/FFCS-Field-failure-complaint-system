@@ -33,9 +33,6 @@ const ProtectedRoute = ({ requiredPermission }) => {
 
     const permissions = user?.roleId?.permissions || [];
 
-    console.log("Required:", requiredPermission);
-    console.log("User Permissions:", permissions);
-    console.log("Match:", permissions.includes(requiredPermission));
 
     // ✅ SYSTEM ROLE (ADMIN)
     if (user.isSystemRole) return <Outlet context={context} />;

@@ -8,49 +8,29 @@ import Production from "../Database/models/Production/productions.model.js";
    Supports: year (e.g. 2024), from + to (ISO strings)
    Priority: explicit from/to overrides year
 ═══════════════════════════════════════════════════════ */
-function buildDateMatch(query) {
-  const { year, from, to, customerName } = query;
+  function buildDateMatch(query) {
+    const { from, to, customerName } = query; // ❌ removed year
 
-  const match = {};
+    const match = {};
 
-  if (from || to) {
-    match.complaintDate = {};
-    if (from) match.complaintDate.$gte = new Date(from);
-    if (to)   match.complaintDate.$lte = new Date(to);
-  } else if (year) {
-    const y = Number(year);
-    match.complaintDate = {
-      $gte: new Date(`${y}-01-01T00:00:00.000Z`),
-      $lte: new Date(`${y}-12-31T23:59:59.999Z`),
-    };
+    if (from || to) {
+      match.complaintDate = {};
+      if (from) match.complaintDate.$gte = new Date(from);
+      if (to)   match.complaintDate.$lte = new Date(to);
+    }
+    // removed year fallback entirely
+
+    if (customerName) {
+      match.customerName = customerName;
+    }
+
+    return match;
   }
-
-  // 🔥 KEY CHANGE: treat customerName as brand
-  if (customerName) {
-    match.brand = customerName;
-  }
-
-  return match;
-}
 /* ═══════════════════════════════════════════════════════
    HELPER — month label array
 ═══════════════════════════════════════════════════════ */
 const MONTH_LABELS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
-const PRODUCTION_VOLUMES = {
-  GODREJ:      308699,
-  MARQ:        191234,
-  HAIER:       115920,
-  AMSTRAD:      66916,
-  ONIDA:        59407,
-  CROMA:        59972,
-  VOLTAS:       77519,
-  "BLUE STAR": 141667,
-  BPL:          50000,
-  CMI:          40000,
-  HYUNDAI:      35000,
-  SANSUI:       30000,
-};
 
 const MONTHLY_UNITS_SHIPPED = [9864,10157,10683,12082,12616,11612,12418,11892,11714,10101,8948,7148];
 
@@ -139,6 +119,7 @@ export const updateComplaintStatus = async (req, res) => {
 
     return res.json({ data: complaint });
   } catch (err) {
+    console.error("Error updating complaint status:", err);
     return res.status(500).json({ message: err.message });
   }
 };
@@ -162,62 +143,413 @@ export const deleteComplaint = async (req, res) => {
    GET /complaints/stats
    KPI summary — respects year/date filter
 ═══════════════════════════════════════════════════════ */
-export const getComplaintStats = async (req, res) => {
-  try {
-    const dateMatch = buildDateMatch(req.query);
-    const totalProduction = Object.values(PRODUCTION_VOLUMES).reduce((a, b) => a + b, 0);
+const getYearRange = (year) => {
+  return {
+    start: new Date(Date.UTC(year, 0, 1)),
+    end: new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999))
+  };
+};
 
-    // Determine the year being viewed (for avgDays label)
-    const viewYear = req.query.year ? Number(req.query.year) : null;
+const getKpiData = async (start, end) => {
+  // 🔴 Complaint KPI
+  const [stats] = await Complaint.aggregate([
+    {
+      $match: {
+        complaintDate: { $gte: start, $lte: end }
+      }
+    },
+    {
+      $group: {
+        _id: null,
 
-    const [facetResult] = await Complaint.aggregate([
-      { $match: dateMatch },
-      {
-        $facet: {
-          total:    [{ $count: "n" }],
-          byStatus: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
-          avgDays:  [
-            { $match: { status: { $in: ["Resolved", "Closed"] }, updatedAt: { $exists: true } } },
-            {
-              $project: {
-                days: {
-                  $divide: [
-                    { $subtract: ["$updatedAt", "$complaintDate"] },
-                    86400000
-                  ]
-                }
-              }
-            },
-            { $group: { _id: null, avg: { $avg: "$days" } } }
-          ],
+        total: { $sum: 1 },
+
+        open: {
+          $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
+        },
+
+        active: {
+          $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
+        },
+
+        pending: {
+          $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
+        },
+
+        resolved: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["Resolved", "Closed"]] },
+              1,
+              0
+            ]
+          }
+        },
+
+        closed: {
+          $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] }
+        },
+
+        totalResolutionDays: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["Resolved", "Closed"]] },
+              {
+                $divide: [
+                  { $subtract: ["$resolvedDate", "$complaintDate"] },
+                  86400000
+                ]
+              },
+              0
+            ]
+          }
+        },
+
+        resolvedCountForAvg: {
+          $sum: {
+            $cond: [
+              { $in: ["$status", ["Resolved", "Closed"]] },
+              1,
+              0
+            ]
+          }
         }
       }
+    },
+    {
+      $project: {
+        total: 1,
+        open: 1,
+        active: 1,
+        pending: 1,
+        resolved: 1,
+        closed: 1,
+
+        avgDays: {
+          $cond: [
+            { $gt: ["$resolvedCountForAvg", 0] },
+            {
+              $round: [
+                {
+                  $divide: [
+                    "$totalResolutionDays",
+                    "$resolvedCountForAvg"
+                  ]
+                },
+                0
+              ]
+            },
+            0
+          ]
+        }
+      }
+    }
+  ]);
+
+  // 🏭 Production KPI
+  const [prod] = await Production.aggregate([
+    {
+      $match: {
+        month: { $gte: start, $lte: end }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        production: { $sum: "$production" }
+      }
+    }
+  ]);
+
+  const total = stats?.total || 0;
+  const resolved = stats?.resolved || 0;
+  const production = prod?.production || 0;
+
+  return {
+    total,
+    open: stats?.open || 0,
+    active: stats?.active || 0,
+    pending: stats?.pending || 0,
+    resolved,
+    closed: stats?.closed || 0,
+    backlog: total - resolved,
+    avgDays: stats?.avgDays || 0,
+    production,
+    avgPpm:
+      production > 0
+        ? Math.round((total / production) * 1_000_000)
+        : 0
+  };
+};
+
+
+export const getComplaintStats = async (req, res) => {
+  try {
+    const { from, to, year } = req.query;
+
+    let currentStart, currentEnd, previousStart, previousEnd;
+
+    if (from || to) {
+      // ✅ Use explicit from/to range
+      currentStart = from ? new Date(from) : new Date();
+      currentEnd   = to   ? new Date(to)   : new Date();
+
+      // Previous period = same duration, shifted back
+      const duration = currentEnd - currentStart;
+      previousStart = new Date(currentStart - duration);
+      previousEnd   = new Date(currentEnd   - duration);
+
+    } else {
+      // ✅ Fallback to year-based range
+      const y = year ? Number(year) : new Date().getUTCFullYear();
+      const currentRange  = getYearRange(y);
+      const previousRange = getYearRange(y - 1);
+      currentStart  = currentRange.start;
+      currentEnd    = currentRange.end;
+      previousStart = previousRange.start;
+      previousEnd   = previousRange.end;
+    }
+
+    const [current, previous] = await Promise.all([
+      getKpiData(currentStart, currentEnd),
+      getKpiData(previousStart, previousEnd),
     ]);
-
-    const total   = facetResult.total[0]?.n || 0;
-    const avgDays = Math.round(facetResult.avgDays[0]?.avg || 0);
-
-    const statusMap = {};
-    (facetResult.byStatus || []).forEach(s => { statusMap[s._id] = s.count; });
 
     return res.json({
       data: {
-        total,
-        avgDays,
-        avgPpm:   totalProduction > 0 ? Math.round((total / totalProduction) * 1_000_000) : 0,
-        open:     statusMap["Open"]     || 0,
-        active:   statusMap["Active"]   || 0,
-        pending:  statusMap["Pending"]  || 0,
-        resolved: statusMap["Resolved"] || 0,
-        closed:   statusMap["Closed"]   || 0,
-        defects:  total,
-        year:     viewYear,
-      }
+        year: year || currentStart.getUTCFullYear(),
+        current,
+        previous,
+      },
     });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
+
+
+// export const getComplaintStats = async (req, res) => {
+//   try {
+//     const { from, to, year } = req.query;
+
+//     // ✅ Date Range
+//     let startDate, endDate;
+
+//     if (year) {
+//       startDate = new Date(`${year}-01-01`);
+//       endDate   = new Date(`${year}-12-31`);
+//     } else {
+//       endDate   = to ? new Date(to) : new Date();
+//       startDate = from
+//         ? new Date(from)
+//         : new Date(new Date().setMonth(endDate.getMonth() - 11));
+//     }
+
+//     // =========================
+//     // 1. KPI (COMPLAINTS)
+//     // =========================
+//     const [kpi] = await Complaint.aggregate([
+//       {
+//         $match: {
+//           complaintDate: { $gte: startDate, $lte: endDate }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: null,
+
+//           total: { $sum: 1 },
+
+//           open: {
+//             $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
+//           },
+
+//           active: {
+//             $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
+//           },
+
+//           pending: {
+//             $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
+//           },
+
+//           resolved: {
+//             $sum: {
+//               $cond: [
+//                 { $in: ["$status", RESOLVED_STATUS] },
+//                 1,
+//                 0
+//               ]
+//             }
+//           },
+
+//           totalResolutionDays: {
+//             $sum: {
+//               $cond: [
+//                 { $in: ["$status", RESOLVED_STATUS] },
+//                 {
+//                   $divide: [
+//                     { $subtract: ["$updatedAt", "$complaintDate"] },
+//                     86400000
+//                   ]
+//                 },
+//                 0
+//               ]
+//             }
+//           },
+
+//           resolvedCount: {
+//             $sum: {
+//               $cond: [
+//                 { $in: ["$status", RESOLVED_STATUS] },
+//                 1,
+//                 0
+//               ]
+//             }
+//           }
+//         }
+//       },
+//       {
+//         $project: {
+//           total: 1,
+//           open: 1,
+//           active: 1,
+//           pending: 1,
+//           resolved: 1,
+
+//           avgDays: {
+//             $cond: [
+//               { $gt: ["$resolvedCount", 0] },
+//               {
+//                 $round: [
+//                   { $divide: ["$totalResolutionDays", "$resolvedCount"] },
+//                   0
+//                 ]
+//               },
+//               0
+//             ]
+//           }
+//         }
+//       }
+//     ]);
+
+//     // =========================
+//     // 2. PRODUCTION (REAL)
+//     // =========================
+//     const [prod] = await Production.aggregate([
+//       {
+//         $match: {
+//           month: { $gte: startDate, $lte: endDate }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           totalProduction: { $sum: "$production" }
+//         }
+//       }
+//     ]);
+
+//     const totalProduction = prod?.totalProduction || 0;
+
+//     // =========================
+//     // 3. MONTHLY TREND (REAL)
+//     // =========================
+//     const complaintsMonthly = await Complaint.aggregate([
+//       {
+//         $match: {
+//           complaintDate: { $gte: startDate, $lte: endDate }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: {
+//             y: { $year: "$complaintDate" },
+//             m: { $month: "$complaintDate" }
+//           },
+//           defects: { $sum: 1 }
+//         }
+//       }
+//     ]);
+
+//     const productionMonthly = await Production.aggregate([
+//       {
+//         $match: {
+//           month: { $gte: startDate, $lte: endDate }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: {
+//             y: { $year: "$month" },
+//             m: { $month: "$month" }
+//           },
+//           production: { $sum: "$production" }
+//         }
+//       }
+//     ]);
+
+//     // 🔥 Convert to maps (FAST)
+//     const cMap = new Map(
+//       complaintsMonthly.map(d => [`${d._id.y}-${d._id.m}`, d.defects])
+//     );
+
+//     const pMap = new Map(
+//       productionMonthly.map(d => [`${d._id.y}-${d._id.m}`, d.production])
+//     );
+
+//     // Build 12 months trend
+//     const trend = [];
+//     const cursor = new Date(startDate);
+//     cursor.setDate(1);
+
+//     while (cursor <= endDate) {
+//       const y = cursor.getFullYear();
+//       const m = cursor.getMonth() + 1;
+
+//       const key = `${y}-${m}`;
+
+//       const defects = cMap.get(key) || 0;
+//       const production = pMap.get(key) || 0;
+
+//       trend.push({
+//         m: `${y}-${String(m).padStart(2, "0")}`,
+//         defects,
+//         production,
+//         ppm: production > 0
+//           ? Math.round((defects / production) * 1_000_000)
+//           : 0
+//       });
+
+//       cursor.setMonth(cursor.getMonth() + 1);
+//     }
+
+//     // =========================
+//     // FINAL RESPONSE
+//     // =========================
+//     return res.json({
+//       data: {
+//         kpi: {
+//           total: kpi?.total || 0,
+//           open: kpi?.open || 0,
+//           active: kpi?.active || 0,
+//           pending: kpi?.pending || 0,
+//           resolved: kpi?.resolved || 0,
+//           avgDays: kpi?.avgDays || 0,
+//           totalProduction,
+//           avgPpm: totalProduction > 0
+//             ? Math.round((kpi?.total || 0) / totalProduction * 1_000_000)
+//             : 0
+//         },
+//         trend
+//       }
+//     });
+
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 
 /* ═══════════════════════════════════════════════════════
    GET /complaints/production-stats
@@ -294,139 +626,180 @@ export const getProductionStats = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const getMonthlyTrend = async (req, res) => {
   try {
-    const year = req.query.year ? Number(req.query.year) : null;
-    const totalProduction = Object.values(PRODUCTION_VOLUMES).reduce((a, b) => a + b, 0);
-    const monthlyProduction = Math.round(totalProduction / 12);
-
-    let startDate, endDate, monthCount;
-
-    if (year) {
-      // Show all 12 months of the selected year
-      startDate  = new Date(`${year}-01-01T00:00:00.000Z`);
-      endDate    = new Date(`${year}-12-31T23:59:59.999Z`);
-      monthCount = 12;
-    } else {
-      // Rolling 12 months from today
-      const now = new Date();
-      endDate   = now;
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 11);
-      startDate.setDate(1);
-      startDate.setHours(0, 0, 0, 0);
-      monthCount = 12;
-    }
-
-    // Also respect explicit from/to if provided (overrides year)
     const { from, to } = req.query;
-    if (from) startDate = new Date(from);
-    if (to)   endDate   = new Date(to);
+    console.log("Received monthly trend request with from:", from, "to:", to);
 
-    const raw = await Complaint.aggregate([
-      { $match: { complaintDate: { $gte: startDate, $lte: endDate } } },
+    const startDate = from ? new Date(from) : new Date(new Date().setMonth(new Date().getMonth() - 11));
+    const endDate = to ? new Date(to) : new Date();
+
+    //  Complaints
+    const complaints = await Complaint.aggregate([
       {
-        $group: {
-          _id:   { year: { $year: "$complaintDate" }, month: { $month: "$complaintDate" } },
-          count: { $sum: 1 },
+        $match: {
+          complaintDate: { $gte: startDate, $lte: endDate }
         }
       },
-      { $sort: { "_id.year": 1, "_id.month": 1 } }
+      {
+        $group: {
+          _id: {
+            year: { $year: { date: "$complaintDate", timezone: "UTC" } },
+            month: { $month: { date: "$complaintDate", timezone: "UTC" } }
+          },
+          defects: { $sum: 1 }
+        }
+      }
+    ]);
+    //  Production (YOUR COLLECTION)
+    const production = await Production.aggregate([
+      {
+        $match: {
+          month: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: { date: "$month", timezone: "UTC" } },
+            month: { $month: { date: "$month", timezone: "UTC" } }
+          },
+          production: { $sum: "$production" }
+        }
+      }
     ]);
 
-    // Build month array for the range
+    //  Resolved complaints (REAL DATA)
+    const resolvedData = await Complaint.aggregate([
+      {
+        $match: {
+          status: "Resolved",
+          resolvedDate: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: { date: "$resolvedDate", timezone: "UTC" } },
+            month: { $month: { date: "$resolvedDate", timezone: "UTC" } }
+          },
+          resolved: { $sum: 1 }
+        }
+      }
+    ]);
+
+    //  Optimize lookup (IMPORTANT)
+    const cMap = new Map(
+      complaints.map(d => [`${d._id.year}-${d._id.month}`, d.defects])
+    );
+
+    const rMap = new Map(
+      resolvedData.map(d => [`${d._id.year}-${d._id.month}`, d.resolved])
+    );
+
+    const pMap = new Map(
+      production.map(d => [`${d._id.year}-${d._id.month}`, d.production])
+    );
+
+    // ✅ Build final result
     const result = [];
     const cursor = new Date(startDate);
-    cursor.setDate(1);
+    cursor.setUTCDate(1);
 
     while (cursor <= endDate) {
-      const y = cursor.getFullYear();
-      const m = cursor.getMonth() + 1;
-      const found = raw.find(r => r._id.year === y && r._id.month === m);
-      const defects = found?.count || 0;
+      const y = cursor.getUTCFullYear();
+      const m = cursor.getUTCMonth() + 1;
+
+      const key = `${y}-${m}`;
+
+      const defects = cMap.get(key) || 0;     //  from Complaint
+      const resolved = rMap.get(key) || 0;    //  from Complaint
+      const productionQty = pMap.get(key) || 0; //  from Production
+
       result.push({
         m: `${y}-${String(m).padStart(2, "0")}`,
-        defects,
-        ppm: monthlyProduction > 0 ? Math.round((defects / monthlyProduction) * 1_000_000) : 0,
+
+        production: productionQty,
+
+        complaints: defects,   // correct
+        resolved: resolved,    // correct
+
+        //  FINAL CORRECT PPM
+        ppm:
+          productionQty > 0
+            ? Math.round((defects / productionQty) * 1_000_000)
+            : 0,
+
+        // 🔥 BONUS METRIC
+        backlog: defects - resolved
       });
-      cursor.setMonth(cursor.getMonth() + 1);
+
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
 
     return res.json({ data: result });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
 
 /* ═══════════════════════════════════════════════════════
-   GET /complaints/daily — last 30 days (within selected year)
+   GET /complaints/weekly — last 30 days (within selected year)
 ═══════════════════════════════════════════════════════ */
-export const getDailyTrend = async (req, res) => {
+export const getWeeklyTrend = async (req, res) => {
   try {
-    const year = req.query.year ? Number(req.query.year) : null;
-    const now  = new Date();
+    const now = new Date();
 
-    let from, to;
+    // ✅ Current month start & end (UTC safe)
+    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-    if (year) {
-      const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
-      to   = yearEnd < now ? yearEnd : now;
-
-      from = new Date(to);
-      from.setUTCDate(to.getUTCDate() - 29);
-
-      const yearStart = new Date(Date.UTC(year, 0, 1));
-      if (from < yearStart) from = yearStart;
-
-    } else {
-      to   = new Date();
-      from = new Date();
-      from.setUTCDate(to.getUTCDate() - 29);
-    }
-
-    // Override
-    if (req.query.from) from = new Date(req.query.from);
-    if (req.query.to)   to   = new Date(req.query.to);
-
-    // ✅ Normalize BOTH
-    from.setUTCHours(0, 0, 0, 0);
-    to.setUTCHours(23, 59, 59, 999);
-
+    // ✅ Aggregate complaints weekly
     const raw = await Complaint.aggregate([
       {
         $match: {
-          createdAt: { $gte: from, $lte: to }
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+        }
+      },
+      {
+        $addFields: {
+          day: {
+            $dayOfMonth: {
+              date: "$createdAt",
+              timezone: "Asia/Kolkata"
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          week: {
+            $ceil: { $divide: ["$day", 7] } // 1–7 → week 1, etc.
+          }
         }
       },
       {
         $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$createdAt",
-              timezone: "Asia/Kolkata" // ✅ FIX
-            }
-          },
+          _id: "$week",
           count: { $sum: 1 }
         }
       },
       { $sort: { _id: 1 } }
     ]);
 
-    // ✅ Convert to map (FAST)
+    // ✅ Map for fast lookup
     const map = {};
     raw.forEach(r => {
       map[r._id] = r.count;
     });
 
+    // ✅ Always return 5 weeks (max possible in a month)
     const result = [];
-    const cursor = new Date(from);
 
-    while (cursor <= to) {
-      const dateStr = cursor.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    for (let week = 1; week <= 5; week++) {
       result.push({
-        d: dateStr,
-        count: map[dateStr] || 0
+        week: `W${week}`,
+        count: map[week] || 0
       });
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
     return res.json({ data: result });
@@ -588,67 +961,6 @@ export const getByCommodity = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
     return res.json({ data });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
-
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/ppm-trend
-═══════════════════════════════════════════════════════ */
-export const getPpmTrend = async (req, res) => {
-  try {
-    const year = req.query.year ? Number(req.query.year) : null;
-
-    let startDate, endDate;
-    if (year) {
-      startDate = new Date(`${year}-01-01T00:00:00.000Z`);
-      endDate   = new Date(`${year}-12-31T23:59:59.999Z`);
-    } else {
-      const now = new Date();
-      endDate   = now;
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 11);
-      startDate.setDate(1);
-      startDate.setHours(0, 0, 0, 0);
-    }
-
-    if (req.query.from) startDate = new Date(req.query.from);
-    if (req.query.to)   endDate   = new Date(req.query.to);
-
-    const raw = await Complaint.aggregate([
-      { $match: { complaintDate: { $gte: startDate, $lte: endDate } } },
-      {
-        $group: {
-          _id:   { year: { $year: "$complaintDate" }, month: { $month: "$complaintDate" } },
-          count: { $sum: 1 },
-        }
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]);
-
-    const result = [];
-    const cursor = new Date(startDate);
-    cursor.setDate(1);
-    let idx = 0;
-
-    while (cursor <= endDate) {
-      const y = cursor.getFullYear();
-      const m = cursor.getMonth() + 1;
-      const found   = raw.find(r => r._id.year === y && r._id.month === m);
-      const defects = found?.count || 0;
-      const units   = MONTHLY_UNITS_SHIPPED[idx % 12] || 0;
-      result.push({
-        m: `${y}-${String(m).padStart(2, "0")}`,
-        defects,
-        units,
-        ppm: units > 0 ? Math.round((defects / units) * 1_000_000) : 0,
-      });
-      cursor.setMonth(cursor.getMonth() + 1);
-      idx++;
-    }
-
-    return res.json({ data: result });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

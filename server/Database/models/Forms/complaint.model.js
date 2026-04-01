@@ -44,17 +44,15 @@ const complaintSchema = new Schema(
     },
 
     replacementCategory: {
-        type: String,
-        trim: true,
-        enum: ["Part", "Services", "Demonstration", "Unit" ],
-        default: "",
-      },
+      type: String,
+      trim: true,
+      default: "",
+    },
 
-      customerComplaintId: { type: String, trim: true },
-      serialNo: { type: String, trim: true },
-      partNo: { type: String, trim: true },
-      partModel: { type: String, trim: true },
-
+    customerComplaintId: { type: String, trim: true },
+    serialNo:            { type: String, trim: true },
+    partNo:              { type: String, trim: true },
+    partModel:           { type: String, trim: true },
 
     modelName: {
       type: String,
@@ -69,7 +67,7 @@ const complaintSchema = new Schema(
 
     doa: {
       type: String,
-      enum: { values: ["DOA", "IW", "OW", ""], message: "{VALUE} is not valid" },
+      enum: { values: ["DOA", "IW", "OW", "OOW", ""], message: "{VALUE} is not valid" },
       default: "",
     },
 
@@ -84,6 +82,7 @@ const complaintSchema = new Schema(
           "LEAK",
           "NOISE",
           "MISC DEFECT",
+          "OTHER",                              // ← added to match form
         ],
         message: "{VALUE} is not a valid defect category",
       },
@@ -119,12 +118,62 @@ const complaintSchema = new Schema(
     status: {
       type: String,
       enum: {
-        values: ["Open", "Active", "Pending", "Resolved", "Closed"],
+        values: ["Open", "Pending", "Resolved", "Closed"],  // ← added Closed
         message: "{VALUE} is not a valid status",
       },
       default: "Open",
     },
 
+    resolvedDate: {
+      type: Date,
+      default: null,
+    },
+
+    /* ── Section 3: Manufacturing & Location ── */
+    manufacturingPlant: {
+      type: String,
+      trim: true,
+      enum: {
+        values: ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", ""],
+        message: "{VALUE} is not a valid manufacturing plant",
+      },
+      default: "",
+    },
+
+    manufacturingDate: {
+      type: Date,
+      default: null,
+    },
+
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    state: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    /* ── Section 4: Data Base & Evidence ── */
+    dataBase: {
+      type: String,
+      trim: true,
+      enum: {
+        values: ["Evidence", "Verification", "Data", ""],
+        message: "{VALUE} is not a valid dataBase value",
+      },
+      default: "",
+    },
+
+    evidenceFile: {
+      type: String,     // stores file path / URL after upload
+      default: "",
+    },
+
+    /* ── Additional Info ── */
     remarks: {
       type: String,
       trim: true,
@@ -133,30 +182,30 @@ const complaintSchema = new Schema(
 
     /* ── Audit fields ── */
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId, // user email or userId
+      type: mongoose.Schema.Types.ObjectId,
       trim: true,
       ref: "User",
     },
 
     updatedBy: {
-      type: mongoose.Schema.Types.ObjectId, // user email or userId
+      type: mongoose.Schema.Types.ObjectId,
       trim: true,
       default: null,
       ref: "User",
     },
   },
   {
-    timestamps: true,       // adds createdAt + updatedAt automatically
+    timestamps: true,
     versionKey: false,
-    toJSON: { virtuals: true },
+    toJSON:   { virtuals: true },
     toObject: { virtuals: true },
-  }
+  },
 );
 
 /* ─────────────────────────────────────────
    AUTO-GENERATE complaintNo
    Format: PG-YYYYMMDD-XXXXX (e.g. PG-20260322-00001)
-───────────────────────────────────────── */
+───────────────────────────────────────── *///////////
 complaintSchema.pre("save", async function () {
   if (!this.isNew || this.complaintNo) return;
 
@@ -175,19 +224,34 @@ complaintSchema.pre("save", async function () {
 });
 
 /* ─────────────────────────────────────────
+   AUTO-SET resolvedDate on status change
+───────────────────────────────────────── */
+complaintSchema.pre("save", async function () {
+  if (this.isModified("status")) {
+    if (["Resolved", "Closed"].includes(this.status) && !this.resolvedDate) {
+      this.resolvedDate = new Date();
+    }
+    if (!["Resolved", "Closed"].includes(this.status)) {
+      this.resolvedDate = null;
+    }
+  }
+});
+
+/* ─────────────────────────────────────────
    INDEXES
 ───────────────────────────────────────── */
-complaintSchema.index({ complaintNo: 1 }, { unique: true });
+complaintSchema.index({ complaintNo: 1 },{ unique: true });
 complaintSchema.index({ customerName: 1 });
 complaintSchema.index({ status: 1 });
 complaintSchema.index({ complaintDate: -1 });
 complaintSchema.index({ createdAt: -1 });
 complaintSchema.index({ defectCategory: 1, defectivePart: 1 });
+complaintSchema.index({ manufacturingPlant: 1 });      // ← new
+complaintSchema.index({ city: 1, state: 1 });          // ← new
 
 /* ─────────────────────────────────────────
    VIRTUALS
 ───────────────────────────────────────── */
-// Human-readable formatted date
 complaintSchema.virtual("complaintDateFormatted").get(function () {
   return this.complaintDate
     ? this.complaintDate.toLocaleDateString("en-IN", {
@@ -196,43 +260,13 @@ complaintSchema.virtual("complaintDateFormatted").get(function () {
     : "";
 });
 
-/* ─────────────────────────────────────────
-   MODEL EXPORT
-   Guard prevents recompilation in Next.js hot-reload / serverless
-───────────────────────────────────────── */
-const Complaint = models.Complaint || model("Complaint", complaintSchema);
+// Product aging in days (complaint date − purchase date)
+complaintSchema.virtual("productAging").get(function () {
+  if (!this.complaintDate || !this.purchaseDate) return null;
+  const diff = this.complaintDate - this.purchaseDate;
+  return diff >= 0 ? Math.floor(diff / 86400000) : null;
+});
+
+const Complaint = mongoose.model("Complaint", complaintSchema);
 
 export default Complaint;
-
-
-/* ═══════════════════════════════════════
-   USAGE EXAMPLES
-   ═══════════════════════════════════════
-
-   // CREATE
-   import Complaint from "@/models/complaint.model.js";
-   const complaint = await Complaint.create({ ...formData, createdBy: req.user.email });
-
-   // READ ALL (paginated)
-   const complaints = await Complaint.find({ status: "Open" })
-     .sort({ createdAt: -1 })
-     .limit(20)
-     .skip(page * 20);
-
-   // READ ONE
-   const complaint = await Complaint.findById(id);
-
-   // UPDATE
-   const updated = await Complaint.findByIdAndUpdate(
-     id,
-     { ...formData, updatedBy: req.user.email },
-     { new: true, runValidators: true }
-   );
-
-   // DELETE
-   await Complaint.findByIdAndDelete(id);
-
-   // FILTER by customer + status
-   const results = await Complaint.find({ customerName: "SAMSUNG", status: "Active" });
-
-═══════════════════════════════════════ */
