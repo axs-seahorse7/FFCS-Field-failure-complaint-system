@@ -366,7 +366,7 @@ export default function ComplaintDashboard({  userEmail, }) {
               </button>
               <button
                 onClick={() => navigate("/complaints/form")}
-                className="flex items-center gap-1.5 px-3 py-1.5 max-sm:hidden rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all shadow-lg shadow-cyan-900/30"
+                className="flex items-center gap-1.5 px-3 py-1.5 max-sm:hidden rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                   <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
@@ -376,9 +376,9 @@ export default function ComplaintDashboard({  userEmail, }) {
               <button
               title="logout"
                 onClick={() => handleLogout()}
-                className=" cursor-pointer text-md flex items-center h-7 w-7 p-2 rounded-md bg-red-600 hover:bg-red-500 active:scale-95 text-white  transition-all shadow-lg shadow-red-900/30"
+                className=" cursor-pointer text-md flex items-center px-2 py-1 max-lg:py-0 rounded-md bg-red-600 hover:bg-red-500 active:scale-95 text-white  transition-all "
               >
-                <i className="ri-logout-circle-r-line"></i> 
+                <i className="ri-logout-circle-r-line"></i> <span className="text-sm max-lg:text-[12px] ml-2" >Logout</span>
               </button>
             </div>
           </div>
@@ -393,6 +393,9 @@ export default function ComplaintDashboard({  userEmail, }) {
             </h1>
             <p className="text-xs text-slate-400 font-['DM_Mono',monospace] mt-1">
               Field Failure System · {complaints.length} total record{complaints.length !== 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-blue-700 font-['DM_Mono',monospace] mt-2">
+              {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             </p>
             
           </div>
@@ -410,13 +413,13 @@ export default function ComplaintDashboard({  userEmail, }) {
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
 
                 <button
-                onClick={() => navigate("/complaints/form")}
-                className=" self-end w-40 items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-lg bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
+                  onClick={() => navigate("/complaints/form")}
+                  className=" fixed bottom-5 right-5 self-end w-10 h-10 items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-full bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
                     </svg>
-                  <span className=" sm:inline ">New Complaint</span>
+                  {/* <span className=" sm:inline ">New Complaint</span> */}
                 </button>
                   
               {/* Search */}

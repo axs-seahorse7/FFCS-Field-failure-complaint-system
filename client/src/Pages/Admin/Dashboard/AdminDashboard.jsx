@@ -52,7 +52,10 @@ export default function AdminDashboard({ userEmail }) {
   const [toasts,       setToasts]       = useState([]);
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   const [customer,     setCustomer]     = useState(undefined);
-  const [dateRange, setDateRange] = useState([dayjs().startOf("year"), dayjs()]);
+  const [dateRange, setDateRange] = useState([
+    dayjs().subtract(11, "month").startOf("month"),
+    dayjs().endOf("month")
+  ]);
 
   const disabledDate = (current) => {
     if (!current) return false;
@@ -265,6 +268,10 @@ export default function AdminDashboard({ userEmail }) {
                 bordered={false}
                 disabledDate={disabledDate}
                 ranges={{
+                  "Last 12 Months": [
+                    dayjs().subtract(11, "month").startOf("month"),
+                    dayjs().endOf("month")
+                  ],
                   "This Year": [dayjs().startOf("year"), dayjs()],
                   "Last Year": [
                     dayjs().subtract(1, "year").startOf("year"),

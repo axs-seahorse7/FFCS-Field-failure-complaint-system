@@ -167,7 +167,6 @@ export default function DefectsSection() {
   } = data || {};
 
 
-
   const sortedParts    = useMemo(() => (byPart     || [])?.sort((a, b) => b.count - a.count).slice(0, 12), [byPart]);
   const sortedDefects  = useMemo(() => (topDefects || [])?.sort((a, b) => b.count - a.count).slice(0, 10), [topDefects]);
   const sortedCategory = useMemo(() => (byCategory || [])?.sort((a, b) => b.count - a.count), [byCategory]);
@@ -193,7 +192,7 @@ export default function DefectsSection() {
 
   /* ────────── CHARTS ────────── */
 
- 
+ console.log("DefectsSection data ->", defectTrendData); // DEBUG
 
   const CategoryDonut = ({h = 220}) => {
     const total = sortedCategory.reduce((s, d) => s + d.count, 0);
@@ -345,22 +344,96 @@ export default function DefectsSection() {
   );
 
   const DefectTrendChart = ({ h = 220 }) => {
-    if (!defectTrendData.length || defectTrendData.every(d => !d.defects)) return <ZeroData />;
+    const hasDefects = defectTrendData.some(d => d.defects > 0);
+    const hasPPM = defectTrendData.some(d => d.ppm > 0);
+
+    // Show Zero only if BOTH are empty
+    if (!defectTrendData.length || (!hasDefects && !hasPPM)) {
+      return <ZeroData />;
+    }
+
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <AreaChart data={defectTrendData} margin={{ top: 16, right: 10, bottom: 8, left: 14 }}>
+        <AreaChart
+          data={defectTrendData}
+          margin={{ top: 16, right: 14, bottom: 8, left: 8 }}
+        >
           <defs>
-            <linearGradient id="gradD" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
-            <linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.18}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
+            <linearGradient id="gradD" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+            </linearGradient>
+
+            <linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+            </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 0" stroke="#f0f2f5" />
-          <XAxis dataKey="m" tick={{ fontSize: 10, fill: "#94a3b8" }} />
-          <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
-          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: "#f59e0b" }} width={38} />
-          <Tooltip content={<ChartTooltip />} />
+
+          <CartesianGrid strokeDasharray="3 0" stroke="#f1f5f9" />
+
+          <XAxis
+            dataKey="m"
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+          />
+
+          {/* Defects Axis */}
+          {hasDefects && (
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 10, fill: "#3b82f6" }}
+              width={32}
+            />
+          )}
+
+          {/* PPM Axis */}
+          {hasPPM && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tickFormatter={(v) => v.toLocaleString()}
+              tick={{ fontSize: 10, fill: "#f59e0b" }}
+              width={50}
+            />
+          )}
+
+          <Tooltip
+            content={<ChartTooltip />}
+            formatter={(value, name) => {
+              if (name === "PPM") return value.toLocaleString();
+              return value;
+            }}
+          />
+
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Area yAxisId="left"  type="monotone" dataKey="defects" name="Defects" stroke="#3b82f6" fill="url(#gradD)" strokeWidth={2.5} />
-          <Area yAxisId="right" type="monotone" dataKey="ppm"     name="PPM"     stroke="#f59e0b" fill="url(#gradP)" strokeWidth={2} />
+
+          {/* Defects Area */}
+          {hasDefects && (
+            <Area
+              yAxisId="left"
+              type="monotone"
+              dataKey="defects"
+              name="Defects"
+              stroke="#3b82f6"
+              fill="url(#gradD)"
+              strokeWidth={2.5}
+              dot={{ r: 2 }}
+            />
+          )}
+
+          {/* PPM Area */}
+          {hasPPM && (
+            <Area
+              yAxisId="right"
+              type="monotone"
+              dataKey="ppm"
+              name="PPM"
+              stroke="#f59e0b"
+              fill="url(#gradP)"
+              strokeWidth={2}
+              dot={{ r: 2 }}
+            />
+          )}
         </AreaChart>
       </ResponsiveContainer>
     );

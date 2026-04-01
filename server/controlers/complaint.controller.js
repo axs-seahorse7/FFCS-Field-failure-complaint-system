@@ -627,108 +627,124 @@ export const getProductionStats = async (req, res) => {
 export const getMonthlyTrend = async (req, res) => {
   try {
     const { from, to } = req.query;
-    console.log("Received monthly trend request with from:", from, "to:", to);
 
-    const startDate = from ? new Date(from) : new Date(new Date().setMonth(new Date().getMonth() - 11));
-    const endDate = to ? new Date(to) : new Date();
+    // ---------- 1. Normalize Dates ----------
+    const now = new Date();
 
-    //  Complaints
-    const complaints = await Complaint.aggregate([
-      {
-        $match: {
-          complaintDate: { $gte: startDate, $lte: endDate }
+    let startDate = from
+      ? new Date(from)
+      : new Date(new Date().setMonth(now.getMonth() - 11));
+
+    let endDate = to ? new Date(to) : new Date();
+
+    startDate.setUTCHours(0, 0, 0, 0);
+    endDate.setUTCHours(0, 0, 0, 0);
+
+    // ---------- 2. Limit to 12 Months ----------
+    const startMonth = new Date(startDate);
+    startMonth.setUTCDate(1);
+
+    const endMonth = new Date(endDate);
+    endMonth.setUTCDate(1);
+
+    const totalMonths =
+      (endMonth.getUTCFullYear() - startMonth.getUTCFullYear()) * 12 +
+      (endMonth.getUTCMonth() - startMonth.getUTCMonth()) + 1;
+
+    // If range > 12 → shift start to last 12 months
+    if (totalMonths > 12) {
+      startMonth.setTime(endMonth.getTime());
+      startMonth.setUTCMonth(endMonth.getUTCMonth() - 11);
+    }
+
+    // ---------- 3. Aggregations ----------
+    const [complaints, production, resolvedData] = await Promise.all([
+      Complaint.aggregate([
+        {
+          $match: {
+            complaintDate: { $gte: startMonth, $lte: endMonth }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$complaintDate" },
+              month: { $month: "$complaintDate" }
+            },
+            defects: { $sum: 1 }
+          }
         }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: { date: "$complaintDate", timezone: "UTC" } },
-            month: { $month: { date: "$complaintDate", timezone: "UTC" } }
-          },
-          defects: { $sum: 1 }
+      ]),
+
+      Production.aggregate([
+        {
+          $match: {
+            month: { $gte: startMonth, $lte: endMonth }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$month" },
+              month: { $month: "$month" }
+            },
+            production: { $sum: "$production" }
+          }
         }
-      }
+      ]),
+
+      Complaint.aggregate([
+        {
+          $match: {
+            status: "Resolved",
+            resolvedDate: { $gte: startMonth, $lte: endMonth }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$resolvedDate" },
+              month: { $month: "$resolvedDate" }
+            },
+            resolved: { $sum: 1 }
+          }
+        }
+      ])
     ]);
-    //  Production (YOUR COLLECTION)
-    const production = await Production.aggregate([
-      {
-        $match: {
-          month: { $gte: startDate, $lte: endDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: { date: "$month", timezone: "UTC" } },
-            month: { $month: { date: "$month", timezone: "UTC" } }
-          },
-          production: { $sum: "$production" }
-        }
-      }
-    ]);
 
-    //  Resolved complaints (REAL DATA)
-    const resolvedData = await Complaint.aggregate([
-      {
-        $match: {
-          status: "Resolved",
-          resolvedDate: { $gte: startDate, $lte: endDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: { date: "$resolvedDate", timezone: "UTC" } },
-            month: { $month: { date: "$resolvedDate", timezone: "UTC" } }
-          },
-          resolved: { $sum: 1 }
-        }
-      }
-    ]);
+    // ---------- 4. Maps ----------
+    const toMap = (arr, field) =>
+      new Map(arr.map(d => [`${d._id.year}-${d._id.month}`, d[field]]));
 
-    //  Optimize lookup (IMPORTANT)
-    const cMap = new Map(
-      complaints.map(d => [`${d._id.year}-${d._id.month}`, d.defects])
-    );
+    const cMap = toMap(complaints, "defects");
+    const pMap = toMap(production, "production");
+    const rMap = toMap(resolvedData, "resolved");
 
-    const rMap = new Map(
-      resolvedData.map(d => [`${d._id.year}-${d._id.month}`, d.resolved])
-    );
-
-    const pMap = new Map(
-      production.map(d => [`${d._id.year}-${d._id.month}`, d.production])
-    );
-
-    // ✅ Build final result
+    // ---------- 5. Build Continuous Months ----------
     const result = [];
-    const cursor = new Date(startDate);
-    cursor.setUTCDate(1);
+    const cursor = new Date(startMonth);
 
-    while (cursor <= endDate) {
+    while (cursor <= endMonth) {
       const y = cursor.getUTCFullYear();
       const m = cursor.getUTCMonth() + 1;
-
       const key = `${y}-${m}`;
 
-      const defects = cMap.get(key) || 0;     //  from Complaint
-      const resolved = rMap.get(key) || 0;    //  from Complaint
-      const productionQty = pMap.get(key) || 0; //  from Production
+      const defects = cMap.get(key) || 0;
+      const resolved = rMap.get(key) || 0;
+      const productionQty = pMap.get(key) || 0;
 
       result.push({
         m: `${y}-${String(m).padStart(2, "0")}`,
 
         production: productionQty,
+        complaints: defects,
+        resolved,
 
-        complaints: defects,   // correct
-        resolved: resolved,    // correct
-
-        //  FINAL CORRECT PPM
         ppm:
           productionQty > 0
             ? Math.round((defects / productionQty) * 1_000_000)
             : 0,
 
-        // 🔥 BONUS METRIC
         backlog: defects - resolved
       });
 
@@ -738,9 +754,10 @@ export const getMonthlyTrend = async (req, res) => {
     return res.json({ data: result });
 
   } catch (err) {
+    console.error("Monthly trend error:", err);
     return res.status(500).json({ message: err.message });
   }
-};
+};;
 
 /* ═══════════════════════════════════════════════════════
    GET /complaints/weekly — last 30 days (within selected year)

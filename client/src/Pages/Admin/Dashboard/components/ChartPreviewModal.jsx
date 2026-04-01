@@ -2,18 +2,7 @@
 // Reusable popup that renders an enlarged chart when user clicks on any chart/plot
 
 import { Modal } from "antd";
-import { ResponsiveContainer } from "recharts";
 
-/**
- * Usage:
- *   <ChartPreviewModal
- *     open={!!previewChart}
- *     onClose={() => setPreviewChart(null)}
- *     title="Defect Category Distribution"
- *   >
- *     {/* Same chart JSX, just bigger * /}
- *   </ChartPreviewModal>
- */
 export default function ChartPreviewModal({ open, onClose, title, subtitle, children }) {
   return (
     <Modal
@@ -41,8 +30,8 @@ export default function ChartPreviewModal({ open, onClose, title, subtitle, chil
           overflowY: "auto",
         },
         header: {
-          background: "#fff",
-          borderBottom: "1px solid #f0f2f5",
+          background: "#6366f1",
+          borderBottom: "1px solid #6366f1",
           padding: "16px 24px",
         },
       }}

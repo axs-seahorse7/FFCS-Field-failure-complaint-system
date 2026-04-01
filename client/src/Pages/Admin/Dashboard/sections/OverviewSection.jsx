@@ -325,7 +325,6 @@ export default function OverviewSection({ addToast,  }) {
     to:   filters?.to,
   }), [filters, selectedYear]);
 
-  console.log("filters from overview -> :", filters);
 
 
   const { data, isLoading } = useBatchQuery([
