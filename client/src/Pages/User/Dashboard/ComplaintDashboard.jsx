@@ -394,6 +394,8 @@ export default function ComplaintDashboard({  userEmail, }) {
             <p className="text-xs text-slate-400 font-['DM_Mono',monospace] mt-1">
               Field Failure System · {complaints.length} total record{complaints.length !== 1 ? "s" : ""}
             </p>
+            <span className="text-[11px] text-emerald-600 font-['DM_Mono',monospace]">{user?.email}</span>
+
             <p className="text-xs text-blue-700 font-['DM_Mono',monospace] mt-2">
               {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             </p>
@@ -414,9 +416,9 @@ export default function ComplaintDashboard({  userEmail, }) {
 
                 <button
                   onClick={() => navigate("/complaints/form")}
-                  className=" fixed bottom-5 right-5 self-end w-10 h-10 items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-full bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
+                  className=" fixed bottom-5 right-5 self-end w-12 h-12 max-md:flex justify-center items-center gap-1.5 px-3 py-2 mt-3 hidden max-sm:flex  rounded-full bg-cyan-600/80 hover:bg-cyan-500 active:scale-95 text-white text-xs cursor-pointer tracking-wide transition-all "
                   >
-                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="w-6.5 h-6.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
                     </svg>
                   {/* <span className=" sm:inline ">New Complaint</span> */}

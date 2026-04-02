@@ -1,5 +1,5 @@
 // sections/WarrantySection.jsx
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { Tag, Button, Space } from "antd";
@@ -92,23 +92,32 @@ export default function WarrantySection() {
   const [preview, setPreview] = useState(null);
   const {filters} = useOutletContext();
 
+  const params = useMemo(() => {
+      const p = {};
+      if (filters.customer) p.customerName = filters.customer;
+      if (filters.year) p.year = filters.year;
+      return p;
+    }, [filters.customer, filters.year]);
+
   const { data, isLoading } = useBatchQuery([
-    { key: "doaData", url: "/complaints/by-doa", params: { year: filters.year } },
-    { key: "ppmTrend", url: "/complaints/ppm-trend", params: { year: filters.year } },
-    { key: "byCommodity", url: "/complaints/by-commodity", params: { year: filters.year } },
-    { key: "commVsCat", url: "/complaints/commodity-vs-category", params: { year: filters.year } },
-    { key: "byReplacement", url: "/complaints/by-replacement", params: { year: filters.year } },
-    { key: "stats", url: "/complaints/stats", params: { year: filters.year } },
+    { key: "doaData", url: "/complaints/by-doa", params: { params } },
+    { key: "stats", url: "/complaints/monthly", params: { params } },
+    { key: "byCommodity", url: "/complaints/by-commodity", params: { params } },
+    { key: "commVsCat", url: "/complaints/commodity-vs-category", params: { params } },
+    { key: "byReplacement", url: "/complaints/by-replacement", params: { params } },
+    { key: "stats", url: "/complaints/stats", params: { params } },
   ]);
 
   const {
     doaData = [],
-    ppmTrend = [],
     byCommodity = [],
     commVsCat = [],
     byReplacement = [],
-    stats = {}
+    stats = {},
+    monthly = [],
   } = data || {};
+
+  console.log("WarrantySection monthly trends ->", monthly); // DEBUG
 
   const commSorted = [...(byCommodity || [])].sort((a, b) => b.count - a.count);
   const doaPieData = [...(doaData || [])].sort((a, b) => b.count - a.count);
@@ -145,27 +154,65 @@ export default function WarrantySection() {
     );
   };
 
-  const PpmLine = ({ h = 320 }) => {
-    const data = ppmTrend || [];
-    if (!data.length || data.every(d => !d.ppm)) return <ZeroData />;
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <LineChart data={data} margin={{ top: 16, right: 24, bottom: 8, left: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="m" tick={{ fontSize: 10, fill: "#94a3b8" }} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={36} />
-          <Tooltip content={<ChartTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="ppm" name="PPM Rate" stroke="#e53935" strokeWidth={2.5}
-            dot={{ r: 4, fill: "#e53935", filter: "drop-shadow(0 2px 4px rgba(229,57,53,0.5))" }}
-            activeDot={{ r: 6 }}>
-            <LabelList dataKey="ppm" position="top" style={LABEL_S} formatter={fmtNum} />
-          </Line>
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  };
+ const PpmLine = ({ h = 320 }) => {
+  const data =  [];
 
+  const hasPPM = data?.some(d => d.avgPpm > 0);
+
+  if (!data.length || !hasPPM) return <ZeroData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <LineChart
+        data={data}
+        margin={{ top: 16, right: 16, bottom: 8, left: 8 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+
+        <XAxis
+          dataKey="m"
+          tick={{ fontSize: 10, fill: "#94a3b8" }}
+        />
+
+        <YAxis
+          width={50}
+          tick={{ fontSize: 10, fill: "#94a3b8" }}
+          tickFormatter={(v) => v.toLocaleString()}
+        />
+
+        <Tooltip
+          content={<ChartTooltip />}
+          formatter={(v) => v.toLocaleString()}
+        />
+
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+
+        <Line
+          type="monotone"
+          dataKey="avgPpm"
+          name="PPM Rate"
+          stroke="#e53935"
+          strokeWidth={2.5}
+          dot={{
+            r: 3,
+            fill: "#e53935"
+          }}
+          activeDot={{ r: 5 }}
+        />
+
+        {/* Show labels ONLY if few points (avoid clutter) */}
+        {data.length <= 6 && (
+          <LabelList
+            dataKey="avgPpm"
+            position="top"
+            formatter={(v) => v.toLocaleString()}
+            style={{ fontSize: 10 }}
+          />
+        )}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
   const CommodityBar = ({ h = 260 }) => {
     if (!commSorted.length) return <ZeroData />;
     return (
@@ -323,10 +370,12 @@ export default function WarrantySection() {
           onExpand={() => openPreview("IDU vs ODU Split", <CommodityBar h={360} />)}>
           <CommodityBar />
         </ChartCard>
+
         <ChartCard title="Defect Types in IDU vs ODU Units" icon="📊" tag="Stacked" tagColor="blue"
           loading={!commVsCat} onExpand={() => openPreview("Defects in IDU vs ODU", <CommVsCatStacked h={360} />)}>
           <CommVsCatStacked />
         </ChartCard>
+
         <ChartCard title="Type of Replacement Issued" icon="🔄" loading={isLoading}
           onExpand={() => openPreview("Replacement Type Breakdown", <ReplacementBar h={360} />)}>
           <ReplacementBar />

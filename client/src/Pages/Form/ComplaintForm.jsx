@@ -188,9 +188,9 @@ export default function ComplaintForm({ editId, userEmail }) {
   // ── clear evidence file when dataBase changes away from "Evidence"
   useEffect(() => {
     if (form.dataBase !== "Evidence") {
-      setInvoiceFile(null);
-      setInvoiceError("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    setInvoiceFile(null);
+    setInvoiceError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }, [form.dataBase]);
 
@@ -199,9 +199,7 @@ export default function ComplaintForm({ editId, userEmail }) {
     setInvoiceError("");
     if (!file) { setInvoiceFile(null); return; }
     if (file.size > MAX_FILE_SIZE) {
-      setInvoiceError(
-        `File too large. Max allowed is 200 KB. (Selected: ${(file.size / 1024).toFixed(1)} KB)`
-      );
+      setInvoiceError(`File too large. Max allowed is 200 KB. (Selected: ${(file.size / 1024).toFixed(1)} KB)`);
       setInvoiceFile(null);
       e.target.value = "";
       return;
@@ -219,8 +217,8 @@ export default function ComplaintForm({ editId, userEmail }) {
     "complaintDate", "customerName", "commodity", "modelName",
     "defectCategory", "defectivePart", "defectDetails",
   ];
-  const isValid = requiredFields.every((f) => form[f]?.trim?.() || form[f]);
 
+  const isValid = requiredFields.every((f) => form[f]?.trim?.() || form[f]);
   const productAging = calcProductAging(form.complaintDate, form.purchaseDate);
 
   const handleSubmit = async (e) => {
@@ -234,6 +232,7 @@ export default function ComplaintForm({ editId, userEmail }) {
     }
     setLoading(true);
     setMsg({ text: "", type: "" });
+    
     try {
       const payload = new FormData();
       Object.entries(form).forEach(([k, v]) => {
@@ -301,7 +300,7 @@ export default function ComplaintForm({ editId, userEmail }) {
               )}
               <button
                 onClick={navigate.bind(null, "/complaints")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/12 text-white/70 hover:text-white hover:bg-white/12 cursor-pointer text-xs font-semibold transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/8 border border-white/12 text-white hover:text-black hover:bg-white cursor-pointer text-xs font-semibold transition-all"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round"/>
@@ -328,6 +327,7 @@ export default function ComplaintForm({ editId, userEmail }) {
             <p className="text-xs text-slate-400 font-mono">
               Fill all required fields marked <span className="text-red-500 font-bold">*</span> and submit to save the record.
             </p>
+            
           </div>
 
           {msg.text && (
