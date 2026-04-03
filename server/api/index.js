@@ -1,11 +1,9 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import path from "path";
 
 import connectDB from "../Database/config/db.config.js";
 
-// routes
 import authRoutes from "../routes/auth.routes.js";
 import indexroutes from "../routes/index.routes.js";
 import complaitRoutes from "../routes/complaint.routes.js";
@@ -14,76 +12,39 @@ import productionRoutes from "../routes/production.routes.js";
 
 const app = express();
 
-const isProduction = process.env.NODE_ENV === "production";
+await connectDB();
 
 // ✅ CORS
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://ffcs-field-failure-complaint-system.vercel.app",      // ✅ ADD THIS
-  "https://ffcs-field-failure-complaint-system-ten.vercel.app",  // existing
+  "https://ffcs-field-failure-complaint-system.vercel.app",
+  "https://ffcs-field-failure-complaint-system-ten.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (
-        !origin || // allow Postman / server-to-server
-        allowedOrigins.includes(origin) ||
-        origin.includes(".vercel.app") // 🔥 allow all Vercel previews
-      ) {
-        callback(null, true);
-      } else {
-        console.log("Blocked by CORS:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.includes(".vercel.app")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 
 app.options("*", cors());
 
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", "true");
-  next();
-});
-
-// ✅ Middlewares
+// middlewares
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ⚠️ DB connection (cached)
-let isConnected = false;
-
-const connectDBOnce = async () => {
-  if (isConnected) return;
-  await connectDB();
-  isConnected = true;
-};
-
-// ✅ Ensure DB before every request
-app.use(async (req, res, next) => {
-  try {
-    await connectDBOnce();
-    next();
-  } catch (err) {
-    console.error("DB ERROR:", err);
-    return res.status(500).json({ message: "DB connection failed" });
-  }
-});
-
-// ✅ Routes
-app.get("/", (req, res) => {
-  res.send("API running on Vercel 🚀");
-});
+// routes
+app.get("/", (req, res) => res.send("API running 🚀"));
 
 app.use("/api/auth", authRoutes);
 app.use("/api", indexroutes);
 app.use("/api", complaitRoutes);
 app.use("/api", userRoutes);
 app.use("/api/production", productionRoutes);
-
-// ❌ NO app.listen()
 
 export default app;
