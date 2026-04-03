@@ -37,9 +37,6 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-app.use((req, res) => {
-  res.status(404).json({ message: "Not Found" });
-});
 
 // routes
 app.get("/", (req, res) => res.send("API running 🚀"));
@@ -49,5 +46,9 @@ app.use("/api", indexroutes);
 app.use("/api", complaitRoutes);
 app.use("/api", userRoutes);
 app.use("/api/production", productionRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: "Not Found" });
+});
 
 export default app;
