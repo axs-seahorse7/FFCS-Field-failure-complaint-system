@@ -202,7 +202,7 @@ function DetailDrawer({ complaint, onClose }) {
       }}>
         {/* Header */}
         <div style={{
-          background: "linear-gradient(135deg, #1C1C1E 0%, #2C2C2E 100%)",
+          background: "black",
           padding: "20px 20px 16px",
           flexShrink: 0,
         }}>

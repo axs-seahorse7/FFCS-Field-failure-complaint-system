@@ -140,7 +140,6 @@ export default function ProductionEntryForm() {
     `/production/list?year=${filters?.year || dayjs().year()}`
   );
 
-  console.log("Fetched production records:", records);
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))
   , [records]);
@@ -177,12 +176,10 @@ export default function ProductionEntryForm() {
         warrantyComplaint: form.warrantyComplaint || 0,
       });
       message.success("Production record saved!");
-      addToast?.("Production entry created", "success");
       setForm(EMPTY);
       refetch();
     } catch (err) {
       message.error(err?.response?.data?.message || "Failed to save.");
-      addToast?.("Failed to save", "error");
     } finally {
       setSubmitting(false);
     }

@@ -23,7 +23,6 @@ const productionSchema = new mongoose.Schema(
 
     commodity: {
       type: String,
-      required: true,
       trim: true,
     },
 

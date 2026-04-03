@@ -36,7 +36,6 @@ const complaintSchema = new Schema(
 
     commodity: {
       type: String,
-      required: [true, "Commodity is required"],
       enum: {
         values: ["IDU", "ODU", "WAC"],
         message: "{VALUE} is not a valid commodity",
@@ -56,7 +55,6 @@ const complaintSchema = new Schema(
 
     modelName: {
       type: String,
-      required: [true, "Model name is required"],
       trim: true,
     },
 
@@ -91,16 +89,6 @@ const complaintSchema = new Schema(
     defectivePart: {
       type: String,
       required: [true, "Defective part is required"],
-      enum: {
-        values: [
-          "ODU PCB","IDU PCB","DISPLAY PCB","REMOTE","IDU MOTOR","ODU MOTOR",
-          "SWING MOTOR","COMPRESSOR","EVAPORATOR COIL","CONDENSER COIL",
-          "EXPANSION VALVE","CAPILLARY","IDU CHASSIS","ODU CHASSIS","FAN BLADE",
-          "DRAIN TRAY","INSTALLATION PLATE","H-LOUVER","V-LOUVER","GAS PIPE",
-          "WIRE HARNESS","OTHER",
-        ],
-        message: "{VALUE} is not a valid part",
-      },
     },
 
     symptom: {
@@ -193,6 +181,18 @@ const complaintSchema = new Schema(
       default: null,
       ref: "User",
     },
+    imageUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    imageKey:{
+      type: String,
+      trim: true,
+      default: "",
+    }
+    
   },
   {
     timestamps: true,

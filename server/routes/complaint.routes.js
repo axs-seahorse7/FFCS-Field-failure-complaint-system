@@ -12,18 +12,19 @@ import {
 import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
 import multer from "multer";
 import { bulkUploadComplaints } from "../controlers/bulkUploadComplaint.js";
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
 
 
-const upload = multer({ storage: multer.memoryStorage() });
-router.post("/bulk-upload", upload.single("file"), bulkUploadComplaints);
+const uploads = multer({ storage: multer.memoryStorage() });
+router.post("/bulk-upload", uploads.single("file"), bulkUploadComplaints);
 
 
 /* ── User ── */
 router.get("/get-complaint",  isAuthenticated, getComplaints);
-router.post("/create-complaint", isAuthenticated, createComplaint);
+router.post("/create-complaint", upload.single("image"), isAuthenticated, createComplaint);
 
 /* ── Admin analytics ── */
 const A = isAuthenticated;

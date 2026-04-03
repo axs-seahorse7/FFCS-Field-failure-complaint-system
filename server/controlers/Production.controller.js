@@ -7,6 +7,7 @@ import Production from "../Database/models/Production/productions.model.js";
 ═══════════════════════════════════════════════════════ */
 export const createProduction = async (req, res) => {
   try {
+    console.log("Received production data:", req.body);
     const {
       customer,
       location,
@@ -17,6 +18,7 @@ export const createProduction = async (req, res) => {
       fieldComplaint,
       warrantyComplaint
     } = req.body;
+
 
     if (!customer || !location || !month) {
       return res.status(400).json({
@@ -102,7 +104,6 @@ export const listProduction = async (req, res) => {
       }
 
       const datas = await Production.find(query).sort({ month: -1 });
-      console.log("Queried production records:", datas);
 
     return res.json({ data });
 

@@ -2,6 +2,7 @@
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
+import { uploadToS3 } from "../services/s3Service.js";
 
 /* ═══════════════════════════════════════════════════════
    HELPER — build date match from query params
@@ -52,13 +53,29 @@ export const getComplaints = async (req, res) => {
 /* ═══════════════════════════════════════════════════════
    POST /create-complaint
 ═══════════════════════════════════════════════════════ */
-export const createComplaint = async (req, res) => {
-  console.log("Creating complaint with data:", req.body);
 
+
+export const createComplaint = async (req, res) => {
   try {
+    let imageUrl = null;
+    let imageKey = null;
+
+
+    // 🔥 Upload to S3
+    if (req.file) {
+      const result = await uploadToS3(req.file);
+      imageUrl = result.url;
+      imageKey = result.key;
+    }
+
+    // remove unwanted field
+    const { image, ...rest } = req.body;
+
     const complaint = await Complaint.create({
-      ...req.body,
+      ...rest,
       createdBy: req.user.userId,
+      imageUrl,
+      imageKey, // 👈 store this for deletion later
     });
 
     await User.findByIdAndUpdate(req.user.userId, {
@@ -68,22 +85,27 @@ export const createComplaint = async (req, res) => {
       },
     });
 
-    await Production.findOneAndUpdate({
-          customer: complaint.customerName,
-          commodity: complaint.commodity,
-          month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        },
-        {
-          $inc: { fieldComplaint: 1 }, // 🔥 THIS matches your schema
-        },
-        { upsert: true }
-      );
+    await Production.findOneAndUpdate(
+      {
+        customer: complaint.customerName,
+        commodity: complaint.commodity,
+        month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      },
+      {
+        $inc: { fieldComplaint: 1 },
+      },
+      { upsert: true }
+    );
 
-    return res.status(200).json({ data: complaint, success: true, message: "Complaint created successfully" });
+    res.status(200).json({
+      success: true,
+      data: complaint,
+      message: "Complaint created successfully",
+    });
 
   } catch (err) {
     console.error("Error creating complaint:", err);
-    return res.status(400).json({ message: err.message });
+    res.status(500).json({ message: "Something went wrong" });
   }
 };
 /* ═══════════════════════════════════════════════════════
@@ -91,18 +113,18 @@ export const createComplaint = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const updateComplaintStatus = async (req, res) => {
   try {
-    const { id, status } = req.body;
+    const { id, status, remarks } = req.body;
     if (!id || !status) return res.status(400).json({ message: "id and status required" });
 
-    const VALID = ["Open", "Pending", "Resolved", "Closed"];
-    if (!VALID.includes(status)) return res.status(400).json({ message: "Invalid status" });
+    const VALID = [ "Resolved",];
+    if (!VALID.includes(status)) return res.status(400).json({ message: "You cannot update to this status" });
 
     const complaint = await Complaint.findById(id);
-    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
+    if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
 
     const prevStatus = complaint.status;
     complaint.status    = status;
-    complaint.remarks   = req.body.remarks || complaint.remarks;
+    complaint.remarks   = remarks || complaint.remarks;
     complaint.updatedBy = req.user.userId;
     complaint.updatedAt = new Date();
     await complaint.save();
@@ -124,20 +146,32 @@ export const updateComplaintStatus = async (req, res) => {
   }
 };
 
+export const deleteComplaint = async (req, res) => {
+  const complaint = await Complaint.findById(req.params.id);
+
+  if (complaint?.imageKey) {
+    await deleteFromS3(complaint.imageKey);
+  }
+
+  await Complaint.findByIdAndDelete(req.params.id);
+
+  res.json({ message: "Deleted successfully" });
+};
+
 /* ═══════════════════════════════════════════════════════
    POST /complaints/delete
 ═══════════════════════════════════════════════════════ */
-export const deleteComplaint = async (req, res) => {
-  try {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ message: "id required" });
-    const complaint = await Complaint.findByIdAndDelete(id);
-    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
-    return res.json({ message: "Deleted successfully" });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
+// export const deleteComplaint = async (req, res) => {
+//   try {
+//     const { id } = req.body;
+//     if (!id) return res.status(400).json({ message: "id required" });
+//     const complaint = await Complaint.findByIdAndDelete(id);
+//     if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
+//     return res.json({ message: "Deleted successfully" });
+//   } catch (err) {
+//     return res.status(500).json({ message: err.message });
+//   }
+// };
 
 /* ═══════════════════════════════════════════════════════
    GET /complaints/stats
@@ -151,7 +185,7 @@ const getYearRange = (year) => {
 };
 
 const getKpiData = async (start, end) => {
-  // 🔴 Complaint KPI
+  //  Complaint KPI
   const [stats] = await Complaint.aggregate([
     {
       $match: {
