@@ -45,7 +45,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     let query = {};
 
     // Role-based filtering
-    if (req.user.role !== "admin") {
+    if (req.user.role === "user") {
       query.createdBy = userId;
     }
 
