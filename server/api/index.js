@@ -18,9 +18,9 @@ const isProduction = process.env.NODE_ENV === "production";
 
 // ✅ CORS
 const allowedOrigins = [
-  "http://localhost:5173", // Vite dev
-  "http://localhost:3000",
-  "https://ffcs-field-failure-complaint-system-ten.vercel.app",
+  "http://localhost:5173",
+  "https://ffcs-field-failure-complaint-system.vercel.app",      // ✅ ADD THIS
+  "https://ffcs-field-failure-complaint-system-ten.vercel.app",  // existing
 ];
 
 app.use(
