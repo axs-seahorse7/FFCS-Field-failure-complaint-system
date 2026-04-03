@@ -42,6 +42,10 @@ const userSchema = new mongoose.Schema({
             default: 0
         },
     },
+    isSystemRole: {
+        type: Boolean,
+        default: false
+    },
     isBlocked: {
         type: Boolean,
         default: false

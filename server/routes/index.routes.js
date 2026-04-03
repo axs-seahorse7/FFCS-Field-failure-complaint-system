@@ -1,5 +1,6 @@
 import e from "express";
 import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
+import Role from "../Database/models/Role/role.model.js";
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
@@ -26,14 +27,14 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
     
 });
 
+
 router.get("/get-complaints", isAuthenticated, async (req, res) => {
   try {
     const rawUserId = req.user.userId;
 
-    // 🔥 Fetch minimal required user data
+    // 🔥 Fetch minimal user data
     const user = await User.findById(rawUserId)
-      .select("isSystemRole roleId")
-      .populate("roleId", "permissions");
+      .select("isSystemRole roleId");
 
     if (!user) {
       return res.status(404).json({
@@ -42,8 +43,19 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    const permissions = user.roleId?.permissions || [];
+    // 🔥 Get permissions ONLY if needed
+    let permissions = [];
+
+    if (!user.isSystemRole && user.roleId) {
+      const role = await Role.findById(user.roleId).select("permissions");
+      permissions = role?.permissions || [];
+    }
+
+    console.log(`User ${rawUserId} - isSystemRole: ${user.isSystemRole}, permissions: ${permissions}`);
+
+    // 🔐 Access control
     const canManage = user.isSystemRole || permissions.includes("manage");
+    // console.log(`User ${rawUserId} - canManage: ${canManage}, permissions: ${permissions}`);
 
     // 🔍 Query params
     const { search, status, page = 1, limit = 50 } = req.query;
@@ -52,10 +64,10 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     const safePage = Math.max(1, Number(page) || 1);
     const skip = (safePage - 1) * safeLimit;
 
-    // 🔥 Build query safely using AND conditions
+    // 🔥 Build query safely
     const conditions = [];
 
-    // 🔐 Role-based access
+    // Role-based restriction
     if (!canManage) {
       conditions.push({
         $or: [
@@ -65,12 +77,12 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    // 📌 Status filter
+    // Status filter
     if (status) {
       conditions.push({ status });
     }
 
-    // 🔎 Search filter
+    // Search filter
     if (search) {
       const regex = new RegExp(search, "i");
       conditions.push({
@@ -81,10 +93,10 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    // 🧠 Final query
+    // Final query
     const query = conditions.length ? { $and: conditions } : {};
 
-    // ⚡ Parallel execution
+    // ⚡ Execute queries
     const [complaints, total] = await Promise.all([
       Complaint.find(query)
         .populate("createdBy", "email")
