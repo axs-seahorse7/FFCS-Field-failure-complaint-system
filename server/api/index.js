@@ -32,11 +32,15 @@ app.use(cors({
   credentials: true,
 }));
 
-app.options("*", cors());
+app.options("/*", cors());
 
 // middlewares
 app.use(express.json());
 app.use(cookieParser());
+
+app.use((req, res) => {
+  res.status(404).json({ message: "Not Found" });
+});
 
 // routes
 app.get("/", (req, res) => res.send("API running 🚀"));
