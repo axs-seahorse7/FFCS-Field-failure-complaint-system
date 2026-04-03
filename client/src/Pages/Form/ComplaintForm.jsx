@@ -378,7 +378,6 @@ export default function ComplaintForm({ editId, userEmail }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const t = {};
     requiredFields.forEach((f) => (t[f] = true));
     setTouched(t);

@@ -81,7 +81,6 @@ export default function AdminDashboard({ userEmail }) {
       };
     }
 
-    console.log("customer from filter", customer);
 
     // fallback (if no range selected)
     return {

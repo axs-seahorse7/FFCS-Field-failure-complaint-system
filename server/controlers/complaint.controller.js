@@ -54,12 +54,10 @@ export const getComplaints = async (req, res) => {
    POST /create-complaint
 ═══════════════════════════════════════════════════════ */
 
-
 export const createComplaint = async (req, res) => {
   try {
     let imageUrl = null;
     let imageKey = null;
-
 
     // 🔥 Upload to S3
     if (req.file) {
@@ -85,17 +83,21 @@ export const createComplaint = async (req, res) => {
       },
     });
 
-    await Production.findOneAndUpdate(
-      {
-        customer: complaint.customerName,
-        commodity: complaint.commodity,
-        month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-      },
-      {
-        $inc: { fieldComplaint: 1 },
-      },
-      { upsert: true }
-    );
+      try {
+        await Production.findOneAndUpdate(
+          {
+            customer: complaint.customerName.trim(),
+            commodity: complaint.commodity.trim(),
+            month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          },
+          {
+            $inc: { fieldComplaint: 1 },
+          },
+          { upsert: true }
+        );
+      } catch (err) {
+        console.error("Production update failed:", err.message);
+      }
 
     res.status(200).json({
       success: true,
@@ -107,7 +109,7 @@ export const createComplaint = async (req, res) => {
     console.error("Error creating complaint:", err);
     res.status(500).json({ message: "Something went wrong" });
   }
-};
+};  
 /* ═══════════════════════════════════════════════════════
    POST /complaints/status
 ═══════════════════════════════════════════════════════ */
@@ -145,6 +147,7 @@ export const updateComplaintStatus = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+
 
 export const deleteComplaint = async (req, res) => {
   const complaint = await Complaint.findById(req.params.id);
