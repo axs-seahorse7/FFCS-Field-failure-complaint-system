@@ -566,6 +566,9 @@ export default function ManageSection({ addToast }) {
     { onError: () => addToast?.("Failed to load complaints", "error") }
   );
 
+  const {complaints} = data || {};
+  console.log("Fetched complaints for access:", complaints); // Debug log
+
   const user = JSON.parse(localStorage.getItem("User") || "{}");
   const actions = user?.roleId?.action || [];
   const canDelete = user.isSystemRole || actions.includes("delete");

@@ -3,6 +3,7 @@ import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
+import mongoose from "mongoose";
 
 const router = e.Router();
 
@@ -27,43 +28,63 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
 
 router.get("/get-complaints", isAuthenticated, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const rawUserId = req.user.userId;
 
-    const {
-      search,
-      status,
-      page = 1,
-      limit = 500
-    } = req.query;
+    // 🔥 Fetch minimal required user data
+    const user = await User.findById(rawUserId)
+      .select("isSystemRole roleId")
+      .populate("roleId", "permissions");
 
-    // 🛡️ Safe parsing
-    const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 500));
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const permissions = user.roleId?.permissions || [];
+    const canManage = user.isSystemRole || permissions.includes("manage");
+
+    // 🔍 Query params
+    const { search, status, page = 1, limit = 50 } = req.query;
+
+    const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 50));
     const safePage = Math.max(1, Number(page) || 1);
     const skip = (safePage - 1) * safeLimit;
 
-    // Base query
-    let query = {};
+    // 🔥 Build query safely using AND conditions
+    const conditions = [];
 
-    // Role-based filtering
-    if (req.user.role === "user") {
-      query.createdBy = userId;
+    // 🔐 Role-based access
+    if (!canManage) {
+      conditions.push({
+        $or: [
+          { createdBy: new mongoose.Types.ObjectId(rawUserId) },
+          { status: "resolved" }
+        ]
+      });
     }
 
-    // Status filter
+    // 📌 Status filter
     if (status) {
-      query.status = status;
+      conditions.push({ status });
     }
 
-    // Search filter
+    // 🔎 Search filter
     if (search) {
-      const re = new RegExp(search, "i");
-      query.$or = [
-        { title: re },
-        { description: re }
-      ];
+      const regex = new RegExp(search, "i");
+      conditions.push({
+        $or: [
+          { title: regex },
+          { description: regex }
+        ]
+      });
     }
 
-    // 🔥 Parallel queries (best practice)
+    // 🧠 Final query
+    const query = conditions.length ? { $and: conditions } : {};
+
+    // ⚡ Parallel execution
     const [complaints, total] = await Promise.all([
       Complaint.find(query)
         .populate("createdBy", "email")
@@ -80,17 +101,52 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       complaints,
       total,
       page: safePage,
-      limit: safeLimit
+      limit: safeLimit,
     });
 
   } catch (error) {
     console.error("Error fetching complaints:", error);
     return res.status(500).json({
       success: false,
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
 });
+
+router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
+  try {
+    const userPermissions = req.user?.roleId?.permissions || [];
+
+    let query = {};
+
+    if (userPermissions.includes("manage")) {
+      // 🔥 Admin / Manager → see all complaints
+      query = {};
+    } else {
+      // 👤 Normal user → restricted access
+      query = {
+        $or: [
+          { createdBy: req.user.userId },
+          { status: "resolved" }
+        ]
+      };
+    }
+
+    const complaints = await Complaint.find(query)
+      .populate("createdBy", "email")
+      .sort({ status: 1, createdAt: -1 })
+      .limit(50) // 🔥 cap results for performance
+      .lean();
+
+    return res.status(200).json({ complaints });
+
+  } catch (error) {
+    console.error("Error fetching complaints for access:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+
+});
+
 
 router.get("/users", isAuthenticated, async (req, res) => {
     try {
