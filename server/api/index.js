@@ -17,12 +17,36 @@ const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
 // ✅ CORS
+const allowedOrigins = [
+  "http://localhost:5173", // Vite dev
+  "http://localhost:3000",
+  "https://ffcs-field-failure-complaint-system-ten.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "https://ffcs-field-failure-complaint-system-ten.vercel.app",
+    origin: function (origin, callback) {
+      if (
+        !origin || // allow Postman / server-to-server
+        allowedOrigins.includes(origin) ||
+        origin.includes(".vercel.app") // 🔥 allow all Vercel previews
+      ) {
+        callback(null, true);
+      } else {
+        console.log("Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
+
+app.options("*", cors());
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 
 // ✅ Middlewares
 app.use(express.json());

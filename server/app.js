@@ -8,13 +8,10 @@ dotenv.config();
 //database and models
 import connectDB from "./Database/config/db.config.js";
 
-
-
 //routes and helpers
 import authRoutes from "./routes/auth.routes.js";
 import indexroutes from "./routes/index.routes.js";
 import createTransporter from "./helpers/nodemailer/nodemailer.js";
-import User from "./Database/models/User-Models/user.models.js";
 import complaitRoutes from "./routes/complaint.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import productionRoutes from "./routes/production.routes.js";
@@ -43,7 +40,7 @@ app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 
 app.get("/", (req, res) => {
-  res.send("API running 🚀");
+  res.send("API running ");
 });
 
 
