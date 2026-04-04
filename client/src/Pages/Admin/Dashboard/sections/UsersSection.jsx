@@ -14,6 +14,7 @@ import {
   UserOutlined, LockOutlined, UnlockOutlined,
 } from "@ant-design/icons";
 
+
 import api from "../../../../services/axios-interceptore/api.js";
 import { fmtNum, fmtDate, fmtDT } from "../components/utils";
 
@@ -722,7 +723,7 @@ export default function UsersSection({ addToast }) {
 
   // ── Derived data ──────────────────────────────────────────────────────────
   // role display name helper — user.roleId is the populated object from server
-  const getRoleName = (u) => u?.roleId?.name || u?.role || "user";
+  const getRoleName = (u) => u?.roleId?.name 
   const getRoleId   = (u) => u?.roleId?._id  || u?.roleId || null;
 
   const filtered = users.filter(u => {
@@ -776,7 +777,7 @@ export default function UsersSection({ addToast }) {
       ),
     },
     {
-      title: "Role", key: "role", width: 130,
+      title: "Role", key: "roleId", width: 130,
       render: (_, u) => <RoleBadge roleName={getRoleName(u)} />,
       filters: roles.map(r => ({ text: r.name, value: r._id })),
       onFilter: (value, record) => getRoleId(record) === value,
@@ -808,20 +809,20 @@ export default function UsersSection({ addToast }) {
         value === "blocked" ? record.isBlocked : (!record.isBlocked && record.status === value),
       render: (_, u) => <StatusCell user={u} onStatusChange={changeStatus} />,
     },
-    ...(loggedUser.isSystemRole ? [{
-      title: "Change Role", key: "role_change", width: 150,
-      render: (_, u) => (
-        <span onClick={e => e.stopPropagation()}>
-          <RoleChangeSelect
-            user={u}
-            roles={roles}
-            currentRoleId={getRoleId(u)}
-            disabled={u.isBlocked}
-            onConfirm={roleId => changeUserRole(u._id, roleId)}
-          />
-        </span>
-      ),
-    }] : []),
+      {
+        title: "Change Role", key: "role_change", width: 150,
+        render: (_, u) => (
+          <span onClick={e => e.stopPropagation()}>
+            <RoleChangeSelect
+              user={u}
+              roles={roles}
+              currentRoleId={getRoleId(u)}
+              disabled={u.isBlocked}
+              onConfirm={roleId => changeUserRole(u._id, roleId)}
+            />
+          </span>
+        ),
+      },
     ...(canDelete || canEdit ? [{
       title: "Actions", key: "actions", width: 150, fixed: "right",
       render: (_, u) => (
@@ -874,10 +875,10 @@ export default function UsersSection({ addToast }) {
       {/* ── KPI cards with equal heights ─────────────────────────────────── */}
       <Row gutter={[14, 14]} align="stretch">
         {[
-          { label: "Total Users",  value: kpi.total,   color: "#2563eb", bg: "rgba(37,99,235,0.08)",  border: "rgba(37,99,235,0.2)",  icon: "👥", sub: `${users.length} registered` },
-          { label: "Active",       value: kpi.active,  color: "#16a34a", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)",  icon: "✅", sub: "Access granted" },
-          { label: "Blocked",      value: kpi.blocked, color: "#e53935", bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.2)",  icon: "🚫", sub: "Access restricted" },
-          { label: "Admins",       value: kpi.admins,  color: "#7c3aed", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)", icon: "🔑", sub: "Admin role users" },
+          { label: "Total Users",  value: kpi.total,   color: "#2563eb", bg: "rgba(37,99,235,0.08)",  border: "rgba(37,99,235,0.2)",  icon: "", sub: `${users.length} registered` },
+          { label: "Active",       value: kpi.active,  color: "#16a34a", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)",  icon: "", sub: "Access granted" },
+          { label: "Blocked",      value: kpi.blocked, color: "#e53935", bg: "rgba(239,68,68,0.08)",  border: "rgba(239,68,68,0.2)",  icon: "", sub: "Access restricted" },
+          { label: "Admins",       value: kpi.admins,  color: "#7c3aed", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)", icon: "", sub: "Admin role users" },
         ].map(card => (
           <Col xs={12} sm={6} key={card.label} style={{ display: "flex" }}>
             <div style={{

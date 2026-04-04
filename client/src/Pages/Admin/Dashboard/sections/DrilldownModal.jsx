@@ -3,7 +3,7 @@
 // Supports 3 types: "complaints" | "comparison" | "detail"
 // Props: open, onClose, title, subtitle, data, type
 import { useEffect, useRef } from "react";
-import { Modal } from "antd";
+import { Modal, Image } from "antd";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { fmtNum, fmtDate } from "../components/utils.js";
 import {
@@ -273,17 +273,28 @@ function DetailContent({ data }) {
   const entries = Object.entries(data).filter(([k, v]) => {
     if (v === null || v === undefined || v === "") return false;
     if (k === "_id" || k.toLowerCase() === "id") return false;
+    if (k === "imageKey") return false;           // ← remove imageKey
     return true;
   });
 
   const toLabel = key => key.replace(/([A-Z])/g, " $1").trim();
 
   const renderValue = (key, value) => {
+    if (key === "imageUrl") return (                // ← render as Image
+      <Image
+        src={value}
+        alt="Complaint Image"
+        style={{ borderRadius: 10, maxHeight: 50, objectFit: "cover" }}
+        placeholder
+      />
+    );
     if (key === "createdBy" && value?.email) return value.email;
     if (key === "status") return <IOSBadge status={value} />;
     if (key.includes("Date") || key.includes("At")) return fmtDate(value);
     return String(value) || "—";
   };
+
+  // rest stays exactly the same...
 
   const name  = data.customerName || data.name  || null;
   const model = data.modelName    || data.model || null;
@@ -442,6 +453,7 @@ export default function DrilldownModal({ open, onClose, title, subtitle, data, t
             }}>
               {title}
             </div>
+            
             {subtitle && (
               <div style={{
                 fontSize: 12,

@@ -117,7 +117,6 @@ export default function WarrantySection() {
     monthly = [],
   } = data || {};
 
-  console.log("WarrantySection monthly trends ->", monthly); // DEBUG
 
   const commSorted = [...(byCommodity || [])].sort((a, b) => b.count - a.count);
   const doaPieData = [...(doaData || [])].sort((a, b) => b.count - a.count);

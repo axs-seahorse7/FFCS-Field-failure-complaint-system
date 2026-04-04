@@ -2,7 +2,7 @@
 import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
-import { uploadToS3 } from "../services/s3Service.js";
+import { uploadToS3, deleteFromS3 } from "../services/s3Service.js";
 
 /* ═══════════════════════════════════════════════════════
    HELPER — build date match from query params
@@ -10,7 +10,8 @@ import { uploadToS3 } from "../services/s3Service.js";
    Priority: explicit from/to overrides year
 ═══════════════════════════════════════════════════════ */
   function buildDateMatch(query) {
-    const { from, to, customerName } = query; // ❌ removed year
+    const { from, to, customerName } = query; 
+    console.log("Building date match with query:", query);
 
     const match = {};
 
@@ -150,15 +151,22 @@ export const updateComplaintStatus = async (req, res) => {
 
 
 export const deleteComplaint = async (req, res) => {
+  try {
   const complaint = await Complaint.findById(req.params.id);
-
+  if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
+  
   if (complaint?.imageKey) {
     await deleteFromS3(complaint.imageKey);
   }
 
   await Complaint.findByIdAndDelete(req.params.id);
-
   res.json({ message: "Deleted successfully" });
+
+} catch (err) {
+  console.error("Error deleting complaint:", err);
+  return res.status(500).json({ message: err.message });
+}
+
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -198,21 +206,16 @@ const getKpiData = async (start, end) => {
     {
       $group: {
         _id: null,
-
         total: { $sum: 1 },
-
         open: {
           $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
         },
-
         active: {
           $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
         },
-
         pending: {
           $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
         },
-
         resolved: {
           $sum: {
             $cond: [
@@ -226,7 +229,6 @@ const getKpiData = async (start, end) => {
         closed: {
           $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] }
         },
-
         totalResolutionDays: {
           $sum: {
             $cond: [
@@ -261,7 +263,6 @@ const getKpiData = async (start, end) => {
         pending: 1,
         resolved: 1,
         closed: 1,
-
         avgDays: {
           $cond: [
             { $gt: ["$resolvedCountForAvg", 0] },
@@ -323,21 +324,17 @@ const getKpiData = async (start, end) => {
 export const getComplaintStats = async (req, res) => {
   try {
     const { from, to, year } = req.query;
-
     let currentStart, currentEnd, previousStart, previousEnd;
 
     if (from || to) {
-      // ✅ Use explicit from/to range
       currentStart = from ? new Date(from) : new Date();
       currentEnd   = to   ? new Date(to)   : new Date();
 
-      // Previous period = same duration, shifted back
       const duration = currentEnd - currentStart;
       previousStart = new Date(currentStart - duration);
       previousEnd   = new Date(currentEnd   - duration);
 
     } else {
-      // ✅ Fallback to year-based range
       const y = year ? Number(year) : new Date().getUTCFullYear();
       const currentRange  = getYearRange(y);
       const previousRange = getYearRange(y - 1);
@@ -595,43 +592,61 @@ export const getComplaintStats = async (req, res) => {
 ═══════════════════════════════════════════════════════ */
 export const getProductionStats = async (req, res) => {
   try {
-    const dateMatch = buildDateMatch(req.query);
+    const { from, to, customerName } = req.query;
 
-    // 1. Get production data (dynamic)
+    // ── Complaint match (uses complaintDate + customerName) ──
+    const complaintMatch = {};
+    if (from || to) {
+      complaintMatch.complaintDate = {};
+      if (from) complaintMatch.complaintDate.$gte = new Date(from);
+      if (to)   complaintMatch.complaintDate.$lte = new Date(to);
+    }
+    if (customerName) {
+      complaintMatch.customerName = customerName;
+    }
+
+    // ── Production match (uses month + customer) ──
+    const productionMatch = {};
+    if (from || to) {
+      productionMatch.month = {};
+      if (from) productionMatch.month.$gte = new Date(from);
+      if (to)   productionMatch.month.$lte = new Date(to);
+    }
+    if (customerName) {
+      productionMatch.customer = customerName; // ← different field name
+    }
+
+    // ── 1. Production totals ──
     const productionData = await Production.aggregate([
-      { $match: dateMatch },
+      { $match: productionMatch },              // ✅ correct date field
       {
         $group: {
           _id: null,
-          totalProduction: { $sum: "$production" },
-          totalWarranty: { $sum: "$warrantyComplaint" },
-          totalField: { $sum: "$fieldComplaint" },
+          totalProduction:  { $sum: "$production" },
+          totalWarranty:    { $sum: "$warrantyComplaint" },
+          totalField:       { $sum: "$fieldComplaint" },
         },
       },
     ]);
 
-    const totalProduction = productionData[0]?.totalProduction || 0;
-    const totalComplaints =
-      (productionData[0]?.totalWarranty || 0) +
-      (productionData[0]?.totalField || 0);
+    const totalProduction  = productionData[0]?.totalProduction  || 0;
+    const totalWarranty    = productionData[0]?.totalWarranty    || 0;
+    const totalField       = productionData[0]?.totalField       || 0;
+    const totalComplaints  = totalWarranty + totalField;
 
-    // 2. Calculate PPM
-    const ppm =
-      totalProduction > 0
-        ? Math.round((totalComplaints / totalProduction) * 1_000_000)
-        : 0;
+    const ppm = totalProduction > 0
+      ? Math.round((totalComplaints / totalProduction) * 1_000_000)
+      : 0;
 
-    // 3. Customer-wise production
+    // ── 2. Customer-wise breakdown ──
     const byCustomer = await Production.aggregate([
-      { $match: dateMatch },
+      { $match: productionMatch },              // ✅ correct date field
       {
         $group: {
           _id: "$customer",
           units: { $sum: "$production" },
           complaints: {
-            $sum: {
-              $add: ["$warrantyComplaint", "$fieldComplaint"],
-            },
+            $sum: { $add: ["$warrantyComplaint", "$fieldComplaint"] },
           },
         },
       },
@@ -641,8 +656,21 @@ export const getProductionStats = async (req, res) => {
           name: "$_id",
           units: 1,
           complaints: 1,
+          ppm: {
+            $cond: [
+              { $gt: ["$units", 0] },
+              {
+                $round: [
+                  { $multiply: [{ $divide: ["$complaints", "$units"] }, 1_000_000] },
+                  0,
+                ]
+              },
+              0,
+            ],
+          },
         },
       },
+      { $sort: { complaints: -1 } },
     ]);
 
     return res.json({
@@ -653,10 +681,12 @@ export const getProductionStats = async (req, res) => {
         byCustomer,
       },
     });
+
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
 };
+
 /* ═══════════════════════════════════════════════════════
    GET /complaints/monthly
    Shows all months of the selected year (or rolling 12m)
@@ -803,11 +833,11 @@ export const getWeeklyTrend = async (req, res) => {
   try {
     const now = new Date();
 
-    // ✅ Current month start & end (UTC safe)
+    //  Current month start & end (UTC safe)
     const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
     const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-    // ✅ Aggregate complaints weekly
+    //  Aggregate complaints weekly
     const raw = await Complaint.aggregate([
       {
         $match: {
@@ -840,13 +870,13 @@ export const getWeeklyTrend = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
-    // ✅ Map for fast lookup
+    //  Map for fast lookup
     const map = {};
     raw.forEach(r => {
       map[r._id] = r.count;
     });
 
-    // ✅ Always return 5 weeks (max possible in a month)
+    // Always return 5 weeks (max possible in a month)
     const result = [];
 
     for (let week = 1; week <= 5; week++) {

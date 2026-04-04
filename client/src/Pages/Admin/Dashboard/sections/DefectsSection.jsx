@@ -192,7 +192,6 @@ export default function DefectsSection() {
 
   /* ────────── CHARTS ────────── */
 
- console.log("DefectsSection data ->", defectTrendData); // DEBUG
 
   const CategoryDonut = ({h = 220}) => {
     const total = sortedCategory.reduce((s, d) => s + d.count, 0);

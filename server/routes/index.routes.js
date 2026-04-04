@@ -32,7 +32,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
   try {
     const rawUserId = req.user.userId;
 
-    // 🔥 Fetch minimal user data
+    //  Fetch minimal user data
     const user = await User.findById(rawUserId)
       .select("isSystemRole roleId");
 
@@ -43,7 +43,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    // 🔥 Get permissions ONLY if needed
+    //  Get permissions ONLY if needed
     let permissions = [];
 
     if (!user.isSystemRole && user.roleId) {
@@ -51,20 +51,17 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       permissions = role?.permissions || [];
     }
 
-    console.log(`User ${rawUserId} - isSystemRole: ${user.isSystemRole}, permissions: ${permissions}`);
-
-    // 🔐 Access control
+    //  Access control
     const canManage = user.isSystemRole || permissions.includes("manage");
-    // console.log(`User ${rawUserId} - canManage: ${canManage}, permissions: ${permissions}`);
 
-    // 🔍 Query params
-    const { search, status, page = 1, limit = 50 } = req.query;
+    //  Query params
+    const { search, status, customerName, page = 1, limit = 50 } = req.query;
 
     const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 50));
     const safePage = Math.max(1, Number(page) || 1);
     const skip = (safePage - 1) * safeLimit;
 
-    // 🔥 Build query safely
+    //  Build query safely
     const conditions = [];
 
     // Role-based restriction
@@ -88,16 +85,27 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       conditions.push({
         $or: [
           { title: regex },
-          { description: regex }
+          { description: regex },
+          {complaintNo: regex},
+          {customerName: regex},
+          {modelName: regex},
+          {commodity: regex},
+          {serialNo: regex},
+          {manufacturingPlant: regex},
         ]
       });
+    }
+
+    if (customerName) {
+      const regex = new RegExp(customerName, "i");
+      conditions.push({ customerName: regex });
     }
 
     // Final query
     const query = conditions.length ? { $and: conditions } : {};
 
     // ⚡ Execute queries
-    const [complaints, total] = await Promise.all([
+    const [complaints, total, totalOpen, totalResolved] = await Promise.all([
       Complaint.find(query)
         .populate("createdBy", "email")
         .sort({ status: 1, createdAt: -1 })
@@ -105,13 +113,17 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
         .limit(safeLimit)
         .lean(),
 
-      Complaint.countDocuments(query)
+      Complaint.countDocuments(query),
+      Complaint.countDocuments({  status: "Open" }),
+      Complaint.countDocuments({  status: "Resolved" })
     ]);
 
     return res.status(200).json({
       success: true,
       complaints,
       total,
+      totalOpen,
+      totalResolved,
       page: safePage,
       limit: safeLimit,
     });
@@ -162,7 +174,7 @@ router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
 
 router.get("/users", isAuthenticated, async (req, res) => {
     try {
-        const users = await User.find({}).select("-password"); // Fetch all users, excluding their passwords
+        const users = await User.find({}).select("-password").populate("roleId", "name").lean();
         res.status(200).json({ users });
     } catch (error) {
         console.error("Error fetching user data:", error);

@@ -481,7 +481,7 @@ function StatusDropdown({ complaint, onSelect, disabled }) {
   }, []);
 
   return (
-    <div ref={ref} style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+    <div ref={ref} style={{ position: "relative", }} onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
@@ -507,7 +507,7 @@ function StatusDropdown({ complaint, onSelect, disabled }) {
 
       {open && (
         <div style={{
-          position: "absolute", top: "calc(100% + 5px)", left: 0, zIndex: 200,
+          position: "absolute", top: 0, right: 90, zIndex: 999,
           background: "rgba(255,255,255,0.97)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)",
           borderRadius: 14, border: `1px solid ${T.gray5}`,
           boxShadow: "0 8px 32px rgba(0,0,0,0.14)", overflow: "hidden", minWidth: 130,
@@ -560,14 +560,10 @@ export default function ManageSection({ addToast }) {
   const [deleteModal, setDeleteModal] = useState(null); // complaint
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const { data, isLoading, refetch } = useApiQuery(
-    "/get-complaints",
+  const { data, isLoading, refetch } = useApiQuery("/get-complaints",
     { page, limit: pageSize, search, status: statusFilter, customerName: custFilter },
     { onError: () => addToast?.("Failed to load complaints", "error") }
   );
-
-  const {complaints} = data || {};
-  console.log("Fetched complaints for access:", complaints); // Debug log
 
   const user = JSON.parse(localStorage.getItem("User") || "{}");
   const actions = user?.roleId?.action || [];
@@ -576,8 +572,10 @@ export default function ManageSection({ addToast }) {
 
   const list  = data?.complaints || [];
   const total = data?.total || 0;
+  const totalOpen = data?.totalOpen || 0;
+  const totalClosed = data?.totalResolved || 0;
   const statusCounts = data?.statusCounts ||
-    STATUSES.reduce((acc, s) => ({ ...acc, [s]: list.filter((r) => r.status === s).length }), {});
+  STATUSES.reduce((acc, s) => ({ ...acc, [s]: list.filter((r) => r.status === s).length }), {});
 
   /* ── Status change with remark ── */
   const handleStatusSelect = (complaint, targetStatus) => {
@@ -637,7 +635,7 @@ const columns = [
     {
       title: "Complaint No",
       dataIndex: "complaintNo",
-      width: 130,
+      width: 130, fixed: "left",
       render: (v, r) => (
         <span
           onClick={(e) => {
@@ -779,7 +777,8 @@ const columns = [
     ? [
         {
           title: "Change Status",
-          width: 150,
+          width: 100,
+          fixed: "right",
           render: (_, r) => (
             <StatusDropdown
               complaint={r}
@@ -795,6 +794,7 @@ const columns = [
         {
           title: "Actions",
           width: 80,
+          fixed: "right",
           render: (_, r) => (
             <button onClick={() => setDeleteModal(r)} className="cursor-pointer bg-red-400/20 " > 
               <DeleteOutlined style={{fontSize:18, color:"red"}} />
@@ -830,18 +830,21 @@ const columns = [
           padding: 10px 12px !important;
         }
         .manage-root .ant-table-tbody > tr > td {
+          background: #ffffff !important;
           border-bottom: 1px solid rgba(0,0,0,0.04) !important;
           padding: 9px 12px !important;
           transition: background 0.12s !important;
         }
-        // .manage-root .ant-table-tbody > tr:hover > td {
-        //   background: rgba(0,122,255,0.4) !important;
-        // }
-        .manage-root .ant-table-tbody > tr:nth-child(even) > td {
-          background: rgba(0,0,0,0.012);
+        .manage-root .ant-table-tbody > tr:hover > td {
+          background: #f0f0f0 !important;
         }
+
+        .manage-root .ant-table-tbody > tr:nth-child(even) > td {
+          background: #ffffff !important;
+        }
+
         .manage-root .ant-table-tbody > tr:nth-child(even):hover > td {
-          background: rgba(0,122,255,0.04) !important;
+          background: #f0f0f0 !important;
         }
         .manage-root .ant-table {
           background: rgb(255, 255, 255) !important;
@@ -867,6 +870,9 @@ const columns = [
         .manage-root ::-webkit-scrollbar { height: 4px; width: 4px; }
         .manage-root ::-webkit-scrollbar-track { background: transparent; }
         .manage-root ::-webkit-scrollbar-thumb { background: #C7C7CC; border-radius: 99px; }
+
+        
+          
       `}</style>
 
       <div className="manage-root" style={{ display: "flex", flexDirection: "column", gap: 14, animation: "fadeUp 0.35s ease both" }}>

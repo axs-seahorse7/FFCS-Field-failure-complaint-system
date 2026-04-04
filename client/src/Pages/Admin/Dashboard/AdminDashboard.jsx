@@ -57,6 +57,7 @@ export default function AdminDashboard({ userEmail }) {
     dayjs().endOf("month")
   ]);
 
+
   const disabledDate = (current) => {
     if (!current) return false;
     const minDate = dayjs().subtract(5, "year").startOf("year");
@@ -71,6 +72,7 @@ export default function AdminDashboard({ userEmail }) {
   const user   = JSON.parse(localStorage.getItem("User") || "{}");
   const active = location.pathname.split("/")[2] || "overview";
   const meta   = SECTION_META[active] || SECTION_META["overview"];
+
 
   const appliedFilters = useMemo(() => {
     if (dateRange && dateRange.length === 2) {
@@ -185,11 +187,11 @@ export default function AdminDashboard({ userEmail }) {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <Avatar size={28} style={{ background: "rgba(229,57,53,0.1)", color: "#e53935", fontWeight: 700, fontSize: 11, border: "1.5px solid rgba(229,57,53,0.2)" }}>
-                  {(userEmail || "A")[0].toUpperCase()}
+                  {(user.email || "A")[0].toUpperCase()}
                 </Avatar>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ color: "#1e293b", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{userEmail || "admin"}</div>
-                  <div style={{ color: "#94a3b8", fontSize: 10 }}>Administrator</div>
+                  <div style={{ color: "#1e293b", fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{user.email || "admin"}</div>
+                  <div style={{ color: "#94a3b8", fontSize: 10 }}>{user.roleId?.name || "user"}</div>
                 </div>
               </div>
               <Button block size="small" onClick={handleLogout} icon={<LogoutOutlined />}
