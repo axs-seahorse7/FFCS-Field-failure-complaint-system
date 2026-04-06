@@ -191,6 +191,14 @@ const complaintSchema = new Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    videoUrl:{
+      type:String,
+      trim: true
+    },
+    videoKey:{
+      type:String,
+      trim:true
     }
     
   },

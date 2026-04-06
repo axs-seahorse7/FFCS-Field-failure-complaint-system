@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import api from "../../../services/axios-interceptore/api";
 import { useNavigate } from "react-router-dom";
-import { Tooltip } from "antd";
+import { Tooltip, Image, Modal } from "antd";
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -35,6 +36,8 @@ const COLUMNS = [
   { key: "dataBase",           label: "Data Base"                    },
   { key: "status",             label: "Status",          status: true},
   { key: "createdAt",          label: "Created At",      date: true  },
+  { key: "imageUrl",           label: "Image",           image: true },
+  { key: "videoUrl",           label: "Video",           video: true },
 ];
 
 /* ─────────────────────────────────────────
@@ -70,7 +73,7 @@ function StatusBadge({ status }) {
 /* ─────────────────────────────────────────
    STAT CARD
 ───────────────────────────────────────── */
-function StatCard({ label, value, color, sub, icon }) {
+function StatCard({ label, value, color, sub }) {
   return (
     <div style={{
       flex: "1 1 130px", minWidth: 120,
@@ -102,6 +105,9 @@ function Skeleton() {
           <div style={{ height: 10, borderRadius: 6, background: "#F2F2F7", width: `${40 + Math.random() * 40}%` }} />
         </td>
       ))}
+      <td style={{ padding: "10px 14px" }}>
+        <div style={{ height: 10, width: 36, borderRadius: 6, background: "#F2F2F7" }} />
+      </td>
     </tr>
   );
 }
@@ -112,7 +118,7 @@ function Skeleton() {
 function EmptyState({ hasFilters }) {
   return (
     <tr>
-      <td colSpan={COLUMNS.length + 1} style={{ padding: "60px 20px", textAlign: "center" }}>
+      <td colSpan={COLUMNS.length + 2} style={{ padding: "60px 20px", textAlign: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
           <div style={{ fontSize: 36 }}>{hasFilters ? "🔍" : "📋"}</div>
           <p style={{ fontWeight: 700, color: "#3A3A3C", fontSize: 14, margin: 0 }}>{hasFilters ? "No results found" : "No complaints yet"}</p>
@@ -120,6 +126,34 @@ function EmptyState({ hasFilters }) {
         </div>
       </td>
     </tr>
+  );
+}
+
+/* ─────────────────────────────────────────
+   VIDEO PREVIEW MODAL
+───────────────────────────────────────── */
+function VideoModal({ videoKey, onClose }) {
+  const baseUrl = import.meta.env.VITE_API_URI || "http://localhost:3000";
+  const src = videoKey?.startsWith("http") ? videoKey : `${baseUrl}/media/${videoKey}`;
+  return (
+    <Modal
+      open={true}
+      onCancel={onClose}
+      footer={null}
+      width={680}
+      centered
+      title={
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#1C1C1E" }}>Video Preview</span>
+      }
+      styles={{ body: { padding: "12px 0 0" } }}
+    >
+      <video
+        src={src}
+        controls
+        autoPlay
+        style={{ width: "100%", borderRadius: 10, maxHeight: 400, background: "#000", display: "block" }}
+      />
+    </Modal>
   );
 }
 
@@ -144,37 +178,37 @@ function DetailDrawer({ complaint, onClose }) {
   if (!complaint) return null;
 
   const rows = [
-    ["Complaint No.",    complaint.complaintNo,                         true],
-    ["Complaint Date",   fmtDate(complaint.complaintDate)],
-    ["Created At",       fmtDateTime(complaint.createdAt)],
-    ["Customer Name",    complaint.customerName],
-    ["Commodity",        complaint.commodity],
-    ["Replacement Cat.", complaint.replacementCategory || ""],
-    ["Model Name",       complaint.modelName],
-    ["Serial No.",       complaint.serialNo || ""],
-    ["Part No.",         complaint.partNo || ""],
-    ["Purchase Date",    fmtDate(complaint.purchaseDate)],
-    ["DOA",              complaint.doa || ""],
-    ["Product Aging",    complaint.productAging != null ? `${complaint.productAging} days` : ""],
-    ["Defect Category",  complaint.defectCategory],
-    ["Defective Part",   complaint.defectivePart],
-    ["Symptom",          complaint.symptom || ""],
-    ["Defect Details",   complaint.defectDetails],
-    ["Mfg. Plant",       complaint.manufacturingPlant || ""],
-    ["Mfg. Date",        fmtDate(complaint.manufacturingDate)],
-    ["City / State",     [complaint.city, complaint.state].filter(Boolean).join(", ") || ""],
-    ["Data Base",        complaint.dataBase || ""],
-    ["Status",           complaint.status, false, true],
-    ["Resolved Date",    fmtDate(complaint.resolvedDate) || "Not yet resolved"],
-    ["Remarks",          complaint.remarks || "Under investigation"],
+    ["Complaint No.",     complaint.complaintNo,                         true],
+    ["Complaint Date",    fmtDate(complaint.complaintDate)],
+    ["Created At",        fmtDateTime(complaint.createdAt)],
+    ["Customer Name",     complaint.customerName],
+    ["Commodity",         complaint.commodity],
+    ["Replacement Cat.",  complaint.replacementCategory || ""],
+    ["Model Name",        complaint.modelName],
+    ["Serial No.",        complaint.serialNo || ""],
+    ["Part No.",          complaint.partNo || ""],
+    ["Purchase Date",     fmtDate(complaint.purchaseDate)],
+    ["DOA",               complaint.doa || ""],
+    ["Product Aging",     complaint.productAging != null ? `${complaint.productAging} days` : ""],
+    ["Defect Category",   complaint.defectCategory],
+    ["Defective Part",    complaint.defectivePart],
+    ["Symptom",           complaint.symptom || ""],
+    ["Defect Details",    complaint.defectDetails],
+    ["Mfg. Plant",        complaint.manufacturingPlant || ""],
+    ["Mfg. Date",         fmtDate(complaint.manufacturingDate)],
+    ["City / State",      [complaint.city, complaint.state].filter(Boolean).join(", ") || ""],
+    ["Data Base",         complaint.dataBase || ""],
+    ["Status",            complaint.status, false, true],
+    ["Resolved Date",     fmtDate(complaint.resolvedDate) || "Not yet resolved"],
+    ["Remarks",           complaint.remarks || "Under investigation"],
   ];
 
   const sections = [
-    { title: "Identity", rows: rows.slice(0, 3) },
-    { title: "Product Info", rows: rows.slice(3, 10) },
+    { title: "Identity",       rows: rows.slice(0, 3)   },
+    { title: "Product Info",   rows: rows.slice(3, 10)  },
     { title: "Defect Details", rows: rows.slice(10, 16) },
-    { title: "Manufacturing", rows: rows.slice(16, 19) },
-    { title: "Resolution", rows: rows.slice(19) },
+    { title: "Manufacturing",  rows: rows.slice(16, 19) },
+    { title: "Resolution",     rows: rows.slice(19)     },
   ];
 
   return (
@@ -201,11 +235,7 @@ function DetailDrawer({ complaint, onClose }) {
         borderLeft: "1px solid rgba(255,255,255,0.6)",
       }}>
         {/* Header */}
-        <div style={{
-          background: "black",
-          padding: "20px 20px 16px",
-          flexShrink: 0,
-        }}>
+        <div style={{ background: "black", padding: "20px 20px 16px", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
             <div>
               <p style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.2px", color: "#636366", margin: "0 0 4px" }}>Complaint Detail</p>
@@ -214,11 +244,9 @@ function DetailDrawer({ complaint, onClose }) {
             </div>
             <button onClick={handleClose} style={{
               width: 32, height: 32, borderRadius: 10,
-              background: "rgba(255,255,255,0.1)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)",
               color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0, marginTop: 2,
-              transition: "background 0.15s",
+              flexShrink: 0, marginTop: 2, transition: "background 0.15s",
             }}>
               <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
@@ -233,11 +261,8 @@ function DetailDrawer({ complaint, onClose }) {
             <div key={section.title} style={{ marginBottom: 12 }}>
               <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.9px", color: "#8E8E93", margin: "0 0 6px 4px" }}>{section.title}</p>
               <div style={{
-                background: "rgba(255,255,255,0.82)",
-                backdropFilter: "blur(20px)",
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.7)",
-                overflow: "hidden",
+                background: "rgba(255,255,255,0.82)", backdropFilter: "blur(20px)",
+                borderRadius: 14, border: "1px solid rgba(255,255,255,0.7)", overflow: "hidden",
                 boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
               }}>
                 {section.rows.map(([label, value, mono, isStatus], i) => (
@@ -278,10 +303,15 @@ export default function ComplaintDashboard({ userEmail }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage]                 = useState(1);
   const [selected, setSelected]         = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
   const [sortKey, setSortKey]           = useState("createdAt");
   const [sortDir, setSortDir]           = useState("desc");
   const searchRef = useRef();
   const navigate  = useNavigate();
+  const { id } = useParams();
+  const { state } = useLocation();
+  const isEdit = state?.isEdit;
+
 
   const user = JSON.parse(localStorage.getItem("User") || "{}");
 
@@ -381,7 +411,6 @@ export default function ComplaintDashboard({ userEmail }) {
           background: linear-gradient(160deg, #F2F2F7 0%, #E5E5EA 100%);
         }
 
-        /* Navbar glass */
         .cms-nav {
           position: sticky; top: 0; z-index: 50;
           background: rgba(255,255,255,0.78);
@@ -393,33 +422,24 @@ export default function ComplaintDashboard({ userEmail }) {
           padding: 0 20px;
         }
 
-        /* Table hover row */
         .tbl-row { transition: background 0.12s; }
         .tbl-row:hover { background: rgba(0,122,255,0.04) !important; }
 
-        /* Sort arrow hover on TH */
         .tbl-th { cursor: pointer; user-select: none; }
         .tbl-th:hover .th-label { color: #007AFF !important; }
 
-        /* Scrollbar */
         .slim-scroll::-webkit-scrollbar { height: 4px; width: 4px; }
         .slim-scroll::-webkit-scrollbar-track { background: transparent; }
         .slim-scroll::-webkit-scrollbar-thumb { background: #C7C7CC; border-radius: 99px; }
 
-        /* Pulse keyframe */
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* Fade in */
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         .fade-up { animation: fadeUp 0.35s cubic-bezier(0.4,0,0.2,1) both; }
 
-        /* Stat cards on mobile: scroll row */
         .stats-row {
           display: flex; gap: 10px; overflow-x: auto;
           padding: 14px 20px; scroll-snap-type: x mandatory;
@@ -428,18 +448,14 @@ export default function ComplaintDashboard({ userEmail }) {
         .stats-row::-webkit-scrollbar { display: none; }
         .stats-row > * { scroll-snap-align: start; }
 
-        @media (min-width: 768px) {
-          .stats-row { flex-wrap: nowrap; overflow-x: visible; }
-        }
+        @media (min-width: 768px) { .stats-row { flex-wrap: nowrap; overflow-x: visible; } }
 
-        /* Responsive main padding */
         .cms-main { padding: 0 20px 32px; }
         @media (max-width: 640px) {
           .cms-main { padding: 0 12px 80px; }
           .cms-nav { padding: 0 14px; }
         }
 
-        /* Filter bar stack on mobile */
         .filter-bar {
           display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
           background: rgba(255,255,255,0.78);
@@ -451,7 +467,6 @@ export default function ComplaintDashboard({ userEmail }) {
           margin: 14px 0 10px;
         }
 
-        /* NavBtn style */
         .nav-btn {
           display: flex; align-items: center; gap: 6px;
           padding: 6px 14px; border-radius: 10px;
@@ -460,7 +475,6 @@ export default function ComplaintDashboard({ userEmail }) {
         }
         .nav-btn:active { transform: scale(0.96); }
 
-        /* Table container */
         .tbl-wrapper {
           background: rgba(255,255,255,0.82);
           backdrop-filter: blur(20px) saturate(180%);
@@ -471,7 +485,6 @@ export default function ComplaintDashboard({ userEmail }) {
           overflow: hidden;
         }
 
-        /* Mobile FAB */
         .fab {
           position: fixed; bottom: 24px; right: 20px;
           width: 52px; height: 52px; border-radius: 16px;
@@ -484,21 +497,56 @@ export default function ComplaintDashboard({ userEmail }) {
         .fab:active { transform: scale(0.94); }
         @media (max-width: 767px) { .fab { display: flex; } }
         @media (min-width: 768px) { .fab { display: none; } }
+
+        /* ── Edit action button ── */
+        .action-edit-btn {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 4px 10px; border-radius: 8px;
+          font-size: 10px; font-weight: 700; cursor: pointer;
+          background: rgba(0,122,255,0.08);
+          border: 1px solid rgba(0,122,255,0.2);
+          color: #007AFF; transition: all 0.14s;
+          white-space: nowrap; font-family: inherit;
+        }
+        .action-edit-btn:hover { background: rgba(0,122,255,0.15); border-color: rgba(0,122,255,0.35); }
+        .action-edit-btn:active { transform: scale(0.95); }
+
+        /* ── Video play button ── */
+        .video-play-btn {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 4px 9px; border-radius: 8px;
+          font-size: 10px; font-weight: 700; cursor: pointer;
+          background: rgba(255,159,10,0.10);
+          border: 1px solid rgba(255,159,10,0.25);
+          color: #FF9F0A; transition: all 0.14s;
+          white-space: nowrap; font-family: inherit;
+        }
+        .video-play-btn:hover { background: rgba(255,159,10,0.18); }
+        .video-play-btn:active { transform: scale(0.95); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 640px) {
+          .hide-mobile { display: none !important; }
+          .show-sm { display: inline !important; }
+          .hide-sm { display: none !important; }
+        }
+        @media (min-width: 641px) {
+          .hide-mobile { display: flex !important; }
+          .show-sm { display: none !important; }
+          .hide-sm { display: inline !important; }
+        }
       `}</style>
 
       <div className="cms-root">
 
         {/* ══════════ NAVBAR ══════════ */}
         <header className="cms-nav">
-          {/* Logo + Title */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: 10, overflow: "hidden",
-              
-            }}>
+            <div style={{ width: 80, height: 80, borderRadius: 10, overflow: "hidden" }}>
               <img src="./pg-logo-Photoroom.png" alt="PG" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
-            <div style={{ lineHeight: 1 }} className="hide-sm border-l-2 border-red-600 pl-4 " >
+            <div style={{ lineHeight: 1 }} className="hide-sm border-l-2 border-red-600 pl-4">
               <div style={{ fontSize: 15, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.3px" }}>
                 CMS <span style={{ color: "#FF3B30" }}>Dashboard</span>
               </div>
@@ -510,10 +558,8 @@ export default function ComplaintDashboard({ userEmail }) {
             </div>
           </div>
 
-          {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* User pill — desktop only */}
           {(user?.email || userEmail) && (
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
@@ -536,7 +582,6 @@ export default function ComplaintDashboard({ userEmail }) {
             </div>
           )}
 
-          {/* Refresh */}
           <Tooltip title="Refresh" placement="bottom">
             <button onClick={fetchComplaints} disabled={loading}
               style={{
@@ -544,7 +589,7 @@ export default function ComplaintDashboard({ userEmail }) {
                 background: "#F2F2F7", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 marginRight: 6, opacity: loading ? 0.5 : 1,
               }}>
-              <svg className={loading ? "spin" : ""} width="14" height="14" fill="none" stroke="#3A3A3C" strokeWidth="2" viewBox="0 0 24 24"
+              <svg width="14" height="14" fill="none" stroke="#3A3A3C" strokeWidth="2" viewBox="0 0 24 24"
                 style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }}>
                 <path d="M3 12a9 9 0 109-9" strokeLinecap="round"/>
                 <polyline points="3 3 3 9 9 9" strokeLinecap="round"/>
@@ -552,20 +597,17 @@ export default function ComplaintDashboard({ userEmail }) {
             </button>
           </Tooltip>
 
-          {/* New Complaint — desktop */}
           <button onClick={() => navigate("/complaints/form")} className="nav-btn hide-mobile" style={{
             background: "#007AFF", color: "#fff",
             boxShadow: "0 4px 14px rgba(0,122,255,0.35)",
             marginRight: 6,
-
           }}>
             <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
             </svg>
-            <span  >New Complaint</span>
+            <span>New Complaint</span>
           </button>
 
-          {/* Logout */}
           <button onClick={handleLogout} className="nav-btn" style={{
             background: "#FFF2F0", color: "#FF3B30",
             border: "1px solid rgba(255,59,48,0.2)",
@@ -573,7 +615,7 @@ export default function ComplaintDashboard({ userEmail }) {
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" strokeLinecap="round"/>
             </svg>
-            <span className="" >Logout</span>
+            <span className="">Logout</span>
           </button>
         </header>
 
@@ -599,7 +641,6 @@ export default function ComplaintDashboard({ userEmail }) {
 
           {/* ── FILTER BAR ── */}
           <div className="filter-bar fade-up" style={{ animationDelay: "0.1s" }}>
-            {/* Search */}
             <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
               <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
                 <svg width="14" height="14" fill="none" stroke="#C7C7CC" strokeWidth="2" viewBox="0 0 24 24">
@@ -636,7 +677,6 @@ export default function ComplaintDashboard({ userEmail }) {
               )}
             </div>
 
-            {/* Status Pills */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", overflowX: "auto" }}>
               {STATUSES.map((s) => {
                 const active = statusFilter === s;
@@ -682,7 +722,6 @@ export default function ComplaintDashboard({ userEmail }) {
             )}
           </div>
 
-          {/* Filter summary */}
           {hasFilters && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingLeft: 4 }}>
               <span style={{ fontSize: 11, color: "#8E8E93" }}>Showing</span>
@@ -692,7 +731,6 @@ export default function ComplaintDashboard({ userEmail }) {
             </div>
           )}
 
-          {/* Error */}
           {error && (
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
@@ -718,8 +756,12 @@ export default function ComplaintDashboard({ userEmail }) {
                       <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "#636366" }}>S.N.</span>
                     </th>
                     {COLUMNS.map((col) => (
-                      <th key={col.key} className="tbl-th" onClick={() => toggleSort(col.key)}
-                        style={{ padding: "11px 14px", textAlign: "left", whiteSpace: "nowrap" }}>
+                      <th
+                        key={col.key}
+                        className={col.image || col.video ? "" : "tbl-th"}
+                        onClick={() => !col.image && !col.video && toggleSort(col.key)}
+                        style={{ padding: "11px 14px", textAlign: "left", whiteSpace: "nowrap" }}
+                      >
                         <span className="th-label" style={{
                           fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase",
                           color: sortKey === col.key ? "#007AFF" : "#636366",
@@ -727,10 +769,16 @@ export default function ComplaintDashboard({ userEmail }) {
                           transition: "color 0.12s",
                         }}>
                           {col.label}
-                          <SortArrow k={col.key} />
+                          {!col.image && !col.video && <SortArrow k={col.key} />}
                         </span>
                       </th>
                     ))}
+                    {/* Actions TH */}
+                    <th style={{ padding: "11px 14px", textAlign: "left", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", color: "#636366" }}>
+                        Actions
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -739,21 +787,77 @@ export default function ComplaintDashboard({ userEmail }) {
                     : paginated.length === 0
                     ? <EmptyState hasFilters={!!hasFilters} />
                     : paginated.map((c, idx) => (
-                        <tr key={c._id} className="tbl-row" onClick={() => setSelected(c)}
+                        <tr key={c._id} className="tbl-row"
                           style={{
                             cursor: "pointer",
                             background: idx % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)",
                             borderBottom: "1px solid rgba(0,0,0,0.04)",
                           }}>
-                          <td style={{ padding: "9px 14px" }}>
+
+                          {/* S.N. → opens detail drawer */}
+                          <td style={{ padding: "9px 14px" }} onClick={() => setSelected(c)}>
                             <span style={{ fontSize: 10, color: "#C7C7CC", fontFamily: "ui-monospace, monospace" }}>
                               {(page - 1) * PAGE_SIZE + idx + 1}
                             </span>
                           </td>
+
                           {COLUMNS.map((col) => {
                             const val = c[col.key];
+
+                            /* IMAGE column — Ant Design Image with lightbox */
+                            if (col.image) {
+                              return (
+                                <td key={col.key} style={{ padding: "9px 14px" }}
+                                  onClick={(e) => e.stopPropagation()}>
+                                  {val ? (
+                                    <Image
+                                      src={val}
+                                      width={34}
+                                      height={34}
+                                      style={{ borderRadius: 8, objectFit: "cover", border: "1px solid #E5E5EA", display: "block" }}
+                                      preview={{
+                                        mask: (
+                                          <span style={{ fontSize: 9, display: "flex", alignItems: "center", gap: 2 }}>
+                                            <svg width="9" height="9" fill="white" viewBox="0 0 24 24">
+                                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                              <circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                            View
+                                          </span>
+                                        ),
+                                      }}
+                                      fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34'%3E%3Crect width='34' height='34' rx='8' fill='%23F2F2F7'/%3E%3Ctext x='17' y='23' text-anchor='middle' font-size='14' fill='%23C7C7CC'%3E📷%3C/text%3E%3C/svg%3E"
+                                    />
+                                  ) : (
+                                    <span style={{ fontSize: 10, color: "#C7C7CC" }}>—</span>
+                                  )}
+                                </td>
+                              );
+                            }
+
+                            /* VIDEO column */
+                            if (col.video) {
+                              return (
+                                <td key={col.key} style={{ padding: "9px 14px" }}
+                                  onClick={(e) => e.stopPropagation()}>
+                                  {val ? (
+                                    <button className="video-play-btn" onClick={() => setVideoPreview(val)}>
+                                      <svg width="9" height="9" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                      </svg>
+                                      Play
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: 10, color: "#C7C7CC" }}>—</span>
+                                  )}
+                                </td>
+                              );
+                            }
+
+                            /* Regular columns → click opens detail drawer */
                             return (
-                              <td key={col.key} style={{ padding: "9px 14px", maxWidth: 160 }}>
+                              <td key={col.key} style={{ padding: "9px 14px", maxWidth: 160 }}
+                                onClick={() => setSelected(c)}>
                                 {col.status ? (
                                   <StatusBadge status={val} />
                                 ) : col.aging ? (
@@ -784,9 +888,26 @@ export default function ComplaintDashboard({ userEmail }) {
                               </td>
                             );
                           })}
+
+                          {/* ── ACTIONS COLUMN — redirects to form with complaint _id in URL ── */}
+                          { c.status === "Open" && (
+                            <td style={{ padding: "9px 14px" }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className="action-edit-btn"
+                                onClick={() => navigate(`/complaints/form/update/${c._id}`, { state: { isEdit: true } })}
+                              >
+                                <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
+                              </svg>
+                              Edit
+                            </button>
+                          </td>)
+                          }
+
                         </tr>
                       ))
-                  }
+                    }
                 </tbody>
               </table>
             </div>
@@ -869,22 +990,11 @@ export default function ComplaintDashboard({ userEmail }) {
         </button>
       </div>
 
+      {/* Detail Drawer */}
       {selected && <DetailDrawer complaint={selected} onClose={() => setSelected(null)} />}
 
-      {/* spin keyframe for refresh icon */}
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .hide-mobile { display: none !important; }
-          .show-sm { display: inline !important; }
-          .hide-sm { display: none !important; }
-        }
-        @media (min-width: 641px) {
-          .hide-mobile { display: flex !important; }
-          .show-sm { display: none !important; }
-          .hide-sm { display: inline !important; }
-        }
-      `}</style>
+      {/* Video Preview Modal */}
+      {videoPreview && <VideoModal videoKey={videoPreview} onClose={() => setVideoPreview(null)} />}
     </>
   );
 }

@@ -273,7 +273,9 @@ function DetailContent({ data }) {
   const entries = Object.entries(data).filter(([k, v]) => {
     if (v === null || v === undefined || v === "") return false;
     if (k === "_id" || k.toLowerCase() === "id") return false;
-    if (k === "imageKey") return false;           // ← remove imageKey
+    if (k === "imageKey") return false;      
+    if(k === "videoUrl") return false;     // ← remove videoKey
+    if(k === "videoKey") return false;     // ← remove videoKey
     return true;
   });
 

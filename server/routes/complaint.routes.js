@@ -1,7 +1,7 @@
 // routes/complaint.routes.js
 import express from "express";
 import {
-  getComplaints, createComplaint, updateComplaintStatus, deleteComplaint,
+  getComplaints, getComplaintById, updateComplaint, createComplaint, updateComplaintStatus, deleteComplaint,
   getComplaintStats, getMonthlyTrend, getByCategory, getTopDefects,
   getBySupplier, getByPart, getByCustomer,
   getWeeklyTrend, getByStatus, getCategoryVsPart,
@@ -24,7 +24,9 @@ router.post("/bulk-upload", uploads.single("file"), bulkUploadComplaints);
 
 /* ── User ── */
 router.get("/get-complaint",  isAuthenticated, getComplaints);
-router.post("/create-complaint", upload.single("image"), isAuthenticated, createComplaint);
+router.get("/complaint/:id", isAuthenticated, getComplaintById);
+router.post("/create-complaint", upload.fields([{name:"image", maxCount: 1}, {name:"video", maxCount: 1}]), isAuthenticated, createComplaint);
+router.put("/update-complaint/:id", upload.fields([{name:"image", maxCount: 1}, {name:"video", maxCount: 1}]), isAuthenticated, updateComplaint);
 
 /* ── Admin analytics ── */
 const A = isAuthenticated;

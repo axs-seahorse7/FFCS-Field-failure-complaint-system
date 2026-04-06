@@ -51,30 +51,43 @@ export const getComplaints = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   POST /create-complaint
-═══════════════════════════════════════════════════════ */
-
 export const createComplaint = async (req, res) => {
   try {
     let imageUrl = null;
     let imageKey = null;
+    let videoUrl = null;
+    let videoKey = null;
+    
 
-    // 🔥 Upload to S3
-    if (req.file) {
-      const result = await uploadToS3(req.file);
-      imageUrl = result.url;
-      imageKey = result.key;
+    try {
+        const result = await uploadToS3(req.files.image[0]);
+        imageUrl = result.url;
+        imageKey = result.key;
+      
+    } catch (err) {
+      console.error("Image upload failed:", err.message);
     }
 
+    try {
+        const result = await uploadToS3(req.files.video[0]);
+        videoUrl = result.url;
+        videoKey = result.key;
+      
+    } catch (err) {
+      console.error("Video upload failed:", err.message);
+    }
+
+
     // remove unwanted field
-    const { image, ...rest } = req.body;
+    const { image, video, ...rest } = req.body;
 
     const complaint = await Complaint.create({
       ...rest,
       createdBy: req.user.userId,
       imageUrl,
-      imageKey, // 👈 store this for deletion later
+      imageKey, // store this for deletion later
+      videoUrl,
+      videoKey, // store this for deletion later
     });
 
     await User.findByIdAndUpdate(req.user.userId, {
@@ -110,10 +123,109 @@ export const createComplaint = async (req, res) => {
     console.error("Error creating complaint:", err);
     res.status(500).json({ message: "Something went wrong" });
   }
-};  
-/* ═══════════════════════════════════════════════════════
-   POST /complaints/status
-═══════════════════════════════════════════════════════ */
+}; 
+
+export const getComplaintById = async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ message: "Complaint not found" });
+    if (complaint.createdBy.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "You don't have permission to view this complaint" });
+    }
+    return res.json({ complaint });
+  } catch (err) {
+    console.error("Error fetching complaint:", err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const updateComplaint = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const complaint = await Complaint.findById(id);
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    //  12 HOURS RESTRICTION
+    const createdAt = new Date(complaint.createdAt);
+    const now = new Date();
+
+    const diffInHours = (now - createdAt) / (1000 * 60 * 60);
+
+    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+    if (now - createdAt > TWELVE_HOURS) {
+      return res.status(403).json({
+        message: "Update window expired (12 hours)",
+      });
+    }
+
+    let imageUrl = complaint.imageUrl;
+    let imageKey = complaint.imageKey;
+    let videoUrl = complaint.videoUrl;
+    let videoKey = complaint.videoKey;
+
+    const imageFile = req.files?.image?.[0];
+    const videoFile = req.files?.video?.[0];
+
+    // 🖼️ Upload new image
+    if (imageFile) {
+      try {
+        if (imageKey) {
+          await deleteFromS3(imageKey);
+        }
+
+        const result = await uploadToS3(imageFile);
+        imageUrl = result.url;
+        imageKey = result.key;
+      } catch (err) {
+        console.error("Image upload failed:", err.message);
+      }
+    }
+
+    // 🎥 Upload new video
+    if (videoFile) {
+      try {
+        if (videoKey) {
+          await deleteFromS3(videoKey);
+        }
+
+        const result = await uploadToS3(videoFile);
+        videoUrl = result.url;
+        videoKey = result.key;
+      } catch (err) {
+        console.error("Video upload failed:", err.message);
+      }
+    }
+
+    // remove unwanted fields
+    const { image, video, ...rest } = req.body;
+
+    const updatedComplaint = await Complaint.findByIdAndUpdate(
+      id,
+      {
+        ...rest,
+        imageUrl,
+        imageKey,
+        videoUrl,
+        videoKey,
+      },
+      { returnDocument: "after" }
+    );
+
+    return res.json({
+      success: true,
+      data: updatedComplaint,
+      message: "Complaint updated successfully",
+    });
+
+  } catch (err) {
+    console.error("Error updating complaint:", err);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
 export const updateComplaintStatus = async (req, res) => {
   try {
     const { id, status, remarks } = req.body;
@@ -149,7 +261,6 @@ export const updateComplaintStatus = async (req, res) => {
   }
 };
 
-
 export const deleteComplaint = async (req, res) => {
   try {
   const complaint = await Complaint.findById(req.params.id);
@@ -157,6 +268,10 @@ export const deleteComplaint = async (req, res) => {
   
   if (complaint?.imageKey) {
     await deleteFromS3(complaint.imageKey);
+  }
+
+  if (complaint?.videoKey) {
+    await deleteFromS3(complaint.videoKey);
   }
 
   await Complaint.findByIdAndDelete(req.params.id);
@@ -169,25 +284,6 @@ export const deleteComplaint = async (req, res) => {
 
 };
 
-/* ═══════════════════════════════════════════════════════
-   POST /complaints/delete
-═══════════════════════════════════════════════════════ */
-// export const deleteComplaint = async (req, res) => {
-//   try {
-//     const { id } = req.body;
-//     if (!id) return res.status(400).json({ message: "id required" });
-//     const complaint = await Complaint.findByIdAndDelete(id);
-//     if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
-//     return res.json({ message: "Deleted successfully" });
-//   } catch (err) {
-//     return res.status(500).json({ message: err.message });
-//   }
-// };
-
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/stats
-   KPI summary — respects year/date filter
-═══════════════════════════════════════════════════════ */
 const getYearRange = (year) => {
   return {
     start: new Date(Date.UTC(year, 0, 1)),
@@ -320,7 +416,6 @@ const getKpiData = async (start, end) => {
   };
 };
 
-
 export const getComplaintStats = async (req, res) => {
   try {
     const { from, to, year } = req.query;
@@ -362,234 +457,6 @@ export const getComplaintStats = async (req, res) => {
   }
 };
 
-
-// export const getComplaintStats = async (req, res) => {
-//   try {
-//     const { from, to, year } = req.query;
-
-//     // ✅ Date Range
-//     let startDate, endDate;
-
-//     if (year) {
-//       startDate = new Date(`${year}-01-01`);
-//       endDate   = new Date(`${year}-12-31`);
-//     } else {
-//       endDate   = to ? new Date(to) : new Date();
-//       startDate = from
-//         ? new Date(from)
-//         : new Date(new Date().setMonth(endDate.getMonth() - 11));
-//     }
-
-//     // =========================
-//     // 1. KPI (COMPLAINTS)
-//     // =========================
-//     const [kpi] = await Complaint.aggregate([
-//       {
-//         $match: {
-//           complaintDate: { $gte: startDate, $lte: endDate }
-//         }
-//       },
-//       {
-//         $group: {
-//           _id: null,
-
-//           total: { $sum: 1 },
-
-//           open: {
-//             $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
-//           },
-
-//           active: {
-//             $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
-//           },
-
-//           pending: {
-//             $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
-//           },
-
-//           resolved: {
-//             $sum: {
-//               $cond: [
-//                 { $in: ["$status", RESOLVED_STATUS] },
-//                 1,
-//                 0
-//               ]
-//             }
-//           },
-
-//           totalResolutionDays: {
-//             $sum: {
-//               $cond: [
-//                 { $in: ["$status", RESOLVED_STATUS] },
-//                 {
-//                   $divide: [
-//                     { $subtract: ["$updatedAt", "$complaintDate"] },
-//                     86400000
-//                   ]
-//                 },
-//                 0
-//               ]
-//             }
-//           },
-
-//           resolvedCount: {
-//             $sum: {
-//               $cond: [
-//                 { $in: ["$status", RESOLVED_STATUS] },
-//                 1,
-//                 0
-//               ]
-//             }
-//           }
-//         }
-//       },
-//       {
-//         $project: {
-//           total: 1,
-//           open: 1,
-//           active: 1,
-//           pending: 1,
-//           resolved: 1,
-
-//           avgDays: {
-//             $cond: [
-//               { $gt: ["$resolvedCount", 0] },
-//               {
-//                 $round: [
-//                   { $divide: ["$totalResolutionDays", "$resolvedCount"] },
-//                   0
-//                 ]
-//               },
-//               0
-//             ]
-//           }
-//         }
-//       }
-//     ]);
-
-//     // =========================
-//     // 2. PRODUCTION (REAL)
-//     // =========================
-//     const [prod] = await Production.aggregate([
-//       {
-//         $match: {
-//           month: { $gte: startDate, $lte: endDate }
-//         }
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalProduction: { $sum: "$production" }
-//         }
-//       }
-//     ]);
-
-//     const totalProduction = prod?.totalProduction || 0;
-
-//     // =========================
-//     // 3. MONTHLY TREND (REAL)
-//     // =========================
-//     const complaintsMonthly = await Complaint.aggregate([
-//       {
-//         $match: {
-//           complaintDate: { $gte: startDate, $lte: endDate }
-//         }
-//       },
-//       {
-//         $group: {
-//           _id: {
-//             y: { $year: "$complaintDate" },
-//             m: { $month: "$complaintDate" }
-//           },
-//           defects: { $sum: 1 }
-//         }
-//       }
-//     ]);
-
-//     const productionMonthly = await Production.aggregate([
-//       {
-//         $match: {
-//           month: { $gte: startDate, $lte: endDate }
-//         }
-//       },
-//       {
-//         $group: {
-//           _id: {
-//             y: { $year: "$month" },
-//             m: { $month: "$month" }
-//           },
-//           production: { $sum: "$production" }
-//         }
-//       }
-//     ]);
-
-//     // 🔥 Convert to maps (FAST)
-//     const cMap = new Map(
-//       complaintsMonthly.map(d => [`${d._id.y}-${d._id.m}`, d.defects])
-//     );
-
-//     const pMap = new Map(
-//       productionMonthly.map(d => [`${d._id.y}-${d._id.m}`, d.production])
-//     );
-
-//     // Build 12 months trend
-//     const trend = [];
-//     const cursor = new Date(startDate);
-//     cursor.setDate(1);
-
-//     while (cursor <= endDate) {
-//       const y = cursor.getFullYear();
-//       const m = cursor.getMonth() + 1;
-
-//       const key = `${y}-${m}`;
-
-//       const defects = cMap.get(key) || 0;
-//       const production = pMap.get(key) || 0;
-
-//       trend.push({
-//         m: `${y}-${String(m).padStart(2, "0")}`,
-//         defects,
-//         production,
-//         ppm: production > 0
-//           ? Math.round((defects / production) * 1_000_000)
-//           : 0
-//       });
-
-//       cursor.setMonth(cursor.getMonth() + 1);
-//     }
-
-//     // =========================
-//     // FINAL RESPONSE
-//     // =========================
-//     return res.json({
-//       data: {
-//         kpi: {
-//           total: kpi?.total || 0,
-//           open: kpi?.open || 0,
-//           active: kpi?.active || 0,
-//           pending: kpi?.pending || 0,
-//           resolved: kpi?.resolved || 0,
-//           avgDays: kpi?.avgDays || 0,
-//           totalProduction,
-//           avgPpm: totalProduction > 0
-//             ? Math.round((kpi?.total || 0) / totalProduction * 1_000_000)
-//             : 0
-//         },
-//         trend
-//       }
-//     });
-
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/production-stats
-   Returns total production volume (for KPI card)
-   Also computes PPM for the selected year
-═══════════════════════════════════════════════════════ */
 export const getProductionStats = async (req, res) => {
   try {
     const { from, to, customerName } = req.query;
@@ -687,10 +554,6 @@ export const getProductionStats = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/monthly
-   Shows all months of the selected year (or rolling 12m)
-═══════════════════════════════════════════════════════ */
 export const getMonthlyTrend = async (req, res) => {
   try {
     const { from, to } = req.query;
@@ -826,9 +689,6 @@ export const getMonthlyTrend = async (req, res) => {
   }
 };;
 
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/weekly — last 30 days (within selected year)
-═══════════════════════════════════════════════════════ */
 export const getWeeklyTrend = async (req, res) => {
   try {
     const now = new Date();
@@ -893,9 +753,6 @@ export const getWeeklyTrend = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /complaints/by-status
-═══════════════════════════════════════════════════════ */
 export const getByStatus = async (req, res) => {
   try {
     const dateMatch = buildDateMatch(req.query);

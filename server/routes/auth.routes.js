@@ -13,11 +13,12 @@ router.post("/login", async (req, res) => {
     if (!email) {
         return res.status(400).json({ message: "Email is required" });
     }
+    const emailInLower = email.toLowerCase();
     // Generate a 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
     try {
-        let user = await User.findOne({ email });
+        let user = await User.findOne({ email: emailInLower });
 
         if(user && user.isBlocked) {
             return res.status(403).json({ message: "Your account is blocked. Please contact support." });
@@ -30,7 +31,7 @@ router.post("/login", async (req, res) => {
         }
         else {
             user = new User({ 
-            email, 
+            email: emailInLower, 
             role: "user", 
             otp, 
             otpExpiresAt 
@@ -41,14 +42,14 @@ router.post("/login", async (req, res) => {
         const html = otpEmailTemplate({otp})
 
         await sendEmail({ 
-            to: email,
+            to: emailInLower,
             subject: "Your Login OTP for testing", 
             html  
         });
 
         return res.status(200).json({
             message: "OTP sent successfully",
-            email,
+            email: emailInLower,
         });
     } catch (error) {
         console.error("Error during login:", error);
@@ -68,7 +69,7 @@ router.post("/verify-otp", async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ email }).populate("roleId");
+        const user = await User.findOne({ email: email.toLowerCase() }).populate("roleId");
 
         if (!user) {
             return res.status(404).json({
@@ -77,7 +78,7 @@ router.post("/verify-otp", async (req, res) => {
             });
         }
 
-        // ✅ OTP validation
+        //  OTP validation
         if (user.otp !== otp || user.otpExpiresAt < new Date()) {
             return res.status(400).json({
                 message: "Invalid or expired OTP",
@@ -85,11 +86,11 @@ router.post("/verify-otp", async (req, res) => {
             });
         }
 
-        // ✅ Clear OTP after verification
+        //  Clear OTP after verification
         user.otp = null;
         user.otpExpiresAt = null;
 
-        // 🔥 CASE 1: ACTIVE USER → LOGIN
+        //  CASE 1: ACTIVE USER → LOGIN
         if (user.status === "active") {
 
             const token = jwt.sign(
@@ -116,7 +117,7 @@ router.post("/verify-otp", async (req, res) => {
             });
         }
 
-        // 🔥 CASE 2: FIRST TIME / NOT APPROVED → SET PENDING
+        //  CASE 2: FIRST TIME / NOT APPROVED → SET PENDING
         if (!user.status || user.status === "pending") {
 
             user.status = "pending";
@@ -141,7 +142,7 @@ router.post("/verify-otp", async (req, res) => {
 router.get("/me", isAuthenticated, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
-      .populate("roleId"); // 🔥 THIS IS THE FIX
+      .populate("roleId"); //  THIS IS THE FIX
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

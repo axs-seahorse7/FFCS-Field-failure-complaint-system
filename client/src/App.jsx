@@ -99,6 +99,7 @@ function App() {
           <Route element={<ProtectedRoute requiredPermission="complaint" />}>
             <Route path="/complaints" element={<ComplaintDashboard />} />
             <Route path="/complaints/form" element={<ComplaintForm />} />
+            <Route path="/complaints/form/update/:id" element={<ComplaintForm />} />
           </Route>
 
           <Route path="/account/pending" element={<AccountPending />} />

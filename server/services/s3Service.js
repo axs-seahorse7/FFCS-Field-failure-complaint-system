@@ -2,33 +2,47 @@ import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import { s3 } from "../config/s3.js";
 
-
 export const uploadToS3 = async (file) => {
-  //  Validate image
-  if (!file.mimetype.startsWith("image/")) {
-    throw new Error("Only image files are allowed");
+  if (!file || !file.buffer) {
+    throw new Error("Invalid file");
   }
 
+  let fileName = "";
+  let bufferToUpload = file.buffer;
+  let contentType = file.mimetype;
 
-  //  Compress WITHOUT resizing
-  const processedBuffer = await sharp(file.buffer)
-    .rotate() // fixes orientation
-    .webp({
-      quality: 50, 
-      effort: 4,  
-    })
-    .toBuffer();
+  //  IMAGE HANDLING
+  if (file.mimetype.startsWith("image/")) {
+    bufferToUpload = await sharp(file.buffer)
+      .rotate()
+      .webp({
+        quality: 60, // balanced quality + size
+        effort: 4,
+      })
+      .toBuffer();
 
-  //  Clean filename + convert to .webp
-  const fileName = `complaints/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.webp`;
+    fileName = `complaints/images/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.webp`;
+
+    contentType = "image/webp";
+  }
+
+  //  VIDEO HANDLING (no compression here)
+  else if (file.mimetype.startsWith("video/")) {
+    fileName = `complaints/videos/${Date.now()}-${file.originalname}`;
+  }
+
+  //  UNSUPPORTED FILE
+  else {
+    throw new Error("Only image and video files are allowed");
+  }
 
   const params = {
-    Bucket:process.env.AWS_BUCKET_NAME, 
-    Key:fileName,
-    Body:processedBuffer,
-    ContentType: "image/webp", 
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: fileName,
+    Body: bufferToUpload,
+    ContentType: contentType,
   };
 
   await s3.send(new PutObjectCommand(params));
@@ -39,8 +53,10 @@ export const uploadToS3 = async (file) => {
   };
 };
 
-// 🔥 Optional (VERY useful later)
+// 🔥 Delete file from S3
 export const deleteFromS3 = async (key) => {
+  if (!key) return;
+
   await s3.send(
     new DeleteObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../../services/axios-interceptore/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { message } from "antd";
 import axios from "axios";
 
@@ -80,7 +80,9 @@ const DEFECT_DETAILS_MAP = {
   ],
 };
 
-const MAX_FILE_SIZE = 1024 * 1024;
+const MAX_IMAGE_SIZE    = 1024 * 1024;       // 1 MB
+const MAX_VIDEO_SIZE    = 50 * 1024 * 1024;  // 50 MB (15-sec video)
+const MAX_VIDEO_SECONDS = 15;
 
 const initialForm = {
   complaintDate: new Date().toISOString().split("T")[0],
@@ -105,6 +107,8 @@ const initialForm = {
   city: "",
   state: "",
   dataBase: "",
+  remarks: "",
+  resolutionRemark: "",
 };
 
 function calcProductAging(complaintDate, purchaseDate) {
@@ -118,7 +122,6 @@ function calcProductAging(complaintDate, purchaseDate) {
    DESIGN TOKENS
 ───────────────────────────────────────── */
 const T = {
-  // iOS system colors
   blue:    "#007AFF",
   green:   "#34C759",
   red:     "#FF3B30",
@@ -132,15 +135,10 @@ const T = {
   label:   "#1C1C1E",
   label2:  "#3A3A3C",
   label3:  "#636366",
-  // Surfaces
   surface:        "rgba(255,255,255,0.82)",
-  surfaceHover:   "rgba(255,255,255,0.95)",
   border:         "rgba(0,0,0,0.08)",
-  borderFocus:    "#007AFF",
-  // Shadows
   shadowSm: "0 2px 8px rgba(0,0,0,0.06)",
   shadowMd: "0 4px 24px rgba(0,0,0,0.08)",
-  shadowLg: "0 8px 40px rgba(0,0,0,0.10)",
 };
 
 /* ─────────────────────────────────────────
@@ -183,32 +181,19 @@ function Field({ label, required, hint, error, children }) {
 }
 
 const baseInputStyle = {
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 10,
-  border: `1.5px solid ${T.gray5}`,
-  background: T.gray6,
-  fontSize: 12,
-  fontWeight: 500,
-  color: T.label,
-  outline: "none",
-  transition: "all 0.15s cubic-bezier(0.4,0,0.2,1)",
-  WebkitAppearance: "none",
-  appearance: "none",
-  fontFamily: "inherit",
+  width: "100%", padding: "8px 12px", borderRadius: 10,
+  border: `1.5px solid ${T.gray5}`, background: T.gray6,
+  fontSize: 12, fontWeight: 500, color: T.label,
+  outline: "none", transition: "all 0.15s cubic-bezier(0.4,0,0.2,1)",
+  WebkitAppearance: "none", appearance: "none", fontFamily: "inherit",
 };
 
 function Input({ value, onChange, placeholder, type = "text", readOnly, error }) {
   const [focused, setFocused] = useState(false);
   return (
     <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      readOnly={readOnly}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      type={type} value={value} onChange={onChange} placeholder={placeholder} readOnly={readOnly}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
       style={{
         ...baseInputStyle,
         background: readOnly ? T.gray5 : focused ? "#fff" : T.gray6,
@@ -221,19 +206,32 @@ function Input({ value, onChange, placeholder, type = "text", readOnly, error })
   );
 }
 
+function Textarea({ value, onChange, placeholder, rows = 3 }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <textarea
+      value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+      style={{
+        ...baseInputStyle,
+        resize: "vertical", minHeight: 72,
+        background: focused ? "#fff" : T.gray6,
+        borderColor: focused ? T.blue : T.gray5,
+        boxShadow: focused ? `0 0 0 3px rgba(0,122,255,0.12)` : "none",
+      }}
+    />
+  );
+}
+
 function Select({ value, onChange, options, placeholder, disabled, error }) {
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ position: "relative" }}>
       <select
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        value={value} onChange={onChange} disabled={disabled}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
-          ...baseInputStyle,
-          paddingRight: 32,
+          ...baseInputStyle, paddingRight: 32,
           background: disabled ? T.gray5 : focused ? "#fff" : T.gray6,
           borderColor: error ? T.red : focused ? T.blue : T.gray5,
           boxShadow: focused ? `0 0 0 3px rgba(0,122,255,0.12)` : error ? `0 0 0 3px rgba(255,59,48,0.10)` : "none",
@@ -254,13 +252,11 @@ function Select({ value, onChange, options, placeholder, disabled, error }) {
   );
 }
 
-/* Section Header */
 function SectionHeader({ icon, title, subtitle }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 12,
-      padding: "14px 20px",
-      borderBottom: `1px solid ${T.border}`,
+      padding: "14px 20px", borderBottom: `1px solid ${T.border}`,
       background: "rgba(255,255,255,0.5)",
     }}>
       <div style={{
@@ -277,7 +273,6 @@ function SectionHeader({ icon, title, subtitle }) {
   );
 }
 
-/* Divider row label */
 function DividerLabel({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 2px" }}>
@@ -290,9 +285,6 @@ function DividerLabel({ children }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   STEP INDICATOR
-───────────────────────────────────────── */
 function StepDots({ current, total }) {
   return (
     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -308,21 +300,213 @@ function StepDots({ current, total }) {
 }
 
 /* ─────────────────────────────────────────
+   VIDEO UPLOAD SECTION
+   Shows when "Symptom Evidence" checkbox is checked.
+   Validates max 15 seconds duration.
+───────────────────────────────────────── */
+function VideoUploadSection({ videoFile, onVideo, onRemove, videoError, setVideoError }) {
+  const videoInputRef = useRef(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [duration, setDuration] = useState(null);
+
+  const handleVideoFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setVideoError("Only video files are accepted (MP4, MOV, WebM…)");
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      setVideoError(`File too large — max 50 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB selected)`);
+      return;
+    }
+    // Check actual video duration via a temporary HTMLVideoElement
+    const url = URL.createObjectURL(file);
+    const vid = document.createElement("video");
+    vid.preload = "metadata";
+    vid.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      const secs = Math.ceil(vid.duration);
+      setDuration(secs);
+      if (secs > MAX_VIDEO_SECONDS) {
+        setVideoError(`Video is ${secs}s — maximum allowed is ${MAX_VIDEO_SECONDS} seconds.`);
+        onVideo(null);
+      } else {
+        setVideoError("");
+        onVideo(file);
+      }
+    };
+    vid.onerror = () => {
+      URL.revokeObjectURL(url);
+      setVideoError("Could not read video file. Please try another.");
+    };
+    vid.src = url;
+  };
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      {/* Drop zone */}
+      <div
+        className={dragOver ? "drop-zone-active" : ""}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleVideoFile(e.dataTransfer.files[0]); }}
+        onClick={() => videoInputRef.current?.click()}
+        style={{
+          border: `2px dashed ${videoError ? T.red : videoFile ? T.green : T.gray4}`,
+          borderRadius: 14, padding: "14px 18px", cursor: "pointer",
+          background: videoFile ? "rgba(52,199,89,0.04)" : videoError ? "rgba(255,59,48,0.04)" : T.gray6,
+          transition: "all 0.2s",
+          display: "flex", alignItems: "center", gap: 14,
+        }}
+      >
+        <input
+          ref={videoInputRef} type="file" accept="video/*"
+          style={{ display: "none" }}
+          onChange={(e) => handleVideoFile(e.target.files[0])}
+        />
+
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          background: videoFile ? "rgba(52,199,89,0.12)" : videoError ? "rgba(255,59,48,0.10)" : "rgba(255,159,10,0.10)",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+        }}>
+          {videoFile ? "✅" : videoError ? "⚠️" : "🎥"}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {videoFile ? (
+            <>
+              <p style={{ fontSize: 12, fontWeight: 700, color: T.green, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {videoFile.name}
+              </p>
+              <p style={{ fontSize: 10, color: T.gray1, margin: "2px 0 0", fontFamily: "ui-monospace, monospace" }}>
+                {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                {duration != null ? ` · ${duration}s` : ""}
+                {" "}· Click to replace
+              </p>
+            </>
+          ) : videoError ? (
+            <p style={{ fontSize: 12, fontWeight: 600, color: T.red, margin: 0 }}>{videoError}</p>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, fontWeight: 700, color: T.label2, margin: 0 }}>
+                Drag & drop or click to upload symptom video
+              </p>
+              <p style={{ fontSize: 10, color: T.gray1, margin: "2px 0 0" }}>
+                MP4 · MOV · WebM · Max <strong>15 seconds</strong> · Max 50 MB
+              </p>
+            </>
+          )}
+        </div>
+
+        {videoFile && (
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); setDuration(null); if (videoInputRef.current) videoInputRef.current.value = ""; }}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "5px 10px", borderRadius: 8,
+              background: "rgba(255,59,48,0.08)", border: `1px solid rgba(255,59,48,0.2)`,
+              color: T.red, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+            }}>
+            <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+            </svg>
+            Remove
+          </button>
+        )}
+      </div>
+
+      {/* Duration notice when valid */}
+      {videoFile && duration != null && duration <= MAX_VIDEO_SECONDS && (
+        <div style={{
+          marginTop: 6, display: "flex", alignItems: "center", gap: 8,
+          padding: "7px 12px", borderRadius: 10,
+          background: "rgba(52,199,89,0.06)", border: `1px solid rgba(52,199,89,0.2)`,
+        }}>
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={T.green} strokeWidth="2">
+            <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <p style={{ fontSize: 11, color: T.green, fontWeight: 600, margin: 0 }}>
+            {duration}s — within the {MAX_VIDEO_SECONDS}-second limit ✓
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
    MAIN COMPONENT
 ───────────────────────────────────────── */
-export default function ComplaintForm({ editId, userEmail }) {
-  const [form, setForm]                 = useState(initialForm);
-  const [loading, setLoading]           = useState(false);
-  const [touched, setTouched]           = useState({});
-  const [invoiceFile, setInvoiceFile]   = useState(null);
-  const [invoiceError, setInvoiceError] = useState("");
-  const [dragOver, setDragOver]         = useState(false);
+export default function ComplaintForm({ userEmail }) {
+  // Read optional complaint ID from URL — /complaints/form/:id
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+
+  const [form, setForm]                   = useState(initialForm);
+  const [loading, setLoading]             = useState(false);
+  const [fetchingEdit, setFetchingEdit]   = useState(isEditMode);
+  const [touched, setTouched]             = useState({});
+  const [invoiceFile, setInvoiceFile]     = useState(null);
+  const [invoiceError, setInvoiceError]   = useState("");
+  const [dragOver, setDragOver]           = useState(false);
+  // Symptom evidence video
+  const [symptomEvidence, setSymptomEvidence] = useState(false);
+  const [videoFile, setVideoFile]             = useState(null);
+  const [videoError, setVideoError]           = useState("");
+
   const fileInputRef = useRef(null);
   const navigate     = useNavigate();
+  const baseUrl      = import.meta.env.VITE_API_URI || "http://localhost:3000";
 
+  /* ── Generate complaint no. on new form ── */
   useEffect(() => {
-    setForm((f) => ({ ...f, complaintNo: `PG-${Date.now().toString().slice(-6)}` }));
-  }, []);
+    if (!isEditMode) {
+      setForm((f) => ({ ...f, complaintNo: `PG-${Date.now().toString().slice(-6)}` }));
+    }
+  }, [isEditMode]);
+
+  /* ── Fetch existing complaint when in edit mode ── */
+  useEffect(() => {
+    if (!isEditMode) return;
+    setFetchingEdit(true);
+    api.get(`/complaint/${id}`)
+      .then((res) => {
+        const c = res.data.complaint || res.data;
+        setForm({
+          complaintDate:       c.complaintDate?.split("T")[0]         || new Date().toISOString().split("T")[0],
+          complaintNo:         c.complaintNo                          || "",
+          customerName:        c.customerName                         || "",
+          commodity:           c.commodity                            || "",
+          replacementCategory: c.replacementCategory                  || "",
+          modelName:           c.modelName                            || "",
+          serialNo:            c.serialNo                             || "",
+          partNo:              c.partNo                               || "",
+          partModel:           c.partModel                            || "",
+          customerComplaintId: c.customerComplaintId                  || "",
+          purchaseDate:        c.purchaseDate?.split("T")[0]          || "",
+          doa:                 c.doa                                  || "",
+          defectCategory:      c.defectCategory                       || "",
+          defectivePart:       c.defectivePart                        || "",
+          symptom:             c.symptom                              || "",
+          defectDetails:       c.defectDetails                        || "",
+          status:              c.status                               || "Open",
+          manufacturingPlant:  c.manufacturingPlant                   || "",
+          manufacturingDate:   c.manufacturingDate?.split("T")[0]     || "",
+          city:                c.city                                 || "",
+          state:               c.state                                || "",
+          dataBase:            c.dataBase                             || "",
+          remarks:             c.remarks                              || "",
+          resolutionRemark:    c.resolutionRemark                     || "",
+        });
+        if (c.symptom) setSymptomEvidence(false); // don't pre-check; user can re-upload
+      })
+      .catch((e) => {
+        if (e?.response?.status === 401) navigate("/", { replace: true });
+        else message.error("Could not load complaint. Please try again.");
+      })
+      .finally(() => setFetchingEdit(false));
+  }, [id, isEditMode, navigate]);
 
   const set = (field) => (e) => {
     const val = e.target.value;
@@ -334,6 +518,7 @@ export default function ComplaintForm({ editId, userEmail }) {
     setTouched((t) => ({ ...t, [field]: true }));
   };
 
+  /* Clear image file when dataBase != Evidence */
   useEffect(() => {
     if (form.dataBase !== "Evidence") {
       setInvoiceFile(null);
@@ -342,10 +527,18 @@ export default function ComplaintForm({ editId, userEmail }) {
     }
   }, [form.dataBase]);
 
-  const handleFile = (file) => {
+  /* Clear video when symptomEvidence unchecked */
+  useEffect(() => {
+    if (!symptomEvidence) {
+      setVideoFile(null);
+      setVideoError("");
+    }
+  }, [symptomEvidence]);
+
+  const handleImageFile = (file) => {
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE) {
-      setInvoiceError(`File too large — max 2 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB selected)`);
+    if (file.size > MAX_IMAGE_SIZE) {
+      setInvoiceError(`File too large — max 1 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB selected)`);
       setInvoiceFile(null);
       return;
     }
@@ -353,14 +546,13 @@ export default function ComplaintForm({ editId, userEmail }) {
     setInvoiceFile(file);
   };
 
-  
-
-  const removeFile = () => {
+  const removeImageFile = () => {
     setInvoiceFile(null);
     setInvoiceError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /* Required fields — complaintNo is read-only (auto), not validated */
   const requiredFields = [
     "complaintDate","customerName","commodity","modelName",
     "defectCategory","defectivePart","defectDetails",
@@ -370,11 +562,9 @@ export default function ComplaintForm({ editId, userEmail }) {
     if (touched[f] && !(form[f]?.trim?.() || form[f])) errors[f] = "This field is required";
   });
 
-  const isValid = requiredFields.every((f) => form[f]?.trim?.() || form[f]);
+  const isValid      = requiredFields.every((f) => form[f]?.trim?.() || form[f]);
   const productAging = calcProductAging(form.complaintDate, form.purchaseDate);
   const availableDefects = form.defectCategory ? (DEFECT_DETAILS_MAP[form.defectCategory] || []) : [];
-
-    const baseUrl = import.meta.env.VITE_API_URI || "http://localhost:3000";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -386,32 +576,40 @@ export default function ComplaintForm({ editId, userEmail }) {
       message.error("Please fill all required fields.");
       return;
     }
-
     setLoading(true);
 
     try {
       const payload = new FormData();
 
       Object.entries(form).forEach(([k, v]) => {
+        // In edit mode, don't allow changing complaintNo or status
+        if (isEditMode && (k === "complaintNo" || k === "status")) return;
         if (v != null) payload.append(k, v);
       });
 
-      if (invoiceFile) {
-        payload.append("image", invoiceFile); 
+      if (invoiceFile) payload.append("image", invoiceFile);
+      if (videoFile)   payload.append("video", videoFile);
+
+      if (isEditMode) {
+        const { data } = await axios.put(`${baseUrl}/update-complaint/${id}`, payload, {
+          withCredentials: true,
+        });
+        message.success(data.message || "Complaint updated successfully!");
+        navigate("/complaints");
+      } else {
+        const { data } = await axios.post(`${baseUrl}/create-complaint`, payload, {
+          withCredentials: true,
+        });
+        message.success(data.message || "Complaint created successfully!");
+        handleReset();
       }
-      
-      const { data } = await axios.post(`${baseUrl}/create-complaint`, payload, {
-        withCredentials: true,
-      });
-
-      message.success(data.message || "Complaint created successfully!");
-      handleReset();
-
     } catch (err) {
-      if(err.response.status === 11000) {
+      const status = err?.response?.status;
+      if (status === 11000) {
         message.error("Reset your complaint number. The current one is already used.");
+      } else {
+        message.error(err?.response?.data?.message || "Failed. Please try again.");
       }
-      message.error(err?.response?.data?.message || "Failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -422,10 +620,29 @@ export default function ComplaintForm({ editId, userEmail }) {
     setTouched({});
     setInvoiceFile(null);
     setInvoiceError("");
+    setSymptomEvidence(false);
+    setVideoFile(null);
+    setVideoError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const filledCount = requiredFields.filter((f) => form[f]?.trim?.() || form[f]).length;
+
+  /* ── Show a loading shell while fetching in edit mode ── */
+  if (fetchingEdit) {
+    return (
+      <div style={{ minHeight: "100dvh", background: "linear-gradient(160deg, #F2F2F7 0%, #E8E8EF 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+          <svg style={{ animation: "spin 0.75s linear infinite" }} width="28" height="28" fill="none" viewBox="0 0 24 24">
+            <circle opacity="0.2" cx="12" cy="12" r="10" stroke={T.blue} strokeWidth="3"/>
+            <path fill={T.blue} d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"/>
+          </svg>
+          <p style={{ fontSize: 13, color: T.gray1, fontWeight: 600, margin: 0 }}>Loading complaint…</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -460,7 +677,7 @@ export default function ComplaintForm({ editId, userEmail }) {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0);    }
         }
-        .fade-up { animation: fadeUp 0.35s cubic-bezier(0.4,0,0.2,1) both; }
+        .fade-up   { animation: fadeUp 0.35s cubic-bezier(0.4,0,0.2,1) both; }
         .fade-up-1 { animation-delay: 0.05s; }
         .fade-up-2 { animation-delay: 0.10s; }
         .fade-up-3 { animation-delay: 0.15s; }
@@ -470,7 +687,17 @@ export default function ComplaintForm({ editId, userEmail }) {
 
         .drop-zone-active { border-color: #007AFF !important; background: rgba(0,122,255,0.05) !important; }
 
-        /* Scrollbar */
+        /* Symptom checkbox */
+        .symptom-check-label {
+          display: inline-flex; align-items: center; gap: 8px;
+          cursor: pointer; user-select: none;
+          padding: 7px 12px; border-radius: 10px;
+          border: 1.5px solid transparent;
+          transition: all 0.15s;
+        }
+        .symptom-check-label:hover { background: rgba(255,159,10,0.06); border-color: rgba(255,159,10,0.2); }
+        .symptom-check-label.checked { background: rgba(255,159,10,0.08); border-color: rgba(255,159,10,0.3); }
+
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #C7C7CC; border-radius: 99px; }
@@ -485,44 +712,43 @@ export default function ComplaintForm({ editId, userEmail }) {
           backdropFilter: "blur(30px) saturate(200%)",
           WebkitBackdropFilter: "blur(30px) saturate(200%)",
           borderBottom: `1px solid ${T.border}`,
-          height: 58, display: "flex", alignItems: "center", padding: "0 20px",
-          gap: 12,
+          height: 58, display: "flex", alignItems: "center", padding: "0 20px", gap: 12,
         }}>
-          {/* Logo */}
-          <div style={{
-            width: 80, height: 80, borderRadius: 10, overflow: "hidden",
-            
-          }}>
+          <div style={{ width: 80, height: 80, borderRadius: 10, overflow: "hidden" }}>
             <img src="/pg-logo-Photoroom.png" alt="PG" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
 
-          <div style={{ lineHeight: 1 }} className="border-l-2 border-red-500 pl-5" >
+          <div style={{ lineHeight: 1 }} className="border-l-2 border-red-500 pl-5">
             <div style={{ fontSize: 14, fontWeight: 800, color: T.label, letterSpacing: "-0.3px" }}>
-              CMS <span style={{ color: T.red }} className="tracking-wider" >Entry</span>
+              CMS <span style={{ color: T.red }} className="tracking-wider">
+                {isEditMode ? "Edit" : "Entry"}
+              </span>
             </div>
             <div style={{ fontSize: 10, fontWeight: 500, color: T.gray1, marginTop: 2 }}>
-              {new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+              {isEditMode
+                ? `Editing: ${form.complaintNo}`
+                : new Date().toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
+              }
             </div>
           </div>
 
           <div style={{ flex: 1 }} />
 
-          {/* Progress */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 8 }}>
-            <StepDots current={Math.min(Math.floor((filledCount / requiredFields.length) * 3), 2)} total={3} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: T.gray1 }}>
-              {filledCount}/{requiredFields.length}
-            </span>
-          </div>
+          {/* Progress dots — only for new form */}
+          {!isEditMode && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 8 }}>
+              <StepDots current={Math.min(Math.floor((filledCount / requiredFields.length) * 3), 2)} total={3} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: T.gray1 }}>
+                {filledCount}/{requiredFields.length}
+              </span>
+            </div>
+          )}
 
-          {/* User email */}
           {userEmail && (
             <div style={{
-              display: "none", // shown via media query
-              alignItems: "center", gap: 6,
+              display: "none", alignItems: "center", gap: 6,
               padding: "5px 10px 5px 6px", borderRadius: 9,
-              background: T.gray6, border: `1px solid ${T.gray5}`,
-              marginRight: 6,
+              background: T.gray6, border: `1px solid ${T.gray5}`, marginRight: 6,
             }} className="user-pill">
               <div style={{
                 width: 22, height: 22, borderRadius: 7,
@@ -539,7 +765,6 @@ export default function ComplaintForm({ editId, userEmail }) {
             </div>
           )}
 
-          {/* Back */}
           <button onClick={() => navigate("/complaints")} style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "6px 14px", borderRadius: 10,
@@ -553,13 +778,11 @@ export default function ComplaintForm({ editId, userEmail }) {
             <span style={{ display: "none" }} className="btn-label-sm">Dashboard</span>
           </button>
 
-          {/* Logout */}
           <button onClick={() => navigate("/logout")} style={{
             display: "flex", alignItems: "center", gap: 6,
             padding: "6px 14px", borderRadius: 10,
             background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)",
-            fontSize: 12, fontWeight: 700, color: T.red,
-            cursor: "pointer", transition: "all 0.15s",
+            fontSize: 12, fontWeight: 700, color: T.red, cursor: "pointer", transition: "all 0.15s",
           }}>
             <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" strokeLinecap="round"/>
@@ -572,15 +795,70 @@ export default function ComplaintForm({ editId, userEmail }) {
         <main style={{ padding: "20px 16px 80px", maxWidth: 1400, margin: "0 auto" }}>
           <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
+            {/* ─────────────────────────────────────
+                EDIT-MODE BANNER
+                Shows status (read-only) and resolution remark
+            ───────────────────────────────────── */}
+            {isEditMode && (
+              <div className="fade-up" style={{
+                background: T.surface,
+                backdropFilter: "blur(20px) saturate(180%)",
+                WebkitBackdropFilter: "blur(20px) saturate(180%)",
+                borderRadius: 20, border: `1px solid rgba(255,255,255,0.7)`,
+                boxShadow: T.shadowMd, overflow: "hidden",
+              }}>
+                <SectionHeader icon="✏️" title="Edit Complaint" subtitle="complaintNo and status cannot be changed" />
+                <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+                  {/* Status (read-only display) */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "6px 14px", borderRadius: 10,
+                      background: "#F2F2F7", border: "1px solid #E5E5EA",
+                      fontSize: 11, fontWeight: 700, color: T.gray1,
+                    }}>
+                      <svg width="11" height="11" fill="none" stroke={T.gray1} strokeWidth="2.5" viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round"/>
+                      </svg>
+                      Status: <strong style={{ marginLeft: 4, color: T.label }}>{form.status || "Open"}</strong>
+                      <span style={{ fontSize: 9, color: T.gray2, marginLeft: 4 }}>(admin only)</span>
+                    </div>
+                  </div>
+
+                  {/* Resolution Remark — highlighted amber */}
+                  <div style={{
+                    background: "rgba(255,159,10,0.06)",
+                    border: "1.5px solid rgba(255,159,10,0.28)",
+                    borderRadius: 14, padding: "14px 16px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>✦ Resolution Remark</span>
+                      <span style={{ fontSize: 10, color: T.gray1, fontWeight: 500 }}>— admin reads this to resolve your complaint</span>
+                    </div>
+                    <Textarea
+                      value={form.resolutionRemark}
+                      onChange={set("resolutionRemark")}
+                      placeholder="Describe the resolution or action taken. e.g. PCB replaced, unit tested — cooling restored. Customer satisfied."
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* General Remarks */}
+                  <Field label="General Remarks" hint="Optional additional notes">
+                    <Textarea value={form.remarks} onChange={set("remarks")} placeholder="Any additional observations…" rows={2} />
+                  </Field>
+                </div>
+              </div>
+            )}
+
             {/* ─── SECTION 1: Complaint Info ─── */}
             <div className="fade-up" style={{
               background: T.surface,
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              borderRadius: 20,
-              border: `1px solid rgba(255,255,255,0.7)`,
-              boxShadow: T.shadowMd,
-              overflow: "hidden",
+              borderRadius: 20, border: `1px solid rgba(255,255,255,0.7)`,
+              boxShadow: T.shadowMd, overflow: "hidden",
             }}>
               <SectionHeader icon="📋" title="Complaint Information" subtitle="Core complaint & customer details" />
 
@@ -588,7 +866,7 @@ export default function ComplaintForm({ editId, userEmail }) {
 
                 {/* Row A */}
                 <div className="form-grid-6">
-                  <Field label="Complaint No." hint="Auto-generated">
+                  <Field label="Complaint No." hint={isEditMode ? "Cannot be changed" : "Auto-generated"}>
                     <Input value={form.complaintNo} readOnly placeholder="Auto" />
                   </Field>
                   <Field label="Complaint Date" required error={errors.complaintDate}>
@@ -622,7 +900,7 @@ export default function ComplaintForm({ editId, userEmail }) {
                     <Select value={form.replacementCategory} onChange={set("replacementCategory")}
                       options={["Part","Unit","Services","Demonstration"]} placeholder="Select…" />
                   </Field>
-                  <Field label="Model Name"  error={errors.modelName}>
+                  <Field label="Model Name" error={errors.modelName}>
                     <Input value={form.modelName} onChange={set("modelName")} placeholder="e.g. Godrej 18K 4S INV" error={!!errors.modelName} />
                   </Field>
                   <Field label="Unit Serial No.">
@@ -657,25 +935,23 @@ export default function ComplaintForm({ editId, userEmail }) {
                   </Field>
                 </div>
 
-                {/* Evidence Upload Zone */}
+                {/* Evidence Image Upload Zone */}
                 {form.dataBase === "Evidence" && (
                   <div
                     className={dragOver ? "drop-zone-active" : ""}
                     onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                     onDragLeave={() => setDragOver(false)}
-                    onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
+                    onDrop={(e) => { e.preventDefault(); setDragOver(false); handleImageFile(e.dataTransfer.files[0]); }}
                     onClick={() => fileInputRef.current?.click()}
                     style={{
                       border: `2px dashed ${invoiceError ? T.red : invoiceFile ? T.green : T.gray4}`,
-                      borderRadius: 14,
-                      padding: "16px 20px",
-                      cursor: "pointer",
+                      borderRadius: 14, padding: "16px 20px", cursor: "pointer",
                       background: invoiceFile ? "rgba(52,199,89,0.04)" : invoiceError ? "rgba(255,59,48,0.04)" : T.gray6,
-                      transition: "all 0.2s",
-                      display: "flex", alignItems: "center", gap: 14,
+                      transition: "all 0.2s", display: "flex", alignItems: "center", gap: 14,
                     }}
                   >
-                    <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: "none" }} onChange={(e)=> setInvoiceFile(e.target.files[0]) } />
+                    <input ref={fileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: "none" }}
+                      onChange={(e) => handleImageFile(e.target.files[0])} />
 
                     <div style={{
                       width: 44, height: 44, borderRadius: 12, flexShrink: 0,
@@ -703,7 +979,7 @@ export default function ComplaintForm({ editId, userEmail }) {
                             Drag & drop or click to upload evidence
                           </p>
                           <p style={{ fontSize: 10, color: T.gray1, margin: "2px 0 0" }}>
-                            JPG · PNG · PDF · Max 200 KB
+                            JPG · PNG · PDF · Max 1 MB
                           </p>
                         </>
                       )}
@@ -711,7 +987,7 @@ export default function ComplaintForm({ editId, userEmail }) {
 
                     {invoiceFile && (
                       <button type="button"
-                        onClick={(e) => { e.stopPropagation(); removeFile(); }}
+                        onClick={(e) => { e.stopPropagation(); removeImageFile(); }}
                         style={{
                           display: "flex", alignItems: "center", gap: 5,
                           padding: "5px 10px", borderRadius: 8,
@@ -750,14 +1026,12 @@ export default function ComplaintForm({ editId, userEmail }) {
               background: T.surface,
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              borderRadius: 20,
-              border: `1px solid rgba(255,255,255,0.7)`,
-              boxShadow: T.shadowMd,
-              overflow: "hidden",
+              borderRadius: 20, border: `1px solid rgba(255,255,255,0.7)`,
+              boxShadow: T.shadowMd, overflow: "hidden",
             }}>
               <SectionHeader icon="🔍" title="Defect & Part Details" subtitle="Categorize the failure accurately" />
 
-              <div style={{ padding: "18px 20px" }}>
+              <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
                 <div className="form-grid-4">
                   <Field label="Defect Category" required error={errors.defectCategory}>
                     <Select value={form.defectCategory} onChange={set("defectCategory")}
@@ -765,18 +1039,14 @@ export default function ComplaintForm({ editId, userEmail }) {
                   </Field>
 
                   <Field
-                    label="Defect Details"
-                    required
-                    error={errors.defectDetails}
+                    label="Defect Details" required error={errors.defectDetails}
                     hint={!form.defectCategory ? "Select a category first" : `${availableDefects.length} options available`}
                   >
                     <Select
-                      value={form.defectDetails}
-                      onChange={set("defectDetails")}
+                      value={form.defectDetails} onChange={set("defectDetails")}
                       options={availableDefects}
                       placeholder={form.defectCategory ? "Select defect…" : "Pick category first…"}
-                      disabled={!form.defectCategory}
-                      error={!!errors.defectDetails}
+                      disabled={!form.defectCategory} error={!!errors.defectDetails}
                     />
                   </Field>
 
@@ -789,18 +1059,96 @@ export default function ComplaintForm({ editId, userEmail }) {
                     <Input value={form.symptom} onChange={set("symptom")} placeholder="e.g. Not cooling, loud noise…" />
                   </Field>
                 </div>
+
+                {/* ── Symptom Evidence Checkbox + Video Upload ── */}
+                <div>
+                  {/* Checkbox toggle */}
+                  <label
+                    className={`symptom-check-label ${symptomEvidence ? "checked" : ""}`}
+                    style={{ display: "inline-flex" }}
+                  >
+                    <div
+                      onClick={() => setSymptomEvidence((v) => !v)}
+                      style={{
+                        width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                        background: symptomEvidence ? T.orange : "#fff",
+                        border: `2px solid ${symptomEvidence ? T.orange : T.gray4}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "all 0.15s", cursor: "pointer",
+                      }}
+                    >
+                      {symptomEvidence && (
+                        <svg width="10" height="10" fill="none" stroke="white" strokeWidth="3" viewBox="0 0 24 24">
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      onClick={() => setSymptomEvidence((v) => !v)}
+                      style={{ fontSize: 11, fontWeight: 700, color: symptomEvidence ? T.orange : T.label3, cursor: "pointer" }}
+                    >
+                      Attach Symptom Evidence Video
+                    </span>
+                    <span style={{ fontSize: 10, color: T.gray2, fontWeight: 500 }}>
+                      max 15 sec
+                    </span>
+                  </label>
+
+                  {/* Video upload zone — shown only when checkbox is checked */}
+                  {symptomEvidence && (
+                    <VideoUploadSection
+                      videoFile={videoFile}
+                      onVideo={setVideoFile}
+                      onRemove={() => { setVideoFile(null); setVideoError(""); }}
+                      videoError={videoError}
+                      setVideoError={setVideoError}
+                    />
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* ─── SECTION 3: Remarks (new complaints only) ─── */}
+            {!isEditMode && (
+              <div className="fade-up fade-up-1" style={{
+                background: T.surface,
+                backdropFilter: "blur(20px) saturate(180%)",
+                WebkitBackdropFilter: "blur(20px) saturate(180%)",
+                borderRadius: 20, border: `1px solid rgba(255,255,255,0.7)`,
+                boxShadow: T.shadowMd, overflow: "hidden",
+              }}>
+                <SectionHeader icon="📝" title="Remarks & Resolution" subtitle="Optional notes for admin review" />
+                <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+                  <Field label="General Remarks">
+                    <Textarea value={form.remarks} onChange={set("remarks")} placeholder="Any additional observations or notes…" rows={2} />
+                  </Field>
+                  <div style={{
+                    background: "rgba(255,159,10,0.06)",
+                    border: "1.5px solid rgba(255,159,10,0.28)",
+                    borderRadius: 14, padding: "14px 16px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>✦ Resolution Remark</span>
+                      <span style={{ fontSize: 10, color: T.gray1, fontWeight: 500 }}>— admin reads this to resolve your complaint</span>
+                    </div>
+                    <Textarea
+                      value={form.resolutionRemark}
+                      onChange={set("resolutionRemark")}
+                      placeholder="Describe what resolution is expected or what action was taken…"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ─── SUBMIT BAR ─── */}
             <div className="fade-up fade-up-2" style={{
               background: T.surface,
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              borderRadius: 18,
-              border: `1px solid rgba(255,255,255,0.7)`,
-              boxShadow: T.shadowSm,
-              padding: "14px 20px",
+              borderRadius: 18, border: `1px solid rgba(255,255,255,0.7)`,
+              boxShadow: T.shadowSm, padding: "14px 20px",
               display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
             }}>
               {/* Progress bar */}
@@ -824,43 +1172,49 @@ export default function ComplaintForm({ editId, userEmail }) {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
-                {/* Required hint */}
                 <span style={{ fontSize: 10, color: T.gray1, marginRight: 4 }}>
                   <span style={{ color: T.red, fontWeight: 800 }}>*</span> = required
                 </span>
 
-                {/* Reset */}
-                <button type="button" onClick={handleReset} disabled={loading} style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "9px 18px", borderRadius: 11,
-                  background: T.gray6, border: `1.5px solid ${T.gray5}`,
-                  fontSize: 12, fontWeight: 700, color: T.label2,
-                  cursor: "pointer", transition: "all 0.15s",
-                  opacity: loading ? 0.5 : 1,
-                }}>
-                  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path d="M3 12a9 9 0 019-9 9 9 0 016.36 2.64" strokeLinecap="round"/>
-                    <polyline points="21 3 15 3 15 9" strokeLinecap="round"/>
-                  </svg>
-                  Reset
-                </button>
+                {/* Reset — only for new complaints */}
+                {!isEditMode && (
+                  <button type="button" onClick={handleReset} disabled={loading} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "9px 18px", borderRadius: 11,
+                    background: T.gray6, border: `1.5px solid ${T.gray5}`,
+                    fontSize: 12, fontWeight: 700, color: T.label2,
+                    cursor: "pointer", transition: "all 0.15s", opacity: loading ? 0.5 : 1,
+                  }}>
+                    <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                      <path d="M3 12a9 9 0 019-9 9 9 0 016.36 2.64" strokeLinecap="round"/>
+                      <polyline points="21 3 15 3 15 9" strokeLinecap="round"/>
+                    </svg>
+                    Reset
+                  </button>
+                )}
+
+                {/* Cancel — edit mode only */}
+                {isEditMode && (
+                  <button type="button" onClick={() => navigate("/complaints")} disabled={loading} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "9px 18px", borderRadius: 11,
+                    background: T.gray6, border: `1.5px solid ${T.gray5}`,
+                    fontSize: 12, fontWeight: 700, color: T.label2,
+                    cursor: "pointer", transition: "all 0.15s", opacity: loading ? 0.5 : 1,
+                  }}>
+                    Cancel
+                  </button>
+                )}
 
                 {/* Submit */}
                 <button type="submit" disabled={loading} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "9px 24px", borderRadius: 11,
-                  background: loading
-                    ? T.gray4
-                    : isValid
-                    ? "linear-gradient(135deg, #007AFF, #0055CC)"
-                    : "linear-gradient(135deg, #007AFF, #0055CC)",
-                  border: "none",
-                  fontSize: 13, fontWeight: 800, color: "#fff",
+                  background: loading ? T.gray4 : "linear-gradient(135deg, #007AFF, #0055CC)",
+                  border: "none", fontSize: 13, fontWeight: 800, color: "#fff",
                   cursor: loading ? "not-allowed" : "pointer",
                   boxShadow: loading ? "none" : "0 4px 16px rgba(0,122,255,0.38)",
-                  transition: "all 0.2s",
-                  letterSpacing: "-0.2px",
-                  opacity: loading ? 0.7 : 1,
+                  transition: "all 0.2s", letterSpacing: "-0.2px", opacity: loading ? 0.7 : 1,
                 }}>
                   {loading ? (
                     <>
@@ -875,7 +1229,7 @@ export default function ComplaintForm({ editId, userEmail }) {
                       <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      {editId ? "Update Complaint" : "Submit Complaint"}
+                      {isEditMode ? "Save Changes" : "Submit Complaint"}
                     </>
                   )}
                 </button>

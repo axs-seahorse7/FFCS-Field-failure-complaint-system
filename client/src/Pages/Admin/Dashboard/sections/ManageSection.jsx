@@ -551,6 +551,7 @@ export default function ManageSection({ addToast }) {
   const [custFilter, setCust]     = useState("");
   const [selected, setSelected]   = useState(null);
   const [previewImg, setPreviewImg] = useState(null);
+  const [videoModal, setVideoModal] = useState(null);
 
   // Status change modal state
   const [statusModal, setStatusModal] = useState(null); // { complaint, targetStatus }
@@ -576,7 +577,6 @@ export default function ManageSection({ addToast }) {
   const totalClosed = data?.totalResolved || 0;
   const statusCounts = data?.statusCounts ||
   STATUSES.reduce((acc, s) => ({ ...acc, [s]: list.filter((r) => r.status === s).length }), {});
-
   /* ── Status change with remark ── */
   const handleStatusSelect = (complaint, targetStatus) => {
     setStatusModal({ complaint, targetStatus });
@@ -747,7 +747,7 @@ const columns = [
     render: (v) => <Badge status={v} />,
   },
 
-  // ✅ IMAGE COLUMN (IMPORTANT)
+  //  IMAGE COLUMN (IMPORTANT)
   {
     title: "Image",
     dataIndex: "imageUrl",
@@ -769,9 +769,39 @@ const columns = [
           }
         />
       ) : (
-        "No Evidence"
+         <span style={{ color: T.gray3, fontSize: 11 }}>No Evidence</span>
       ),
   },
+  //  VIDEO COLUMN — place right after the Image column block
+    {
+      title: "Video",
+      dataIndex: "videoUrl",
+      width: 90,
+      render: (url) =>
+        url ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setVideoModal(url);
+            }}
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 32, height: 32, borderRadius: 6, border: "none",
+              background: "rgba(0,122,255,0.10)", cursor: "pointer",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(0,122,255,0.20)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "rgba(0,122,255,0.10)"}
+            title="Play Video"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#007AFF">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+        ) : (
+          <span style={{ color: T.gray3, fontSize: 11 }}> No Video </span>
+        ),
+    },
 
   ...(canUpdate
     ? [
@@ -1039,6 +1069,38 @@ const columns = [
           onCancel={() => !deleteLoading && setDeleteModal(null)}
         />
       )}
+      {/* Video Player Modal */}
+      <Modal
+        open={!!videoModal}
+        onCancel={() => setVideoModal(null)}
+        footer={null}
+        centered
+        width={720}
+        styles={{
+          content: { background: "#000", borderRadius: 18, padding: 0, overflow: "hidden" },
+          header: { background: "#000", borderBottom: "1px solid #222", padding: "12px 18px" },
+          mask: { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" },
+        }}
+        title={
+          <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>
+            🎬 Video Evidence
+          </span>
+        }
+        closeIcon={
+          <svg width="12" height="12" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+          </svg>
+        }
+      >
+        {videoModal && (
+          <video
+            src={videoModal}
+            controls
+            autoPlay
+            style={{ width: "100%", display: "block", maxHeight: "70vh", background: "#000" }}
+          />
+        )}
+      </Modal>
     </>
   );
 }
