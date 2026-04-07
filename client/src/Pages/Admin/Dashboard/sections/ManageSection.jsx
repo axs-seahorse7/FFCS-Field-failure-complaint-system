@@ -603,10 +603,11 @@ export default function ManageSection({ addToast }) {
 
   /* ── Delete ── */
   const handleDeleteConfirm = async () => {
+    console.log("Deleting complaint:", deleteModal);
     if (!deleteModal) return;
     setDeleteLoading(true);
     try {
-      const {data} = await api.post("/complaints/delete", { id: deleteModal._id });
+      const {data} = await api.delete("/complaints/delete/" + deleteModal._id);
       message.success("Complaint deleted");
       setDeleteModal(null);
       refetch();

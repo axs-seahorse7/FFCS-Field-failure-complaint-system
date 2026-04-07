@@ -226,6 +226,7 @@ export const updateComplaint = async (req, res) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
+
 export const updateComplaintStatus = async (req, res) => {
   try {
     const { id, status, remarks } = req.body;
@@ -263,24 +264,35 @@ export const updateComplaintStatus = async (req, res) => {
 
 export const deleteComplaint = async (req, res) => {
   try {
+    console.log("Delete request for complaint ID:", req.params.id);
+    
   const complaint = await Complaint.findById(req.params.id);
   if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
   
   if (complaint?.imageKey) {
-    await deleteFromS3(complaint.imageKey);
+    try{
+      await deleteFromS3(complaint.imageKey);
+      console.log("Deleted image from S3:", complaint.imageKey);
+    }catch(err){
+      console.error("Failed to delete image from S3:", err.message);
+    }
   }
 
-  if (complaint?.videoKey) {
-    await deleteFromS3(complaint.videoKey);
+    if (complaint?.videoKey) {
+      try{
+        await deleteFromS3(complaint.videoKey);
+      }catch(err){
+        console.error("Failed to delete video from S3:", err.message);
+      }
+    }
+
+    await Complaint.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted successfully" });
+
+  } catch (err) {
+    console.error("Error deleting complaint:", err);
+    return res.status(500).json({ message: err.message });
   }
-
-  await Complaint.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted successfully" });
-
-} catch (err) {
-  console.error("Error deleting complaint:", err);
-  return res.status(500).json({ message: err.message });
-}
 
 };
 
