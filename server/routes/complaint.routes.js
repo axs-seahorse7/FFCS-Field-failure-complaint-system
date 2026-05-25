@@ -51,7 +51,7 @@ router.get("/complaints/aging",                isAuthenticated, getAging);
 router.get("/complaints/production-stats",     isAuthenticated, getProductionStats);
 
 /* ── Admin CRUD ── */
-router.post("/complaints/status", isAuthenticated, updateComplaintStatus);
+router.post("/complaints/status", upload.fields([{name:"file", maxCount: 1}, {name:"file", maxCount: 1}]), isAuthenticated, updateComplaintStatus);
 router.delete("/complaints/delete/:id", isAuthenticated, deleteComplaint);
 
 export default router;

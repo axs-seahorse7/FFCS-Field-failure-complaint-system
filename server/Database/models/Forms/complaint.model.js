@@ -168,6 +168,12 @@ const complaintSchema = new Schema(
       default: "",
     },
 
+    resolutionRemarks: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     /* ── Audit fields ── */
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -192,14 +198,38 @@ const complaintSchema = new Schema(
       trim: true,
       default: "",
     },
+
     videoUrl:{
       type:String,
       trim: true
     },
+
     videoKey:{
       type:String,
       trim:true
-    }
+    },
+
+    afterResolutionImageUrl:{
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    afterResolutionImageKey:{
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    afterResolutionVideoUrl:{
+      type:String,
+      trim: true
+    },
+
+    afterResolutionVideoKey:{
+      type:String,
+      trim:true
+    },
     
   },
   {

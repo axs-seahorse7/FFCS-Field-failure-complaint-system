@@ -1122,22 +1122,7 @@ export default function ComplaintForm({ userEmail }) {
                   <Field label="General Remarks">
                     <Textarea value={form.remarks} onChange={set("remarks")} placeholder="Any additional observations or notes…" rows={2} />
                   </Field>
-                  <div style={{
-                    background: "rgba(255,159,10,0.06)",
-                    border: "1.5px solid rgba(255,159,10,0.28)",
-                    borderRadius: 14, padding: "14px 16px",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: T.orange }}>✦ Resolution Remark</span>
-                      <span style={{ fontSize: 10, color: T.gray1, fontWeight: 500 }}>— admin reads this to resolve your complaint</span>
-                    </div>
-                    <Textarea
-                      value={form.resolutionRemark}
-                      onChange={set("resolutionRemark")}
-                      placeholder="Describe what resolution is expected or what action was taken…"
-                      rows={3}
-                    />
-                  </div>
+                  
                 </div>
               </div>
             )}

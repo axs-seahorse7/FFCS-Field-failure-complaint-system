@@ -113,7 +113,7 @@ export const createComplaint = async (req, res) => {
         console.error("Production update failed:", err.message);
       }
 
-    res.status(200).json({
+   return res.status(200).json({
       success: true,
       data: complaint,
       message: "Complaint created successfully",
@@ -121,7 +121,7 @@ export const createComplaint = async (req, res) => {
 
   } catch (err) {
     console.error("Error creating complaint:", err);
-    res.status(500).json({ message: "Something went wrong" });
+   return res.status(500).json({ message: "Something went wrong" });
   }
 }; 
 
@@ -230,32 +230,106 @@ export const updateComplaint = async (req, res) => {
 export const updateComplaintStatus = async (req, res) => {
   try {
     const { id, status, remarks } = req.body;
-    if (!id || !status) return res.status(400).json({ message: "id and status required" });
+    console.log("incoming status update request:", req.body, req.files);
 
-    const VALID = [ "Resolved",];
-    if (!VALID.includes(status)) return res.status(400).json({ message: "You cannot update to this status" });
+    if (!id || !status) {
+      return res.status(400).json({ message: "id and status required" });
+    }
+
+    const VALID = ["Resolved", "Pending",];
+    if (!VALID.includes(status)) {
+      return res.status(400).json({ message: "You cannot update to this status" });
+    }
 
     const complaint = await Complaint.findById(id);
-    if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
+    if (!complaint) {
+      return res.status(404).json({ message: "This complaint may have been deleted!" });
+    }
 
     const prevStatus = complaint.status;
-    complaint.status    = status;
-    complaint.remarks   = remarks || complaint.remarks;
+
+    // ─── FILE HANDLING START ─────────────────────────
+
+    let afterImageUrl = complaint.afterResolutionImageUrl;
+    let afterImageKey = complaint.afterResolutionImageKey;
+    let afterVideoUrl = complaint.afterResolutionVideoUrl;
+    let afterVideoKey = complaint.afterResolutionVideoKey;
+
+    const imageFile = req.files?.image?.[0];
+    const videoFile = req.files?.video?.[0];
+
+    // 🖼️ Upload after-resolution image
+    if (imageFile) {
+      try {
+        if (afterImageKey) {
+          await deleteFromS3(afterImageKey);
+        }
+
+        const result = await uploadToS3(imageFile);
+        afterImageUrl = result.url;
+        afterImageKey = result.key;
+      } catch (err) {
+        console.error("After image upload failed:", err.message);
+      }
+    }
+
+    // 🎥 Upload after-resolution video
+    if (videoFile) {
+      try {
+        if (afterVideoKey) {
+          await deleteFromS3(afterVideoKey);
+        }
+
+        const result = await uploadToS3(videoFile);
+        afterVideoUrl = result.url;
+        afterVideoKey = result.key;
+      } catch (err) {
+        console.error("After video upload failed:", err.message);
+      }
+    }
+
+    // ─── UPDATE COMPLAINT ─────────────────────────
+
+    complaint.status = status;
+    complaint.resolutionRemarks = remarks || complaint.remarks;
     complaint.updatedBy = req.user.userId;
     complaint.updatedAt = new Date();
+
+    // ✅ Save after-resolution files
+    complaint.afterResolutionImageUrl = afterImageUrl;
+    complaint.afterResolutionImageKey = afterImageKey;
+    complaint.afterResolutionVideoUrl = afterVideoUrl;
+    complaint.afterResolutionVideoKey = afterVideoKey;
+
+    if (status === "Resolved") {
+      complaint.resolvedDate = new Date();
+    }
+
     await complaint.save();
 
+    // ─── UPDATE USER STATS ─────────────────────────
+
     const creator = await User.findById(complaint.createdBy);
+
     if (creator) {
-      creator.stats = creator.stats || { resolvedComplaints: 0, pendingComplaints: 0 };
+      creator.stats = creator.stats || {
+        resolvedComplaints: 0,
+        pendingComplaints: 0,
+      };
+
       if (prevStatus !== "Resolved" && status === "Resolved") {
         creator.stats.resolvedComplaints += 1;
-        creator.stats.pendingComplaints = Math.max(0, creator.stats.pendingComplaints - 1);
+        creator.stats.pendingComplaints = Math.max(
+          0,
+          creator.stats.pendingComplaints - 1
+        );
       }
+
       await creator.save();
     }
 
     return res.json({ data: complaint });
+
   } catch (err) {
     console.error("Error updating complaint status:", err);
     return res.status(500).json({ message: err.message });
@@ -264,7 +338,6 @@ export const updateComplaintStatus = async (req, res) => {
 
 export const deleteComplaint = async (req, res) => {
   try {
-    console.log("Delete request for complaint ID:", req.params.id);
     
   const complaint = await Complaint.findById(req.params.id);
   if (!complaint) return res.status(404).json({ message: "This complaint may have been deleted!" });
@@ -275,6 +348,7 @@ export const deleteComplaint = async (req, res) => {
       console.log("Deleted image from S3:", complaint.imageKey);
     }catch(err){
       console.error("Failed to delete image from S3:", err.message);
+      return res.status(500).json({ message: "Failed to delete associated image from storage" });
     }
   }
 
@@ -287,7 +361,7 @@ export const deleteComplaint = async (req, res) => {
     }
 
     await Complaint.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted successfully" });
+    return res.json({ message: "Deleted successfully" });
 
   } catch (err) {
     console.error("Error deleting complaint:", err);
@@ -304,129 +378,130 @@ const getYearRange = (year) => {
 };
 
 const getKpiData = async (start, end) => {
-  //  Complaint KPI
-  const [stats] = await Complaint.aggregate([
-    {
-      $match: {
-        complaintDate: { $gte: start, $lte: end }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: 1 },
-        open: {
-          $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
-        },
-        active: {
-          $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
-        },
-        pending: {
-          $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
-        },
-        resolved: {
-          $sum: {
-            $cond: [
-              { $in: ["$status", ["Resolved", "Closed"]] },
-              1,
-              0
-            ]
-          }
-        },
+    const [stats] = await Complaint.aggregate([
+      {
+        $match: {
+          complaintDate: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          open: {
+            $sum: { $cond: [{ $eq: ["$status", "Open"] }, 1, 0] }
+          },
+          active: {
+            $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] }
+          },
+          pending: {
+            $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] }
+          },
+          resolved: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["Resolved", "Closed"]] },
+                1,
+                0
+              ]
+            }
+          },
 
-        closed: {
-          $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] }
-        },
-        totalResolutionDays: {
-          $sum: {
+          closed: {
+            $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] }
+          },
+          totalResolutionDays: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["Resolved", "Closed"]] },
+                {
+                  $divide: [
+                    { $subtract: ["$resolvedDate", "$complaintDate"] },
+                    86400000
+                  ]
+                },
+                0
+              ]
+            }
+          },
+
+          resolvedCountForAvg: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["Resolved", "Closed"]] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          total: 1,
+          open: 1,
+          active: 1,
+          pending: 1,
+          resolved: 1,
+          closed: 1,
+          avgDays: {
             $cond: [
-              { $in: ["$status", ["Resolved", "Closed"]] },
+              { $gt: ["$resolvedCountForAvg", 0] },
               {
-                $divide: [
-                  { $subtract: ["$resolvedDate", "$complaintDate"] },
-                  86400000
+                $round: [
+                  {
+                    $divide: [
+                      "$totalResolutionDays",
+                      "$resolvedCountForAvg"
+                    ]
+                  },
+                  0
                 ]
               },
               0
             ]
           }
-        },
-
-        resolvedCountForAvg: {
-          $sum: {
-            $cond: [
-              { $in: ["$status", ["Resolved", "Closed"]] },
-              1,
-              0
-            ]
-          }
         }
       }
-    },
-    {
-      $project: {
-        total: 1,
-        open: 1,
-        active: 1,
-        pending: 1,
-        resolved: 1,
-        closed: 1,
-        avgDays: {
-          $cond: [
-            { $gt: ["$resolvedCountForAvg", 0] },
-            {
-              $round: [
-                {
-                  $divide: [
-                    "$totalResolutionDays",
-                    "$resolvedCountForAvg"
-                  ]
-                },
-                0
-              ]
-            },
-            0
-          ]
+    ]);
+
+    // 🏭 Production KPI
+    const [prod] = await Production.aggregate([
+      {
+        $match: {
+          month: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          production: { $sum: "$production" }
         }
       }
-    }
-  ]);
+    ]);
 
-  // 🏭 Production KPI
-  const [prod] = await Production.aggregate([
-    {
-      $match: {
-        month: { $gte: start, $lte: end }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        production: { $sum: "$production" }
-      }
-    }
-  ]);
+    const total = stats?.total || 0;
+    const resolved = stats?.resolved || 0;
+    const production = prod?.production || 0;
 
-  const total = stats?.total || 0;
-  const resolved = stats?.resolved || 0;
-  const production = prod?.production || 0;
+    return {
+      total,
+      open: stats?.open || 0,
+      active: stats?.active || 0,
+      pending: stats?.pending || 0,
+      resolved,
+      closed: stats?.closed || 0,
+      backlog: total - resolved,
+      avgDays: stats?.avgDays || 0,
+      production,
+      avgPpm:
+        production > 0
+          ? Math.round((total / production) * 1_000_000)
+          : 0
+    };
 
-  return {
-    total,
-    open: stats?.open || 0,
-    active: stats?.active || 0,
-    pending: stats?.pending || 0,
-    resolved,
-    closed: stats?.closed || 0,
-    backlog: total - resolved,
-    avgDays: stats?.avgDays || 0,
-    production,
-    avgPpm:
-      production > 0
-        ? Math.round((total / production) * 1_000_000)
-        : 0
-  };
-};
+}
+
 
 export const getComplaintStats = async (req, res) => {
   try {

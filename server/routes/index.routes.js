@@ -8,13 +8,15 @@ import mongoose from "mongoose";
 
 const router = e.Router();
 
+
+
 router.post("/save-complaint", isAuthenticated, (req, res) => {
     try {
-        const userId = req.user.userId; // Extract user ID from the authenticated request
+        const userId = req.user.userId; 
         
         const newComplaint = new Complaint({
             createdBy: userId,
-            ...req.body, // Spread the rest of the complaint data from the request body
+            ...req.body, 
         });
 
         newComplaint.save()
@@ -27,12 +29,10 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
     
 });
 
-
 router.get("/get-complaints", isAuthenticated, async (req, res) => {
   try {
     const rawUserId = req.user.userId;
 
-    //  Fetch minimal user data
     const user = await User.findById(rawUserId)
       .select("isSystemRole roleId");
 
@@ -43,7 +43,6 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    //  Get permissions ONLY if needed
     let permissions = [];
 
     if (!user.isSystemRole && user.roleId) {
@@ -104,8 +103,8 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     // Final query
     const query = conditions.length ? { $and: conditions } : {};
 
-    // ⚡ Execute queries
-    const [complaints, total, totalOpen, totalResolved] = await Promise.all([
+    //  Execute queries
+    const [complaints, total, totalOpen, totalPending, totalResolved] = await Promise.all([
       Complaint.find(query)
         .populate("createdBy", "email")
         .sort({ status: 1, createdAt: -1 })
@@ -113,9 +112,10 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
         .limit(safeLimit)
         .lean(),
 
-      Complaint.countDocuments(query),
-      Complaint.countDocuments({  status: "Open" }),
-      Complaint.countDocuments({  status: "Resolved" })
+      Complaint.countDocuments({ status:   { $in: ["Open", "Active", "Pending", "Resolved"] } }),
+      Complaint.countDocuments({ status:  "Open"     }),
+      Complaint.countDocuments({ status:  "Pending"  }),
+      Complaint.countDocuments({ status:  "Resolved" })
     ]);
 
     return res.status(200).json({
@@ -123,6 +123,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       complaints,
       total,
       totalOpen,
+      totalPending,
       totalResolved,
       page: safePage,
       limit: safeLimit,
@@ -144,10 +145,10 @@ router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
     let query = {};
 
     if (userPermissions.includes("manage")) {
-      // 🔥 Admin / Manager → see all complaints
+      //  Admin / Manager → see all complaints
       query = {};
     } else {
-      // 👤 Normal user → restricted access
+      //  Normal user → restricted access
       query = {
         $or: [
           { createdBy: req.user.userId },
@@ -159,7 +160,7 @@ router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
     const complaints = await Complaint.find(query)
       .populate("createdBy", "email")
       .sort({ status: 1, createdAt: -1 })
-      .limit(50) // 🔥 cap results for performance
+      .limit(50)
       .lean();
 
     return res.status(200).json({ complaints });
@@ -170,7 +171,6 @@ router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
   }
 
 });
-
 
 router.get("/users", isAuthenticated, async (req, res) => {
     try {
@@ -229,7 +229,6 @@ router.put("/production/:id", isAuthenticated, async (req, res) => {
             });
         }
 
-        //  Only update complaints
         if (fieldComplaint !== undefined) {
             record.fieldComplaint = fieldComplaint;
         }

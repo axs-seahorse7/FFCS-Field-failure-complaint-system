@@ -7,8 +7,6 @@ import ComplaintDashboard from "./Pages/User/Dashboard/ComplaintDashboard.jsx";
 import AdminDashboard from "./Pages/Admin/Dashboard/AdminDashboard.jsx";
 import AccountPending from "./Pages/Authentication/Pending/AccountPending.jsx";
 import ProductionEntryForm from "./Pages/Admin/Production-Entry-Form/ProductionForm.jsx";
-import { useEffect } from "react";
-import Lenis from "@studio-freight/lenis";
 
 import OverviewSection    from "./Pages/Admin/Dashboard/sections/OverviewSection";
 import DefectsSection     from "./Pages/Admin/Dashboard/sections/DefectsSection";
@@ -22,28 +20,6 @@ import BulkUpload         from "./Pages/Admin/Dashboard/insert-bulk-complaint/Bu
 
 
 function App() {
-
-    // useEffect(() => {
-    //   const lenis = new Lenis({
-    //     duration: 1.2,
-    //     smooth: true,
-    //     gestureOrientation: "vertical",
-    //   });
-
-    //   let rafId;
-
-    //   const raf = (time) => {
-    //     lenis.raf(time);
-    //     rafId = requestAnimationFrame(raf);
-    //   };
-
-    //   rafId = requestAnimationFrame(raf);
-
-    //   return () => {
-    //     cancelAnimationFrame(rafId);
-    //     lenis.destroy();
-    //   };
-    // }, []);
  
 
       return (

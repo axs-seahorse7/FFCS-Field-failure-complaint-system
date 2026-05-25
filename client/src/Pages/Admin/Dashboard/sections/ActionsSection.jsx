@@ -87,7 +87,8 @@ export default function ActionsSection() {
   const { data: pending,   loading: pendLoading, refetch }   = useApiQuery("/get-complaint", { status: statusFilter, limit: 100 });
   const { data: stats }                                      = useApiQuery("/complaints/stats");
   const { data: aging }                                      = useApiQuery("/complaints/aging");
-console.log("Aging data:", aging);
+
+  
   const agingData = useMemo(() => {
     if (aging) return aging;
     return [];

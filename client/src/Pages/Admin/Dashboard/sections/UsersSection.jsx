@@ -612,7 +612,7 @@ export default function UsersSection({ addToast }) {
       const res = await api.get("/auth/roles");
       setRoles(res.data?.roles || []);
     } catch (err) {
-      console.error("Fetch roles error:", err.message || err);
+      message.error(err?.response?.data?.message || "Failed to load roles");
     } finally {
       setRolesLoading(false);
     }

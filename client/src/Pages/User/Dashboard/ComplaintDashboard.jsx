@@ -162,7 +162,7 @@ function VideoModal({ videoKey, onClose }) {
 ───────────────────────────────────────── */
 function DetailDrawer({ complaint, onClose }) {
   const [visible, setVisible] = useState(false);
-
+  console.log("complaint", complaint)
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     const h = (e) => e.key === "Escape" && handleClose();
@@ -201,6 +201,7 @@ function DetailDrawer({ complaint, onClose }) {
     ["Status",            complaint.status, false, true],
     ["Resolved Date",     fmtDate(complaint.resolvedDate) || "Not yet resolved"],
     ["Remarks",           complaint.remarks || "Under investigation"],
+    ["Resolution Remark", complaint.resolutionRemark || "Under investigation"],
   ];
 
   const sections = [

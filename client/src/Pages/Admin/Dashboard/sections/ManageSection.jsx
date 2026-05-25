@@ -39,7 +39,7 @@ const STATUS_CFG = {
   Resolved: { color: "#34C759", bg: "rgba(52,199,89,0.10)",  border: "rgba(52,199,89,0.22)"  },
 };
 
-const STATUSES = ["Open", "Pending", "Resolved"];
+const STATUSES = [ "Open", "Pending", "Resolved"];
 
 /* ─────────────────────────────────────────
    STATUS BADGE (inline, no antd)
@@ -66,22 +66,85 @@ function Badge({ status }) {
 function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loading }) {
   const [remark, setRemark] = useState("");
   const [touched, setTouched] = useState(false);
+  const [uploadType, setUploadType] = useState(null); // null | 'image' | 'video'
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [fileError, setFileError] = useState("");
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const hasError = touched && !remark.trim();
-
+  const isResolved = targetStatus === "Resolved";
+  console.log("fileselected", file)
   useEffect(() => {
     setTimeout(() => textareaRef.current?.focus(), 80);
   }, []);
 
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview); };
+  }, [preview]);
+
   const handleConfirm = () => {
     setTouched(true);
     if (!remark.trim()) return;
-    onConfirm(remark.trim());
+    console.log("Submitting status update:", { complaintId: complaint._id, targetStatus, remark, file });
+    onConfirm(remark.trim(), file || null);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleConfirm();
     if (e.key === "Escape") onCancel();
+  };
+
+  const handleTypeSelect = (type) => {
+    setUploadType(type);
+    setFile(null);
+    setPreview(null);
+    setFileError("");
+    setTimeout(() => fileInputRef.current?.click(), 50);
+  };
+
+  const handleFileChange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setFileError("");
+
+    if (uploadType === "image") {
+      if (!f.type.startsWith("image/")) return setFileError("Please select a valid image file.");
+      if (f.size > 5 * 1024 * 1024) return setFileError("Image must be under 5 MB.");
+      setFile(f);
+      setPreview(URL.createObjectURL(f));
+    }
+
+    if (uploadType === "video") {
+      if (!f.type.startsWith("video/")) return setFileError("Please select a valid video file.");
+      const url = URL.createObjectURL(f);
+      const vid = document.createElement("video");
+      vid.preload = "metadata";
+      vid.onloadedmetadata = () => {
+        if (vid.duration > 15) {
+          URL.revokeObjectURL(url);
+          return setFileError("Video must be 15 seconds or less.");
+        }
+        setFile(f);
+        setPreview(url);
+      };
+      vid.src = url;
+    }
+
+    e.target.value = "";
+  };
+
+  const clearFile = () => {
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(null);
+    setPreview(null);
+    setFileError("");
+  };
+
+  const clearType = () => {
+    clearFile();
+    setUploadType(null);
   };
 
   const fromCfg = STATUS_CFG[complaint.status] || { color: T.gray1 };
@@ -112,6 +175,8 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
         boxShadow: "0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
         overflow: "hidden",
         animation: "slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+        maxHeight: "90vh",
+        overflowY: "auto",
       }}>
         {/* Top accent */}
         <div style={{ height: 3, background: `linear-gradient(90deg, ${fromCfg.color}, ${toCfg.color})` }} />
@@ -191,6 +256,7 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
               outline: "none", resize: "vertical", minHeight: 90,
               fontFamily: "inherit", lineHeight: 1.6,
               transition: "all 0.15s",
+              boxSizing: "border-box",
             }}
           />
           {hasError && (
@@ -205,6 +271,254 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
             Tip: Press <kbd style={{ padding: "1px 5px", borderRadius: 5, background: T.gray6, border: `1px solid ${T.gray5}`, fontSize: 10 }}>⌘ Enter</kbd> to save
           </p>
         </div>
+
+        {/* ── Evidence Upload (Resolved only) ── */}
+        {isResolved && (
+          <div style={{
+            margin: "0 22px 20px",
+            borderRadius: 14,
+            border: `1.5px solid ${T.gray5}`,
+            overflow: "hidden",
+            background: "#fafafa",
+          }}>
+            {/* Section header */}
+            <div style={{
+              padding: "10px 14px",
+              borderBottom: `1px solid ${T.gray5}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <svg width="13" height="13" fill="none" stroke={toCfg.color} strokeWidth="2.2" viewBox="0 0 24 24">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" strokeLinecap="round"/>
+                </svg>
+                <span style={{ fontSize: 11, fontWeight: 700, color: T.label2, letterSpacing: 0.3 }}>
+                  Resolution Evidence
+                </span>
+                <span style={{ fontSize: 10, color: T.gray2, fontWeight: 500 }}>(optional)</span>
+              </div>
+              {uploadType && (
+                <button onClick={clearType} style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  fontSize: 10, fontWeight: 700, color: T.gray2,
+                  display: "flex", alignItems: "center", gap: 3, padding: 0,
+                }}>
+                  <svg width="10" height="10" fill="none" stroke={T.gray2} strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+                  </svg>
+                  Change type
+                </button>
+              )}
+            </div>
+
+            <div style={{ padding: 14 }}>
+
+              {/* Step 1 — pick type */}
+              {!uploadType && (
+                <div style={{ display: "flex", gap: 10 }}>
+                  {/* Image button */}
+                  <button onClick={() => handleTypeSelect("image")} style={{
+                    flex: 1, padding: "14px 10px", borderRadius: 11,
+                    border: `1.5px dashed ${T.gray4}`,
+                    background: "#fff", cursor: "pointer",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                    transition: "all 0.15s",
+                  }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = toCfg.color; e.currentTarget.style.background = `${toCfg.color}08`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.gray4; e.currentTarget.style.background = "#fff"; }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: `${toCfg.color}15`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <svg width="18" height="18" fill="none" stroke={toCfg.color} strokeWidth="2" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.label2 }}>Image</span>
+                    <span style={{ fontSize: 10, color: T.gray2 }}>PNG, JPG · max 5 MB</span>
+                  </button>
+
+                  {/* Video button */}
+                  <button onClick={() => handleTypeSelect("video")} style={{
+                    flex: 1, padding: "14px 10px", borderRadius: 11,
+                    border: `1.5px dashed ${T.gray4}`,
+                    background: "#fff", cursor: "pointer",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                    transition: "all 0.15s",
+                  }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = toCfg.color; e.currentTarget.style.background = `${toCfg.color}08`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.gray4; e.currentTarget.style.background = "#fff"; }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: `${toCfg.color}15`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <svg width="18" height="18" fill="none" stroke={toCfg.color} strokeWidth="2" viewBox="0 0 24 24">
+                        <polygon points="23 7 16 12 23 17 23 7"/>
+                        <rect x="1" y="5" width="15" height="14" rx="2"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.label2 }}>Video</span>
+                    <span style={{ fontSize: 10, color: T.gray2 }}>MP4, MOV · max 15 sec</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2 — after type chosen */}
+              {uploadType && (
+                <>
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={uploadType === "image" ? "image/*" : "video/*"}
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                  />
+
+                  {/* Drop zone / re-pick (no file yet) */}
+                  {!file && (
+                    <button onClick={() => fileInputRef.current?.click()} style={{
+                      width: "100%", padding: "20px 0", borderRadius: 11,
+                      border: `1.5px dashed ${fileError ? T.red : T.gray4}`,
+                      background: fileError ? "rgba(255,59,48,0.03)" : "#fff",
+                      cursor: "pointer",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                      transition: "all 0.15s", boxSizing: "border-box",
+                    }}
+                      onMouseEnter={(e) => { if (!fileError) { e.currentTarget.style.borderColor = toCfg.color; e.currentTarget.style.background = `${toCfg.color}08`; }}}
+                      onMouseLeave={(e) => { if (!fileError) { e.currentTarget.style.borderColor = T.gray4; e.currentTarget.style.background = "#fff"; }}}
+                    >
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 12,
+                        background: `${toCfg.color}15`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        {uploadType === "image" ? (
+                          <svg width="20" height="20" fill="none" stroke={toCfg.color} strokeWidth="2" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" fill="none" stroke={toCfg.color} strokeWidth="2" viewBox="0 0 24 24">
+                            <polygon points="23 7 16 12 23 17 23 7"/>
+                            <rect x="1" y="5" width="15" height="14" rx="2"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.label2 }}>
+                        Click to select {uploadType}
+                      </span>
+                      <span style={{ fontSize: 10, color: T.gray2 }}>
+                        {uploadType === "image" ? "PNG, JPG, WEBP · max 5 MB" : "MP4, MOV · max 15 seconds"}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Preview — image */}
+                  {file && uploadType === "image" && preview && (
+                    <div style={{ position: "relative", borderRadius: 11, overflow: "hidden", border: `1px solid ${T.gray5}` }}>
+                      <img
+                        src={preview}
+                        alt="Evidence preview"
+                        style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block" }}
+                      />
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%)",
+                        display: "flex", alignItems: "flex-end", padding: "10px 12px",
+                        justifyContent: "space-between",
+                      }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#fff", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {file.name}
+                          </p>
+                          <p style={{ margin: "2px 0 0", fontSize: 10, color: "rgba(255,255,255,0.75)" }}>
+                            {(file.size / 1024).toFixed(0)} KB
+                          </p>
+                        </div>
+                        <button onClick={clearFile} style={{
+                          width: 26, height: 26, borderRadius: 8,
+                          background: "rgba(0,0,0,0.45)", border: "none",
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <svg width="11" height="11" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview — video */}
+                  {file && uploadType === "video" && preview && (
+                    <div style={{ position: "relative", borderRadius: 11, overflow: "hidden", border: `1px solid ${T.gray5}` }}>
+                      <video
+                        src={preview}
+                        controls
+                        style={{ width: "100%", maxHeight: 180, display: "block", background: "#000" }}
+                      />
+                      <div style={{
+                        padding: "8px 12px",
+                        background: "#fff",
+                        borderTop: `1px solid ${T.gray5}`,
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                      }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: T.label, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {file.name}
+                          </p>
+                          <p style={{ margin: "1px 0 0", fontSize: 10, color: T.gray2 }}>
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <button onClick={clearFile} style={{
+                          width: 26, height: 26, borderRadius: 8,
+                          background: T.gray6, border: `1px solid ${T.gray5}`,
+                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <svg width="11" height="11" fill="none" stroke={T.gray1} strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error message */}
+                  {fileError && (
+                    <p style={{ fontSize: 11, color: T.red, fontWeight: 600, margin: "8px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                      <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke={T.red} strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
+                      </svg>
+                      {fileError}
+                    </p>
+                  )}
+
+                  {/* Re-pick link */}
+                  {file && (
+                    <button onClick={() => fileInputRef.current?.click()} style={{
+                      marginTop: 8, background: "none", border: "none",
+                      cursor: "pointer", fontSize: 10, fontWeight: 700,
+                      color: toCfg.color, padding: 0,
+                      display: "flex", alignItems: "center", gap: 3,
+                    }}>
+                      <svg width="10" height="10" fill="none" stroke={toCfg.color} strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" strokeLinecap="round"/>
+                      </svg>
+                      Replace {uploadType}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div style={{
@@ -253,7 +567,6 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
     </>
   );
 }
-
 /* ─────────────────────────────────────────
    DELETE CONFIRM MODAL
 ───────────────────────────────────────── */
@@ -566,6 +879,7 @@ export default function ManageSection({ addToast }) {
     { onError: () => addToast?.("Failed to load complaints", "error") }
   );
 
+
   const user = JSON.parse(localStorage.getItem("User") || "{}");
   const actions = user?.roleId?.action || [];
   const canDelete = user.isSystemRole || actions.includes("delete");
@@ -575,8 +889,12 @@ export default function ManageSection({ addToast }) {
   const total = data?.total || 0;
   const totalOpen = data?.totalOpen || 0;
   const totalClosed = data?.totalResolved || 0;
-  const statusCounts = data?.statusCounts ||
-  STATUSES.reduce((acc, s) => ({ ...acc, [s]: list.filter((r) => r.status === s).length }), {});
+  const  statusCounts = {
+    Open: totalOpen || 0,
+    Pending: data?.totalPending || 0,
+    Resolved: totalClosed || 0,
+  };
+
   /* ── Status change with remark ── */
   const handleStatusSelect = (complaint, targetStatus) => {
     setStatusModal({ complaint, targetStatus });
@@ -920,7 +1238,7 @@ const columns = [
             <StatPill
               key={s}
               label={s}
-              count={statusCounts[s] ?? 0}
+              count={statusCounts[s]}
               color={STATUS_CFG[s]?.color}
               active={statusFilter === s}
               onClick={() => { setStatus(statusFilter === s ? "" : s); setPage(1); }}
@@ -928,13 +1246,6 @@ const columns = [
           ))}
         </div>
 
-        {/* <Modal
-          open={!!previewImg}
-          footer={null}
-          onCancel={() => setPreviewImg(null)}
-        >
-          <img src={previewImg} style={{ width: "100%" }} />
-        </Modal> */}
 
         {/* ── Filters Row ── */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
