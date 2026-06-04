@@ -3,6 +3,8 @@ import { useState } from "react";
 export default function AccountPending() {
   const [requested, setRequested] = useState(false);
   const [loading, setLoading] = useState(false);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const userEmail = user?.email || "your email";
 
   const handleRequest = () => {
     setLoading(true);
@@ -240,9 +242,10 @@ export default function AccountPending() {
               </p>
 
               <div className="info-box">
+                
                 <div className="info-row">
-                  <span className="info-label">Email</span>
-                  <span className="info-value">alex@example.com</span>
+                  <span className="info-label">Account</span>
+                  <span className="info-value orange">{userEmail}</span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">Status</span>
@@ -293,7 +296,7 @@ export default function AccountPending() {
                   </svg>
                 </span>
                 <span className="notice-text">
-                  Confirmation sent to <strong>alex@example.com</strong>. Check your inbox — it may take a few minutes.
+                  Confirmation sent to {userEmail}. Check your inbox — it may take a few minutes.
                 </span>
               </div>
 

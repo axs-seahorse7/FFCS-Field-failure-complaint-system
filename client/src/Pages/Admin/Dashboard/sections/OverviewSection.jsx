@@ -1,5 +1,5 @@
 // sections/OverviewSection.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 
 //external libraries
@@ -1110,6 +1110,22 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
     };
   }
 
+
+function getComplaintPercentage(count, total, type) {
+  if (total === 0) {
+    return {
+      type,
+      count: 0,
+      percent: 0
+    };
+  }
+
+  return {
+    type,
+    count,
+    percent: Number(((count / total) * 100).toFixed(1))
+  };
+}
   /* ── KPI DATA — icons colored to match chart theme ── */
   const s = stats;
 
@@ -1126,7 +1142,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
       label: "Open Complaints",
       value: s?.current.open,
       prev: s?.previous.open,
-      trendData: getTrend(s?.current.open, s?.previous.open, "complaint"),
+      trendData: getComplaintPercentage(s?.current.open, s?.current.total, "complaint"),
       icon: "📂",
       color: "amber"
     },
@@ -1134,7 +1150,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
       label: "Resolved",
       value: s?.current.resolved,
       prev: s?.previous.resolved,
-      trendData: getTrend(s?.current.resolved, s?.previous.resolved, "production"),
+      trendData: getComplaintPercentage(s?.current.resolved, s?.current.total, "production"),
       icon: "✅",
       color: "green"
     },
@@ -1142,7 +1158,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
       label: "Backlog",
       value: s?.current.backlog,
       prev: s?.previous.backlog,
-      trendData: getTrend(s?.current.backlog, s?.previous.backlog, "complaint"),
+      trendData: getComplaintPercentage(s?.current.backlog, s?.current.total, "complaint"),
       icon: "📦",
       color: "purple"
     },
@@ -1164,6 +1180,10 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
     }
   ];
 
+  useEffect(() => {
+    console.log("Screen Re-render");
+    
+  }, []);
   /* ════════════════════════════════════════
      RENDER
   ════════════════════════════════════════ */

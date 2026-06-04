@@ -3,6 +3,9 @@ import Complaint from "../Database/models/Forms/complaint.model.js";
 import User from "../Database/models/User-Models/user.models.js";
 import Production from "../Database/models/Production/productions.model.js";
 import { uploadToS3, deleteFromS3 } from "../services/s3Service.js";
+import { getMonthKey }  from "../helpers/TIMEZONE/getTimeZone.js";
+
+import mongoose from "mongoose";
 
 /* ═══════════════════════════════════════════════════════
    HELPER — build date match from query params
@@ -52,78 +55,108 @@ export const getComplaints = async (req, res) => {
 };
 
 export const createComplaint = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     let imageUrl = null;
     let imageKey = null;
     let videoUrl = null;
     let videoKey = null;
-    
 
     try {
+      if (!req.files.image[0]) {
+      } else {
         const result = await uploadToS3(req.files.image[0]);
         imageUrl = result.url;
         imageKey = result.key;
-      
+      }
     } catch (err) {
       console.error("Image upload failed:", err.message);
     }
 
     try {
+      if (!req.files.video[0]) {
+      } else {
         const result = await uploadToS3(req.files.video[0]);
         videoUrl = result.url;
         videoKey = result.key;
-      
+      }
     } catch (err) {
       console.error("Video upload failed:", err.message);
     }
 
-
     // remove unwanted field
     const { image, video, ...rest } = req.body;
 
-    const complaint = await Complaint.create({
-      ...rest,
-      createdBy: req.user.userId,
-      imageUrl,
-      imageKey, // store this for deletion later
-      videoUrl,
-      videoKey, // store this for deletion later
-    });
+    const [complaint] = await Complaint.create(
+      [
+        {
+          ...rest,
+          createdBy: req.user.userId,
+          imageUrl,
+          imageKey,
+          videoUrl,
+          videoKey,
+        },
+      ],
+      { session }
+    );
 
-    await User.findByIdAndUpdate(req.user.userId, {
-      $inc: {
-        "stats.totalComplaints": 1,
-        "stats.pendingComplaints": 1,
+    const month = complaint.complaintDate || new Date();
+    const rawDate = new Date(month);
+
+    const monthKey = getMonthKey(rawDate);
+
+    const plantLocation = complaint.manufacturingPlant || "Unknown";
+    const location = plantLocation.includes("Supa") ? "Supa" : "Bhiwadi";
+
+    await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        $inc: {
+          "stats.totalComplaints": 1,
+          "stats.pendingComplaints": 1,
+        },
       },
-    });
+      { session }
+    );
 
-      try {
-        await Production.findOneAndUpdate(
-          {
-            customer: complaint.customerName.trim(),
-            commodity: complaint.commodity.trim(),
-            month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    try {
+      await Production.findOneAndUpdate(
+        {
+          customer: complaint.customerName.trim(),
+          location,
+          month: monthKey,
+        },
+        {
+          $inc: { fieldComplaint: 1 },
+          $setOnInsert: {
+            location,
           },
-          {
-            $inc: { fieldComplaint: 1 },
-          },
-          { upsert: true }
-        );
-      } catch (err) {
-        console.error("Production update failed:", err.message);
-      }
+        },
+        { upsert: true, session }
+      );
+    } catch (err) {
+      console.error("Production update failed:", err.message);
+    }
 
-   return res.status(200).json({
+    await session.commitTransaction();
+
+    return res.status(200).json({
       success: true,
       data: complaint,
       message: "Complaint created successfully",
     });
-
   } catch (err) {
+    await session.abortTransaction();
     console.error("Error creating complaint:", err);
-   return res.status(500).json({ message: "Something went wrong" });
+    return res.status(500).json({ message: "Something went wrong" });
+  } finally {
+    session.endSession();
   }
-}; 
+};
+
 
 export const getComplaintById = async (req, res) => {
   try {
@@ -258,7 +291,7 @@ export const updateComplaintStatus = async (req, res) => {
     const imageFile = req.files?.image?.[0];
     const videoFile = req.files?.video?.[0];
 
-    // 🖼️ Upload after-resolution image
+    //  Upload after-resolution image
     if (imageFile) {
       try {
         if (afterImageKey) {
@@ -273,7 +306,7 @@ export const updateComplaintStatus = async (req, res) => {
       }
     }
 
-    // 🎥 Upload after-resolution video
+    //  Upload after-resolution video
     if (videoFile) {
       try {
         if (afterVideoKey) {
@@ -295,7 +328,7 @@ export const updateComplaintStatus = async (req, res) => {
     complaint.updatedBy = req.user.userId;
     complaint.updatedAt = new Date();
 
-    // ✅ Save after-resolution files
+    // Save after-resolution files
     complaint.afterResolutionImageUrl = afterImageUrl;
     complaint.afterResolutionImageKey = afterImageKey;
     complaint.afterResolutionVideoUrl = afterVideoUrl;

@@ -10,7 +10,16 @@ import axios from "axios";
 const CUSTOMERS = [
   "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL",
   "HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG","LG","WHIRLPOOL",
-  "DAIKIN","HITACHI","PANASONIC","CARRIER","OTHER",
+  "DAIKIN","HITACHI","PANASONIC","CARRIER",
+  "ACCERPURE", 
+  "BLACK+DECKER",
+  "TCL",
+  "CELLECOR",
+  "T-SERIES",
+  "INTEX",
+  "HITACHI",
+  "OTHER",
+  "EXPORT"
 ];
 
 const DEFECT_CATEGORIES = [
@@ -918,7 +927,7 @@ export default function ComplaintForm({ userEmail }) {
                   <Field label="Part Model">
                     <Input value={form.partModel} onChange={set("partModel")} placeholder="e.g. PCB-V2-18K" />
                   </Field>
-                  <Field label="Mfg. Plant">
+                  <Field label="Mfg. Plant Location">
                     <Select value={form.manufacturingPlant} onChange={set("manufacturingPlant")} options={MANUFACTURING_PLANTS} placeholder="Select plant…" />
                   </Field>
                   <Field label="Mfg. Date">

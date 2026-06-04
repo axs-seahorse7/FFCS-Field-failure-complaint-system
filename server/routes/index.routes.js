@@ -102,21 +102,32 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
 
     // Final query
     const query = conditions.length ? { $and: conditions } : {};
-
+    console.log("Constructed Query:", JSON.stringify(query));
     //  Execute queries
     const [complaints, total, totalOpen, totalPending, totalResolved] = await Promise.all([
-      Complaint.find(query)
-        .populate("createdBy", "email")
-        .sort({ status: 1, createdAt: -1 })
-        .skip(skip)
-        .limit(safeLimit)
-        .lean(),
+        Complaint.find(query)
+          .populate("createdBy", "email")
+          .sort({ status: 1, createdAt: -1 })
+          .skip(skip)
+          .limit(safeLimit)
+          .lean(),
 
-      Complaint.countDocuments({ status:   { $in: ["Open", "Active", "Pending", "Resolved"] } }),
-      Complaint.countDocuments({ status:  "Open"     }),
-      Complaint.countDocuments({ status:  "Pending"  }),
-      Complaint.countDocuments({ status:  "Resolved" })
-    ]);
+        Complaint.countDocuments(query),
+        Complaint.countDocuments({
+          ...query,
+          status: "Open"
+        }),
+
+        Complaint.countDocuments({
+          ...query,
+          status: "Pending"
+        }),
+
+        Complaint.countDocuments({
+          ...query,
+          status: "Resolved"
+        })
+      ]);
 
     return res.status(200).json({
       success: true,
@@ -240,7 +251,7 @@ router.put("/production/:id", isAuthenticated, async (req, res) => {
         await record.save();
 
         res.status(200).json({
-            message: "Complaints updated (snapshot preserved)",
+            message: "Production updated (snapshot preserved)",
             success: true
         });
 

@@ -1,13 +1,12 @@
 // controllers/production.controller.js
 import Production from "../Database/models/Production/productions.model.js";
-
+import {getMonthKey} from "../helpers/TIMEZONE/getTimeZone.js";
 /* ═══════════════════════════════════════════════════════
    POST /production/create
    Body: { customer, commodity, month, production, fieldComplaint, warrantyComplaint }
 ═══════════════════════════════════════════════════════ */
 export const createProduction = async (req, res) => {
   try {
-    console.log("Received production data:", req.body);
     const {
       customer,
       location,
@@ -27,19 +26,24 @@ export const createProduction = async (req, res) => {
     }
 
     const rawDate = new Date(month);
+    const monthKey = getMonthKey(rawDate);
 
-      // Convert to PURE UTC month start
-    const monthStart = new Date(Date.UTC(
-      rawDate.getUTCFullYear(),
-      rawDate.getUTCMonth(),
-      1
-    ));
+    const existing = await Production.findOne({
+      customer,
+      month: monthKey,
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        message: "Production already exist for this customer and month."
+      });
+    }
 
     //  Your schema already has UNIQUE index → no need manual duplicate check
     const record = await Production.create({
       customer,
       location,
-      month: monthStart,
+      month: monthKey,
       idu: Number(idu || 0),
       odu: Number(odu || 0),
       wac: Number(wac || 0),
@@ -141,7 +145,7 @@ export const updateProduction = async (req, res) => {
       return res.status(404).json({ message: "Record not found" });
     }
 
-    // ✅ Update ONLY raw inputs
+    //  Update ONLY raw inputs
     if (idu != null) record.idu = Number(idu);
     if (odu != null) record.odu = Number(odu);
     if (wac != null) record.wac = Number(wac);
@@ -159,20 +163,17 @@ export const updateProduction = async (req, res) => {
       const rawDate = new Date(month);
 
       // Convert to PURE UTC month start
-      const m = new Date(Date.UTC(
-        rawDate.getUTCFullYear(),
-        rawDate.getUTCMonth(),
-        1
-      ));
+      const m = getMonthKey(rawDate);
       record.month = m;
     }
 
-    // ✅ This triggers your pre-save hook
+    //  This triggers your pre-save hook
     await record.save();
 
     return res.json({ data: record });
 
   } catch (err) {
+    console.log("Error:", err);
     if (err.code === 11000) {
       return res.status(409).json({
         message: "Duplicate entry for this customer, location, and month."
@@ -258,8 +259,8 @@ export const getProductionByCustomer = async (req, res) => {
     if (commodity) match.commodity = commodity;
     if (year) {
       match.month = {
-        $gte: new Date(`${year}-01-01`),
-        $lte: new Date(`${year}-12-31T23:59:59.999Z`),
+        $gte: getMonthKey(new Date(`${year}-01-01`)),
+        $lte: getMonthKey(new Date(`${year}-12-31T23:59:59.999Z`)),
       };
     }
 

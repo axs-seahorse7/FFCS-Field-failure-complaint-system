@@ -714,7 +714,13 @@ function SearchInput({ value, onChange }) {
 /* ─────────────────────────────────────────
    CUSTOMER FILTER SELECT
 ───────────────────────────────────────── */
-const CUSTOMERS = ["GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG","LG","WHIRLPOOL","DAIKIN","HITACHI","PANASONIC","CARRIER","OTHER"];
+const CUSTOMERS = [
+  "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA",
+  "BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG",
+  "LG","WHIRLPOOL","DAIKIN","HITACHI","PANASONIC","CARRIER",
+  "ACCERPURE",  "BLACK+DECKER", "TCL","CELLECOR","T-SERIES", 
+  "INTEX", "HITACHI", "OTHER", "EXPORT",
+];
 
 function CustomerSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);

@@ -17,10 +17,13 @@ const { Option } = Select;
 
 /* ── Constants ── */
 const CUSTOMERS = [
-  "CMI","VOLTAS","AMSTRAD","BLUE STAR","GODREJ","ONIDA",
-  "LLOYD","WHIRLPOOL","HYUNDAI","KELVIN","ATOR","BPL",
-  "CROMA","HAIER","CARRIER","SANSUI","MARQ",
+  "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA",
+  "BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG",
+  "LG","WHIRLPOOL","DAIKIN","HITACHI","PANASONIC","CARRIER",
+  "ACCERPURE",  "BLACK+DECKER", "TCL","CELLECOR","T-SERIES", 
+  "INTEX", "HITACHI", "OTHER", "EXPORT",
 ];
+
 const LOCATIONS = ["Bhiwadi", "Supa"];
 
 /* ─────────────────────────────────────────
@@ -126,6 +129,12 @@ export default function ProductionEntryForm() {
     fieldComplaint: 0, warrantyComplaint: 0,
   };
 
+
+  const RESET_FIELDS = {
+    idu: 0, odu: 0, wac: 0,
+    fieldComplaint: 0, warrantyComplaint: 0,
+  };
+
   const [form,       setForm]       = useState(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [editingId,  setEditingId]  = useState(null);
@@ -176,7 +185,14 @@ export default function ProductionEntryForm() {
         warrantyComplaint: form.warrantyComplaint || 0,
       });
       message.success("Production record saved!");
-      setForm(EMPTY);
+      setForm(prev => ({
+        ...prev,
+        idu: 0,
+        odu: 0,
+        wac: 0,
+        fieldComplaint: 0,
+        warrantyComplaint: 0,
+      }));
       refetch();
     } catch (err) {
       message.error(err?.response?.data?.message || "Failed to save.");

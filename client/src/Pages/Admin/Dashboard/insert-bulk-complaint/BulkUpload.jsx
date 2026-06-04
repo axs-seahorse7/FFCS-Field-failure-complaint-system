@@ -17,15 +17,52 @@ export default function BulkUpload() {
       formData.append("file", file);
 
       try {
-        const res = await axios.post(`${baseUri}/bulk-upload`, formData);
-        message.success(`Uploaded: ${res.data.inserted}`);
-        onSuccess(res.data);
+        const res = await axios.post(`${baseUri}/bulk-upload`, formData, {
+          // Tell axios to treat any response body as a raw binary blob
+          responseType: "blob",
+        });
+
+        const contentType = res.headers["content-type"] || "";
+
+        // Server returned a failed-rows xlsx (HTTP 207)
+        if (contentType.includes("spreadsheetml") || res.status === 207) {
+          const inserted = res.headers["x-inserted-count"] ?? "?";
+          const failedCount = res.headers["x-failed-count"] ?? "?";
+
+          // Trigger browser download
+          const url = window.URL.createObjectURL(new Blob([res.data]));
+          const link = document.createElement("a");
+          link.href = url;
+
+          // Pull filename from Content-Disposition if available, else use a fallback
+          const disposition = res.headers["content-disposition"] || "";
+          const match = disposition.match(/filename="?([^"]+)"?/);
+          link.download = match ? match[1] : "failed_rows.xlsx";
+
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+
+          message.warning(
+            `Inserted: ${inserted} rows. ${failedCount} rows failed — check the downloaded file, fix and re-upload.`
+          );
+          onSuccess(res.data);
+          return;
+        }
+
+        // Normal JSON success path — parse the blob back to JSON
+        const text = await res.data.text();
+        const json = JSON.parse(text);
+        message.success(`Uploaded: ${json.inserted} rows successfully`);
+        onSuccess(json);
       } catch (err) {
         message.error("Upload failed");
         onError(err);
       }
     },
   };
+
 
   return (
     <Card title="Bulk Complaint Upload">
