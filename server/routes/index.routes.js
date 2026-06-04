@@ -54,7 +54,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     const canManage = user.isSystemRole || permissions.includes("manage");
 
     //  Query params
-    const { search, status, customerName, page = 1, limit = 50 } = req.query;
+    const { search, status, customerName, page = 1, limit = 50, from, to } = req.query;
 
     const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 50));
     const safePage = Math.max(1, Number(page) || 1);
@@ -100,6 +100,16 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       conditions.push({ customerName: regex });
     }
 
+    // Date range filter
+    if (from && to) {
+      conditions.push({
+        complaintDate: {
+          $gte: new Date(from),
+          $lte: new Date(to)
+        }
+      });
+    }
+
     // Final query
     const query = conditions.length ? { $and: conditions } : {};
     console.log("Constructed Query:", JSON.stringify(query));
@@ -107,7 +117,7 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     const [complaints, total, totalOpen, totalPending, totalResolved] = await Promise.all([
         Complaint.find(query)
           .populate("createdBy", "email")
-          .sort({ status: 1, createdAt: -1 })
+          .sort({ status: 1, complaintDate: -1 })
           .skip(skip)
           .limit(safeLimit)
           .lean(),
@@ -170,7 +180,7 @@ router.get("/get-complaints/by-access", isAuthenticated, async (req, res) => {
 
     const complaints = await Complaint.find(query)
       .populate("createdBy", "email")
-      .sort({ status: 1, createdAt: -1 })
+      .sort({ status: 1, complaintDate: -1 })
       .limit(50)
       .lean();
 

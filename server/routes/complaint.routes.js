@@ -7,7 +7,7 @@ import {
   getWeeklyTrend, getByStatus, getCategoryVsPart,
   getCustomerVsStatus, getCustomerVsCategory,
   getByDoa, getByCommodity, getCommodityVsCategory,
-  getByReplacement, getByCreatedUser, getByUpdatedUser, getAging, getProductionStats,
+  getByReplacement, getByCreatedUser, getByUpdatedUser, getAging, getProductionStats,  downloadComplaints
 } from "../controlers/complaint.controller.js";
 import {isAuthenticated} from "../middleware/Authentication/isAuthenticated.js";
 import multer from "multer";
@@ -20,6 +20,7 @@ const router = express.Router();
 
 const uploads = multer({ storage: multer.memoryStorage() });
 router.post("/bulk-upload", uploads.single("file"), bulkUploadComplaints);
+router.get("/complaints/download", isAuthenticated, downloadComplaints);
 
 
 /* ── User ── */

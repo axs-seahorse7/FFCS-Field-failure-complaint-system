@@ -1,6 +1,6 @@
 // sections/ManageSection.jsx
 import { useState, useEffect, useRef } from "react";
-import { Table, Popconfirm, Tooltip, message } from "antd";
+import { Table, Popconfirm, Tooltip, message, Button } from "antd";
 import SectionCard from "../components/SectionCard";
 import StatusBadge from "../components/StatusBadge";
 import DrilldownModal from "./DrilldownModal.jsx";
@@ -8,7 +8,10 @@ import api from "../../../../services/axios-interceptore/api";
 import { useApiQuery } from "../components/useApiQuery.js";
 import { fmtNum, fmtDate } from "../components/utils";
  import { Image, Modal } from "antd";
- import { DeleteOutlined } from "@ant-design/icons";
+ import { DeleteOutlined, DownloadOutlined } from "@ant-design/icons";
+ import DownloadButton from "../components/DownloadButton.jsx";
+
+ import {useOutletContext} from "react-router-dom";
 
 
 /* ─────────────────────────────────────────
@@ -674,7 +677,7 @@ function StatPill({ label, count, color, active, onClick }) {
 function SearchInput({ value, onChange }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div style={{ position: "relative", flex: "1 1 200px", maxWidth: 300 }}>
+    <div style={{ position: "relative", flex: "1 1 200px", width: 400 }}>
       <div style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
         <svg width="14" height="14" fill="none" stroke={focused ? T.blue : T.gray3} strokeWidth="2" viewBox="0 0 24 24">
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
@@ -871,9 +874,10 @@ export default function ManageSection({ addToast }) {
   const [selected, setSelected]   = useState(null);
   const [previewImg, setPreviewImg] = useState(null);
   const [videoModal, setVideoModal] = useState(null);
+  const {filters} = useOutletContext();
 
   // Status change modal state
-  const [statusModal, setStatusModal] = useState(null); // { complaint, targetStatus }
+  const [statusModal, setStatusModal] = useState(null); 
   const [statusLoading, setStatusLoading] = useState(false);
 
   // Delete modal state
@@ -881,9 +885,13 @@ export default function ManageSection({ addToast }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { data, isLoading, refetch } = useApiQuery("/get-complaints",
-    { page, limit: pageSize, search, status: statusFilter, customerName: custFilter },
+    { page, limit: pageSize, search, status: statusFilter, customerName: custFilter, from: filters?.from, to: filters?.to },
     { onError: () => addToast?.("Failed to load complaints", "error") }
   );
+
+  useEffect(() => {
+    refetch();
+  }, [filters?.from, filters?.to]);
 
 
   const user = JSON.parse(localStorage.getItem("User") || "{}");
@@ -1231,7 +1239,6 @@ const columns = [
       `}</style>
 
       <div className="manage-root" style={{ display: "flex", flexDirection: "column", gap: 14, animation: "fadeUp 0.35s ease both" }}>
-
         {/* ── Status Pills ── */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <StatPill
@@ -1253,44 +1260,47 @@ const columns = [
         </div>
 
 
-        {/* ── Filters Row ── */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
-          <CustomerSelect value={custFilter} onChange={(v) => { setCust(v); setPage(1); }} />
+       <div className="flex items-center justify-between gap-2 flex-wrap">
 
-          {/* Refresh */}
-          <button onClick={refetch} style={{
-            display: "flex", alignItems: "center", gap: 7,
-            padding: "8px 16px", borderRadius: 11,
-            background: "rgba(255,255,255,0.7)", border: `1.5px solid ${T.gray5}`,
-            fontSize: 12, fontWeight: 700, color: T.label2,
-            cursor: "pointer", transition: "all 0.15s",
-            backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-          }}>
-            <svg width="13" height="13" fill="none" stroke={T.label2} strokeWidth="2.2" viewBox="0 0 24 24" style={{ animation: isLoading ? "spin 0.8s linear infinite" : "none" }}>
-              <path d="M3 12a9 9 0 019-9 9 9 0 016.36 2.64" strokeLinecap="round"/>
-              <polyline points="21 3 15 3 15 9" strokeLinecap="round"/>
-            </svg>
-            Refresh
-          </button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
+            <CustomerSelect value={custFilter} onChange={(v) => { setCust(v); setPage(1); }} />
 
-          {/* Active filter indicator */}
-          {(search || statusFilter || custFilter) && (
-            <button
-              onClick={() => { setSearch(""); setStatus(""); setCust(""); setPage(1); }}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                padding: "8px 14px", borderRadius: 11,
-                background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)",
-                fontSize: 12, fontWeight: 700, color: T.red, cursor: "pointer",
-              }}>
-              <svg width="10" height="10" fill="none" stroke={T.red} strokeWidth="2.5" viewBox="0 0 24 24">
-                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+            {/* Refresh */}
+            <button onClick={refetch} style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "8px 16px", borderRadius: 11,
+              background: "rgba(255,255,255,0.7)", border: `1.5px solid ${T.gray5}`,
+              fontSize: 12, fontWeight: 700, color: T.label2,
+              cursor: "pointer", transition: "all 0.15s",
+              backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+            }}>
+              <svg width="13" height="13" fill="none" stroke={T.label2} strokeWidth="2.2" viewBox="0 0 24 24" style={{ animation: isLoading ? "spin 0.8s linear infinite" : "none" }}>
+                <path d="M3 12a9 9 0 019-9 9 9 0 016.36 2.64" strokeLinecap="round"/>
+                <polyline points="21 3 15 3 15 9" strokeLinecap="round"/>
               </svg>
-              Clear filters
+              Refresh
             </button>
-          )}
-        </div>
+
+            {/* Active filter indicator */}
+            {(search || statusFilter || custFilter) && (
+              <button
+                onClick={() => { setSearch(""); setStatus(""); setCust(""); setPage(1); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "8px 14px", borderRadius: 11,
+                  background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)",
+                  fontSize: 12, fontWeight: 700, color: T.red, cursor: "pointer",
+                }}>
+                <svg width="10" height="10" fill="none" stroke={T.red} strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+                </svg>
+                Clear filters
+              </button>
+            )}
+          </div>
+              <DownloadButton filter={{from: filters.from, to: filters.to, customer: custFilter}} totalRecords={total} />   
+        </div> 
 
         {/* ── Table Card ── */}
         <div style={{
@@ -1347,7 +1357,6 @@ const columns = [
             }}
             onChange={(p) => { setPage(p.current); setPageSize(p.pageSize); }}
             scroll={{ x: 1600, y: 470 }}
-            // style={{ fontSize: 11 }}
             onRow={() => ({
             style: { fontSize: 11 },
           })}

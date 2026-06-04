@@ -6,6 +6,8 @@ import { uploadToS3, deleteFromS3 } from "../services/s3Service.js";
 import { getMonthKey }  from "../helpers/TIMEZONE/getTimeZone.js";
 
 import mongoose from "mongoose";
+import ExcelJS from "exceljs";
+
 
 /* ═══════════════════════════════════════════════════════
    HELPER — build date match from query params
@@ -1268,5 +1270,202 @@ export const getByUpdatedUser = async (req, res) => {
     return res.json({ data: raw.map(r => ({ ...r, email: r.email || "Unknown" })) });
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+
+export const downloadComplaints = async (req, res) => {
+  try {
+    const { startDate, endDate, customer } = req.query;
+
+    console.log("Download request:", { startDate, endDate, customer });
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "startDate and endDate are required" });
+    }
+
+    const start = new Date(startDate);
+    const end   = new Date(endDate);
+
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
+    const complaints = await Complaint.find({
+      complaintDate: { $gte: start, $lte: end },
+      customerName: customer || { $exists: true, $ne: null },
+    })
+      .sort({ complaintDate: -1 })
+      .lean();
+
+    // ── Workbook setup ──────────────────────────────────────────────────
+    const workbook  = new ExcelJS.Workbook();
+    workbook.creator = "PG Group FFS";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Complaints", {
+      views: [{ state: "frozen", ySplit: 1 }],
+    });
+
+    // ── Column definitions ──────────────────────────────────────────────
+    ws.columns = [
+      { header: "Complaint No",         key: "complaintNo",        width: 22 },
+      { header: "Complaint Date",       key: "complaintDate",      width: 16 },
+      { header: "Customer Name",        key: "customerName",       width: 18 },
+      { header: "Commodity",            key: "commodity",          width: 10 },
+      { header: "Model Name",           key: "modelName",          width: 18 },
+      { header: "Serial No",            key: "serialNo",           width: 16 },
+      { header: "Part No",              key: "partNo",             width: 16 },
+      { header: "Part Model",           key: "partModel",          width: 16 },
+      { header: "Purchase Date",        key: "purchaseDate",       width: 16 },
+      { header: "DOA",                  key: "doa",                width: 10 },
+      { header: "Defect Category",      key: "defectCategory",     width: 28 },
+      { header: "Defective Part",       key: "defectivePart",      width: 22 },
+      { header: "Symptom",              key: "symptom",            width: 20 },
+      { header: "Defect Details",       key: "defectDetails",      width: 36 },
+      { header: "Status",               key: "status",             width: 12 },
+      { header: "Manufacturing Plant",  key: "manufacturingPlant", width: 20 },
+      { header: "Manufacturing Date",   key: "manufacturingDate",  width: 18 },
+      { header: "City",                 key: "city",               width: 14 },
+      { header: "State",                key: "state",              width: 14 },
+      { header: "Replacement Category", key: "replacementCategory",width: 22 },
+      { header: "Data Base",            key: "dataBase",           width: 14 },
+      { header: "Remarks",              key: "remarks",            width: 28 },
+      { header: "Resolved Date",        key: "resolvedDate",       width: 16 },
+      { header: "Created At",           key: "createdAt",          width: 18 },
+    ];
+
+    // ── Header row styling ──────────────────────────────────────────────
+    const headerRow = ws.getRow(1);
+    headerRow.height = 28;
+    headerRow.eachCell((cell) => {
+      cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, name: "Arial", size: 10 };
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+      cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+      cell.border    = {
+        top:    { style: "thin", color: { argb: "FF94A3B8" } },
+        bottom: { style: "thin", color: { argb: "FF94A3B8" } },
+        left:   { style: "thin", color: { argb: "FF94A3B8" } },
+        right:  { style: "thin", color: { argb: "FF94A3B8" } },
+      };
+    });
+
+    // ── Status fill colors ──────────────────────────────────────────────
+    const STATUS_COLORS = {
+      Open:     "FFFEF9C3", // yellow
+      Pending:  "FFFDE8D8", // orange
+      Resolved: "FFD1FAE5", // green
+      Closed:   "FFE0E7FF", // indigo
+    };
+
+    const formatDate = (d) =>
+      d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "";
+
+    // ── Data rows ───────────────────────────────────────────────────────
+    complaints.forEach((c, i) => {
+      const row = ws.addRow({
+        complaintNo:        c.complaintNo        || "",
+        complaintDate:      formatDate(c.complaintDate),
+        customerName:       c.customerName       || "",
+        commodity:          c.commodity          || "",
+        modelName:          c.modelName          || "",
+        serialNo:           c.serialNo           || "",
+        partNo:             c.partNo             || "",
+        partModel:          c.partModel          || "",
+        purchaseDate:       formatDate(c.purchaseDate),
+        doa:                c.doa                || "",
+        defectCategory:     c.defectCategory     || "",
+        defectivePart:      c.defectivePart      || "",
+        symptom:            c.symptom            || "",
+        defectDetails:      c.defectDetails      || "",
+        status:             c.status             || "",
+        manufacturingPlant: c.manufacturingPlant || "",
+        manufacturingDate:  formatDate(c.manufacturingDate),
+        city:               c.city               || "",
+        state:              c.state              || "",
+        replacementCategory:c.replacementCategory|| "",
+        dataBase:           c.dataBase           || "",
+        remarks:            c.remarks            || "",
+        resolvedDate:       formatDate(c.resolvedDate),
+        createdAt:          formatDate(c.createdAt),
+      });
+
+      // Alternating row background
+      const rowBg = i % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC";
+
+      row.height = 18;
+      row.eachCell((cell) => {
+        cell.font      = { name: "Arial", size: 9 };
+        cell.alignment = { vertical: "middle", horizontal: "left" };
+        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+        cell.border    = {
+          top:    { style: "hair", color: { argb: "FFE2E8F0" } },
+          bottom: { style: "hair", color: { argb: "FFE2E8F0" } },
+          left:   { style: "hair", color: { argb: "FFE2E8F0" } },
+          right:  { style: "hair", color: { argb: "FFE2E8F0" } },
+        };
+      });
+
+      // Color the Status cell specifically
+      const statusCell = row.getCell("status");
+      const statusColor = STATUS_COLORS[c.status] || "FFFFFFFF";
+      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: statusColor } };
+      statusCell.font = { name: "Arial", size: 9, bold: true };
+      statusCell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+
+    // ── Summary sheet ───────────────────────────────────────────────────
+    const summary = workbook.addWorksheet("Summary");
+    summary.columns = [
+      { key: "label", width: 26 },
+      { key: "value", width: 20 },
+    ];
+
+    const dateStr = (d) => new Date(d).toLocaleDateString("en-IN");
+
+    const summaryData = [
+      ["Report Period",    `${dateStr(start)} – ${dateStr(end)}`],
+      ["Total Complaints", complaints.length],
+      ["Open",             complaints.filter((c) => c.status === "Open").length],
+      ["Pending",          complaints.filter((c) => c.status === "Pending").length],
+      ["Resolved",         complaints.filter((c) => c.status === "Resolved").length],
+      ["Closed",           complaints.filter((c) => c.status === "Closed").length],
+      ["Generated On",     new Date().toLocaleDateString("en-IN")],
+    ];
+
+    summaryData.forEach(([label, value], i) => {
+      const row = summary.addRow({ label, value });
+      row.height = 22;
+      const labelCell = row.getCell("label");
+      const valueCell = row.getCell("value");
+      labelCell.font      = { bold: true, name: "Arial", size: 10 };
+      valueCell.font      = { name: "Arial", size: 10 };
+      labelCell.alignment = { vertical: "middle" };
+      valueCell.alignment = { vertical: "middle" };
+
+      const bg = i === 0 ? "FF1E293B" : i % 2 === 0 ? "FFF1F5F9" : "FFFFFFFF";
+      const fg = i === 0 ? "FFFFFFFF" : "FF1E293B";
+      [labelCell, valueCell].forEach((cell) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+        cell.font = { ...cell.font, color: { argb: fg } };
+      });
+    });
+
+    // ── Stream response ─────────────────────────────────────────────────
+    const startFmt = start.toISOString().slice(0, 10).replace(/-/g, "");
+    const endFmt   = end.toISOString().slice(0, 10).replace(/-/g, "");
+    const filename  = `complaints_${startFmt}_${endFmt}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).json({ message: "Failed to generate report" });
   }
 };
