@@ -14,7 +14,7 @@ import {
   UserOutlined, LockOutlined, UnlockOutlined,
 } from "@ant-design/icons";
 
-
+import { useUser } from "../../../../Global/Context/User-Context/UserContext.jsx";
 import api from "../../../../services/axios-interceptore/api.js";
 import { fmtNum, fmtDate, fmtDT } from "../components/utils";
 
@@ -599,9 +599,8 @@ export default function UsersSection({ addToast }) {
   const [viewRolesModal, setViewRolesModal]   = useState(false);
 
   // Current logged-in user
-  const loggedUser = (() => {
-    try { return JSON.parse(localStorage.getItem("User") || "{}"); } catch { return {}; }
-  })();
+  const {user} = useUser();
+  const loggedUser = user || {};
   const canEdit   = loggedUser.isSystemRole || (loggedUser.roleId?.action || []).includes("edit");
   const canDelete = loggedUser.isSystemRole || (loggedUser.roleId?.action || []).includes("delete");
 

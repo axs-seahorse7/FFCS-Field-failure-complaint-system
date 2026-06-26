@@ -56,8 +56,6 @@ export default function DownloadButton({filter, totalRecords}) {
 
       message.destroy("download");
     } catch (err) {
-        console.log("server err:", err.res?.data?.message || "not from server");
-        console.error("Download failed:", err.message || err);
       if (err?.errorFields) return; // form validation — stay open
     } finally {
       setLoading(false);

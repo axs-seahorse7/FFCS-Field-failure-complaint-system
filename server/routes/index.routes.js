@@ -112,7 +112,6 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
 
     // Final query
     const query = conditions.length ? { $and: conditions } : {};
-    console.log("Constructed Query:", JSON.stringify(query));
     //  Execute queries
     const [complaints, total, totalOpen, totalPending, totalResolved] = await Promise.all([
         Complaint.find(query)

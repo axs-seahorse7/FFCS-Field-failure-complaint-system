@@ -1180,10 +1180,7 @@ function getComplaintPercentage(count, total, type) {
     }
   ];
 
-  useEffect(() => {
-    console.log("Screen Re-render");
-    
-  }, []);
+
   /* ════════════════════════════════════════
      RENDER
   ════════════════════════════════════════ */

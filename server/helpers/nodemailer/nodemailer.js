@@ -5,7 +5,7 @@ const getMailerConfig = () => {
 
 	if (isProduction) {
 		return {
-			host: process.env.SMTP_HOST ||process.env.SMTP_HOST_PROD || "smtp.gmail.com",
+			host: process.env.SMTP_HOST ||process.env.SMTP_HOST_PROD || "smtp.office365.com",
 			port: Number(process.env.SMTP_PORT_PROD || process.env.SMTP_PORT || 587),
 			secure: String(process.env.SMTP_SECURE_PROD || process.env.SMTP_SECURE || "false") === "true",
 			auth: {
@@ -46,7 +46,6 @@ const createTransporter = () => {
 export const sendEmail = async ({ to, subject, html }) => {
 	const transporter = createTransporter();
 	const { from } = getMailerConfig();
-	
 
 	const mailOptions = {
 		from,
@@ -55,7 +54,13 @@ export const sendEmail = async ({ to, subject, html }) => {
 		html
 	};
 
-	return transporter.sendMail(mailOptions);
+	// console.log("Sending mail with:", mailOptions);
+
+	const info = await transporter.sendMail(mailOptions);
+
+	console.log("MAIL RESULT:", info);
+
+	return info;
 };
 
 

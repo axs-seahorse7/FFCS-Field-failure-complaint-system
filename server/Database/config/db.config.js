@@ -6,7 +6,6 @@ const connectDB = async () => {
     let mongoURI;
 
     if (NODE_ENV === "production") {
-      // MongoDB Cloud (Atlas) connection for production
       mongoURI = process.env.MONGODB_CLOUD_URI;
       
       if (!mongoURI) {
@@ -15,9 +14,7 @@ const connectDB = async () => {
       
       console.log("Connecting to MongoDB Cloud (Production)...");
     } else {
-      // Local MongoDB connection for development
       mongoURI = process.env.MONGODB_LOCAL_URI || "mongodb://localhost:27017/fdr-react";
-      
       console.log("Connecting to Local MongoDB (Development)...");
     }
 

@@ -47,6 +47,7 @@ router.post("/login", async (req, res) => {
             html  
         });
 
+
         return res.status(200).json({
             message: "OTP sent successfully",
             email: emailInLower,
@@ -101,6 +102,7 @@ router.post("/verify-otp", async (req, res) => {
 
             await user.save();
 
+
             res.cookie("token", token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
@@ -124,7 +126,7 @@ router.post("/verify-otp", async (req, res) => {
             await user.save();
 
             return res.status(403).json({
-                message: "Account pending admin approval",
+                message: "We will review your account and get back to you shortly.",
                 success: false
             });
         }

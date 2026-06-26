@@ -653,6 +653,15 @@ export default function ComplaintForm({ userEmail }) {
     );
   }
 
+  const handleLogout = async () => {
+    try {
+      await api.post(`/auth/logout`,);
+      navigate("/", { replace: true });
+    } catch (err) {
+      message.error("Logout failed. Please try again.");
+    }
+  }
+
   return (
     <>
       <style>{`

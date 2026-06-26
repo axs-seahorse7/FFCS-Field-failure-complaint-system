@@ -16,7 +16,6 @@ import ExcelJS from "exceljs";
 ═══════════════════════════════════════════════════════ */
   function buildDateMatch(query) {
     const { from, to, customerName } = query; 
-    console.log("Building date match with query:", query);
 
     const match = {};
 
@@ -1273,9 +1272,6 @@ export const getByUpdatedUser = async (req, res) => {
   }
 };
 
-
-
-
 export const downloadComplaints = async (req, res) => {
   try {
     const { startDate, endDate, customer } = req.query;
@@ -1469,3 +1465,4 @@ export const downloadComplaints = async (req, res) => {
     res.status(500).json({ message: "Failed to generate report" });
   }
 };
+

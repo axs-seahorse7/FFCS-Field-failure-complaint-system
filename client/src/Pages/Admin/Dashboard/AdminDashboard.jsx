@@ -6,6 +6,7 @@ import Toast from "./components/Toast";
 import "./dashboard.css";
 import api from "../../../services/axios-interceptore/api";
 import dayjs from "dayjs";
+import {useUser} from "../../../Global/Context/User-Context/UserContext.jsx";
 
 
 // antd components
@@ -69,9 +70,10 @@ export default function AdminDashboard({ userEmail }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const user   = JSON.parse(localStorage.getItem("User") || "{}");
+  const {user}   = useUser();
   const active = location.pathname.split("/")[2] || "overview";
   const meta   = SECTION_META[active] || SECTION_META["overview"];
+
 
 
   const appliedFilters = useMemo(() => {
@@ -91,7 +93,6 @@ export default function AdminDashboard({ userEmail }) {
     };
   }, [dateRange, selectedYear, customer]);
 
-  // console.log("Applied Filters:", appliedFilters);
 
   const addToast = useCallback((msg, type = "success") => {
     const id = Date.now();
@@ -260,7 +261,7 @@ export default function AdminDashboard({ userEmail }) {
               <CalendarOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
 
               <RangePicker
-                picker="month"   // 👈 THIS enables Year + Month selection
+                picker="month"   
                 value={dateRange}
                 onChange={(val) => setDateRange(val)}
                 format="MMM YYYY"

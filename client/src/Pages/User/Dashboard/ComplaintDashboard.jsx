@@ -3,6 +3,7 @@ import { useLocation, useParams } from "react-router-dom";
 import api from "../../../services/axios-interceptore/api";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, Image, Modal } from "antd";
+import {useUser} from "../../../Global/Context/User-Context/UserContext.jsx";
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -162,7 +163,6 @@ function VideoModal({ videoKey, onClose }) {
 ───────────────────────────────────────── */
 function DetailDrawer({ complaint, onClose }) {
   const [visible, setVisible] = useState(false);
-  console.log("complaint", complaint)
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     const h = (e) => e.key === "Escape" && handleClose();
@@ -314,7 +314,7 @@ export default function ComplaintDashboard({ userEmail }) {
   const isEdit = state?.isEdit;
 
 
-  const user = JSON.parse(localStorage.getItem("User") || "{}");
+  const { user } = useUser();
 
   const fetchComplaints = useCallback(async () => {
     setLoading(true);

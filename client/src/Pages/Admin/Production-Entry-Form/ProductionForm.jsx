@@ -3,15 +3,18 @@ import { useState, useMemo, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   Select, DatePicker, InputNumber, Button, Table,
-  Tag, Popconfirm, message, Tooltip, Divider,
+  Tag, Popconfirm, message, Tooltip, Divider, Segmented, notification,
 } from "antd";
 import {
   PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined,
-  CloseOutlined, ReloadOutlined,
+  CloseOutlined, ReloadOutlined, FolderOutlined, ToolOutlined,
+  WarningOutlined, FallOutlined, BarChartOutlined, FilterOutlined,
+  ClearOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useApiQuery } from "../Dashboard/components/useApiQuery.js";
 import api from "../../../services/axios-interceptore/api.js";
+import {useUser} from "../../../Global/Context/User-Context/UserContext.jsx";
 
 const { Option } = Select;
 
@@ -25,6 +28,13 @@ const CUSTOMERS = [
 ];
 
 const LOCATIONS = ["Bhiwadi", "Supa"];
+
+/* ── Sticky offsets ── */
+const KPI_TOP = 55;
+const KPI_HEIGHT = 92;
+const FILTER_TOP = KPI_HEIGHT;
+const FILTER_HEIGHT = 56;
+const TABLE_STICKY_OFFSET = FILTER_TOP + FILTER_HEIGHT;
 
 /* ─────────────────────────────────────────
    CORE FORMULA  (universal, location-agnostic)
@@ -129,7 +139,6 @@ export default function ProductionEntryForm() {
     fieldComplaint: 0, warrantyComplaint: 0,
   };
 
-
   const RESET_FIELDS = {
     idu: 0, odu: 0, wac: 0,
     fieldComplaint: 0, warrantyComplaint: 0,
@@ -139,19 +148,55 @@ export default function ProductionEntryForm() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId,  setEditingId]  = useState(null);
   const [editRow,    setEditRow]    = useState({});
+  const [savingId,   setSavingId]   = useState(null);
 
-  const user      = JSON.parse(localStorage.getItem("User") || "{}");
+  /* ── Table filters ── */
+  const [filterMonth,    setFilterMonth]    = useState(null); // "YYYY-MM"
+  const [filterCustomer, setFilterCustomer] = useState(null);
+  const [filterLocation, setFilterLocation] = useState("All");
+
+  const {user}      = useUser();
   const canEdit   = user.isSystemRole || user.roleId?.action?.includes("edit");
   const canDelete = user.isSystemRole || user.roleId?.action?.includes("delete");
+  console.log("User :", user, "canEdit:", canEdit, "canDelete:", canDelete);
 
   /* ── API ── */
   const { data: records, loading, refetch } = useApiQuery(
-    `/production/list?year=${filters?.year || dayjs().year()}`
+    `/production/list?yearFrom=${dayjs().year() - 1}&yearTo=${dayjs().year()}`
   );
 
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))
   , [records]);
+
+  /* ── Filter option lists (derived from data) ── */
+  const monthOptions = useMemo(() => {
+    const map = new Map();
+    (records || []).forEach(r => {
+      const key = dayjs(r.month).format("YYYY-MM");
+      if (!map.has(key)) map.set(key, dayjs(r.month).format("MMM YYYY"));
+    });
+    return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [records]);
+
+  const customerOptions = useMemo(() =>
+    [...new Set((records || []).map(r => r.customer))].sort()
+  , [records]);
+
+  const hasActiveFilters = !!filterMonth || !!filterCustomer || filterLocation !== "All";
+
+  const clearFilters = () => {
+    setFilterMonth(null);
+    setFilterCustomer(null);
+    setFilterLocation("All");
+  };
+
+  const filteredRecords = useMemo(() => sortedRecords.filter(r => {
+    if (filterMonth && dayjs(r.month).format("YYYY-MM") !== filterMonth) return false;
+    if (filterCustomer && r.customer !== filterCustomer) return false;
+    if (filterLocation !== "All" && r.location !== filterLocation) return false;
+    return true;
+  }), [sortedRecords, filterMonth, filterCustomer, filterLocation]);
 
   /* ── Live derived values ── */
   const totalProduction  = useMemo(() => calcTotal(form.idu, form.odu, form.wac), [form.idu, form.odu, form.wac]);
@@ -164,7 +209,7 @@ export default function ProductionEntryForm() {
 
   /* ── Submit ── */
   const handleSubmit = async () => {
-    if (!isFormValid) { message.warning("Please fill all required fields."); return; }
+    if (!isFormValid) { notification.warning({ message: "Validation Error", description: "Please fill all required fields." }); return; }
     setSubmitting(true);
     try {
       const date = form.month;
@@ -184,7 +229,10 @@ export default function ProductionEntryForm() {
         fieldComplaint: form.fieldComplaint || 0,
         warrantyComplaint: form.warrantyComplaint || 0,
       });
-      message.success("Production record saved!");
+      notification.success({
+        message: "Production record saved",
+        description: "Data saved successfully",
+      });
       setForm(prev => ({
         ...prev,
         idu: 0,
@@ -195,7 +243,10 @@ export default function ProductionEntryForm() {
       }));
       refetch();
     } catch (err) {
-      message.error(err?.response?.data?.message || "Failed to save.");
+      notification.error({
+        message: "Failed to save",
+        description: err?.response?.data?.message || "Please try again."
+      });
     } finally {
       setSubmitting(false);
     }
@@ -205,33 +256,56 @@ export default function ProductionEntryForm() {
   const handleDelete = async (id) => {
     try {
       await api.post("/production/delete", { id });
-      message.success("Record deleted");
+      notification.success({
+        message: "Record deleted",
+        description: "Data deleted successfully",
+      });
       refetch();
-    } catch { message.error("Delete failed"); }
+    } catch (err) {
+      notification.error({
+        message: "Delete failed",
+        description: err?.response?.data?.message || "Please try again."
+      });
+    }
   };
 
+  
+  const LOCATION_EDIT_DISABLED = user.isSystemAdmin;
   /* ── Inline edit ── */
   const startEdit = (r) => {
     setEditingId(r._id);
     setEditRow({
+      location: r.location,
       idu: r.idu || 0, odu: r.odu || 0, wac: r.wac || 0,
       fieldComplaint: r.fieldComplaint || 0,
       warrantyComplaint: r.warrantyComplaint || 0,
     });
   };
+
   const cancelEdit = () => { setEditingId(null); setEditRow({}); };
+  
   const saveEdit   = async (id) => {
     const prod = calcTotal(editRow.idu, editRow.odu, editRow.wac);
     const tc   = (editRow.fieldComplaint || 0) + (editRow.warrantyComplaint || 0);
+    setSavingId(id);
     try {
       await api.post("/production/update", {
         id, ...editRow,
         production: prod, totalComplaint: tc,
       });
-      message.success("Updated");
+      notification.success({
+        message: "Production record updated",
+        description: "Data saved successfully",
+      });
       setEditingId(null);
       refetch();
-    } catch { message.error("Update failed"); }
+    } catch (err) {
+      notification.error({
+        message: "Update failed",
+        description: err?.response?.data?.message || "Could not save changes. Please try again.",
+      });
+    }
+    finally { setSavingId(null); }
   };
 
   /* ── Summary KPIs ── */
@@ -257,6 +331,7 @@ export default function ProductionEntryForm() {
   const editableNum = (key, r, color) => editingId === r._id ? (
     <InputNumber
       size="small" value={editRow[key]} min={0} style={{ width: 80 }}
+      disabled={savingId === r._id}
       onChange={val => setEditRow(e => ({ ...e, [key]: val || 0 }))}
     />
   ) : numCell(r[key], color);
@@ -268,8 +343,18 @@ export default function ProductionEntryForm() {
       sorter: (a, b) => new Date(a.month) - new Date(b.month),
     },
     {
-      title: "Location", dataIndex: "location", key: "location", width: 90,
-      render: v => (
+      title: "Location", dataIndex: "location", key: "location", width: 110,
+      render: (v, r) => editingId === r._id ? (
+        <Select
+          size="small"
+          value={editRow.location}
+          disabled={savingId === r._id || LOCATION_EDIT_DISABLED}
+          style={{ width: 95 }}
+          onChange={val => setEditRow(e => ({ ...e, location: val }))}
+        >
+          {LOCATIONS.map(l => <Option key={l} value={l}>{l}</Option>)}
+        </Select>
+      ) : (
         <Tag style={{
           borderRadius: 6, fontSize: 11, fontWeight: 700,
           background: v === "Bhiwadi" ? "#eff6ff" : "#f0fdf4",
@@ -336,11 +421,18 @@ export default function ProductionEntryForm() {
       title: "Actions", key: "actions", width: 105, fixed: "right",
       render: (_, r) => editingId === r._id ? (
         <div style={{ display: "flex", gap: 4 }}>
-          <Button type="primary" size="small" icon={<SaveOutlined />} onClick={() => saveEdit(r._id)}
+          <Button
+            type="primary" size="small"
+            icon={savingId === r._id ? null : <SaveOutlined />}
+            loading={savingId === r._id}
+            onClick={() => saveEdit(r._id)}
             style={{ background: "#22c55e", borderColor: "#22c55e", borderRadius: 6, fontSize: 11 }}>
             Save
           </Button>
-          <Button size="small" icon={<CloseOutlined />} onClick={cancelEdit} style={{ borderRadius: 6, fontSize: 11 }}>
+          <Button
+            size="small" icon={<CloseOutlined />} onClick={cancelEdit}
+            disabled={savingId === r._id}
+            style={{ borderRadius: 6, fontSize: 11 }}>
             Cancel
           </Button>
         </div>
@@ -359,19 +451,23 @@ export default function ProductionEntryForm() {
         </div>
       ),
     },
-  ];
+  ];  
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 80 }}>
 
-      {/* ── KPI Strip ── */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {/* ── KPI Strip (sticky) ── */}
+      <div style={{
+        display: "flex", gap: 10, flexWrap: "wrap",
+        position: "sticky", top: KPI_TOP, zIndex: 30,
+        background: "#f8fafc", paddingBottom: 6,
+      }}>
         {[
-          { label: "Total Records",        value: summary.count.toLocaleString(),     icon: "📁", color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
-          { label: "Total Units Produced", value: summary.totalProd.toLocaleString(), icon: "🏭", color: "#7c3aed", bg: "#faf5ff", border: "#ddd6fe" },
-          { label: "Warranty Complaints",  value: summary.totalWarr.toLocaleString(), icon: "⚠️", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+          { label: "Total Records",        value: summary.count.toLocaleString(),     icon: <FolderOutlined />,  color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
+          { label: "Total Units Produced", value: summary.totalProd.toLocaleString(), icon: <ToolOutlined />,    color: "#7c3aed", bg: "#faf5ff", border: "#ddd6fe" },
+          { label: "Warranty Complaints",  value: summary.totalWarr.toLocaleString(), icon: <WarningOutlined />, color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
           {
-            label: "Avg Warranty PPM", value: summary.avgPpm.toLocaleString(), icon: "📉",
+            label: "Avg Warranty PPM", value: summary.avgPpm.toLocaleString(), icon: <FallOutlined />,
             color:  summary.avgPpm > 10000 ? "#ef4444" : "#16a34a",
             bg:     summary.avgPpm > 10000 ? "#fff1f0" : "#f0fdf4",
             border: summary.avgPpm > 10000 ? "#fecaca" : "#bbf7d0",
@@ -381,12 +477,13 @@ export default function ProductionEntryForm() {
             <div style={{
               background: "#fff", border: `1px solid ${k.border}`, borderRadius: 10,
               padding: "10px 14px", height: 82, display: "flex", alignItems: "center", gap: 10,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.07)", transition: "box-shadow 0.2s, transform 0.2s",
+              // boxShadow: "0 4px 16px rgba(0,0,0,0.07)", 
+              transition: "box-shadow 0.2s, transform 0.2s",
             }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 28px rgba(0,0,0,0.12)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.07)"; e.currentTarget.style.transform = ""; }}
             >
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{k.icon}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: k.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: k.color, flexShrink: 0 }}>{k.icon}</div>
               <div>
                 <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>{k.label}</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: k.color, fontFamily: "monospace", lineHeight: 1.2 }}>{k.value}</div>
@@ -401,7 +498,7 @@ export default function ProductionEntryForm() {
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid #f0f2f5" }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fff1f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏭</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fff1f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#e53935" }}><ToolOutlined /></div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "#1e293b" }}>Add Production Entry</div>
             <div style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -449,7 +546,7 @@ export default function ProductionEntryForm() {
               style={{ width: "100%" }}
               dropdownMatchSelectWidth={false}
             >
-              {CUSTOMERS.map(c => <Option key={c} value={c}>{c}</Option>)}
+              {CUSTOMERS.map(c => <Option key={c+Math.random()} value={c}>{c}</Option>)}
             </Select>
           </div>
         </div>
@@ -623,6 +720,8 @@ export default function ProductionEntryForm() {
         </div>
 
         {/* Validation hints */}
+        
+
         {!isFormValid && (form.location || form.customer || form.month || totalProduction > 0) && (
           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
@@ -644,30 +743,88 @@ export default function ProductionEntryForm() {
         )}
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <BarChartOutlined style={{ fontSize: 15, color: "#1e293b" }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Monthly Production Records</span>
+          {!loading && (
+            <Tag color="blue" style={{ fontSize: 11, borderRadius: 5, marginLeft: 4 }}>{filteredRecords.length} records</Tag>
+          )}
+        </div>
+      </div>
+
+      {/* ── Filter Bar (sticky) ── */}
+      <div style={{
+        position: "sticky", top: TABLE_STICKY_OFFSET - 15, zIndex: 29,
+        background: "#fff", borderRadius: 10,
+        // boxShadow: "0 4px 16px rgba(0,0,0,0.07)",
+        padding: "10px 14px",
+        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "flex", alignItems: "center", gap: 5 }}>
+          <FilterOutlined /> Filters
+        </span>
+
+        <Select
+          allowClear
+          placeholder="All Months"
+          value={filterMonth || undefined}
+          onChange={v => setFilterMonth(v || null)}
+          style={{ width: 140 }}
+          size="small"
+        >
+          {monthOptions.map(([key, label]) => <Option key={key} value={key}>{label}</Option>)}
+        </Select>
+
+        <Select
+          allowClear
+          showSearch
+          placeholder="All Brands"
+          value={filterCustomer || undefined}
+          onChange={v => setFilterCustomer(v || null)}
+          style={{ width: 160 }}
+          size="small"
+          dropdownMatchSelectWidth={false}
+        >
+          {customerOptions.map(c => <Option key={c} value={c}>{c}</Option>)}
+        </Select>
+
+        <Segmented
+          size="small"
+          value={filterLocation}
+          onChange={setFilterLocation}
+          options={["All", ...LOCATIONS]}
+        />
+
+        {hasActiveFilters && (
+          <Button
+            size="small" type="text" icon={<ClearOutlined />}
+            onClick={clearFilters}
+            style={{ color: "#ef4444", fontSize: 11 }}
+          >
+            Clear
+          </Button>
+        )}
+
+        <Button size="small" type="default" loading={loading} icon={<ReloadOutlined />} onClick={refetch}
+            style={{ borderRadius: 8, fontSize: 11, }}>
+            Refresh
+        </Button>
+      </div>
+
       {/* ── Records Table ── */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 10px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 15 }}>📊</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Monthly Production Records</span>
-            {!loading && (
-              <Tag color="blue" style={{ fontSize: 11, borderRadius: 5, marginLeft: 4 }}>{sortedRecords.length} records</Tag>
-            )}
-          </div>
-          <Button size="small" icon={<ReloadOutlined />} onClick={refetch}
-            style={{ borderRadius: 8, fontSize: 11, color: "#64748b", borderColor: "#e2e8f0" }}>
-            Refresh
-          </Button>
-        </div>
-
-        <div style={{ borderRadius: 12, boxShadow: "0 6px 24px rgba(0,0,0,0.09)", background: "#fff", overflow: "hidden" }}>
           <Table
-            dataSource={sortedRecords}
+            dataSource={filteredRecords}
             columns={columns}
             rowKey={r => r._id}
             size="small"
             loading={loading}
             className="pg-table"
+            sticky={{
+              offsetHeader: TABLE_STICKY_OFFSET + 25,
+              getContainer: () => window, // force window as the scroll reference, not nearest div
+            }}
             pagination={{
               pageSize: 15, showSizeChanger: false,
               showTotal: t => <span style={{ fontSize: 12, color: "#64748b" }}>{t} total entries</span>,
@@ -678,7 +835,7 @@ export default function ProductionEntryForm() {
               return ppm > 40000 ? "pg-row-critical" : ppm > 10000 ? "pg-row-warning" : "";
             }}
           />
-        </div>
+
       </div>
 
       <style>{`
@@ -687,6 +844,20 @@ export default function ProductionEntryForm() {
         .ant-picker          { border-radius: 8px !important; }
         .ant-input-number    { border-radius: 8px !important; }
         .ant-select-selector { border-radius: 8px !important; }
+
+        .pg-table .ant-table-thead > tr > th {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* Keep the fixed Actions column visible and above the sticky shadow layer */
+        .pg-table .ant-table-cell-fix-right {
+          background: #fff !important;
+          z-index: 21 !important;
+        }
+        .pg-table .ant-table-thead .ant-table-cell-fix-right {
+          background: #fafafa !important;
+          z-index: 22 !important;
+        }
       `}</style>
     </div>
   );

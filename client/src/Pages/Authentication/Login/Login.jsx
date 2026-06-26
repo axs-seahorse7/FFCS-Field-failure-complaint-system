@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../services/axios-interceptore/api.js";
-
+import {useUser} from "../../../Global/Context/User-Context/UserContext.jsx";
 /* ─── Logo ─── */
 const Logo = ({ size = 60 }) => (
   <div style={{ width: size, height: size, borderRadius: 10 }}>
@@ -25,6 +25,7 @@ export default function Login() {
   const [canResend, setCanResend] = useState(false);
   const timerRef = useRef(null);
   const otpRefs = useRef([]);
+  const { setUser } = useUser();
 
   useEffect(() => { setTimeout(() => setMounted(true), 60); }, []);
 
@@ -97,15 +98,15 @@ export default function Login() {
     try {
       const response = await api.post("/auth/verify-otp", { email, otp: otp.join("") });
       const { token, user } = response?.data;
+      console.log("Login successful:", user, token);
       if (token) {
         document.cookie = `token=${encodeURIComponent(token)}; path=/; max-age=3600; samesite=lax`;
 
-        // 🔥 store full user (IMPORTANT)
+        setUser(user);
         localStorage.setItem("User", JSON.stringify(user));
-        console.log("Logged in user:", user);
 
-        const permissions = user?.roleId?.permissions || [];
-        console.log("User permissions:", permissions);
+        const permissions = user?.isSystemRole? [] : user?.roleId?.permissions || [];
+          console.log("User permissions:", permissions);
 
         setSuccess("Login successful.");
 

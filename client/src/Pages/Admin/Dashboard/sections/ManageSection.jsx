@@ -10,6 +10,7 @@ import { fmtNum, fmtDate } from "../components/utils";
  import { Image, Modal } from "antd";
  import { DeleteOutlined, DownloadOutlined } from "@ant-design/icons";
  import DownloadButton from "../components/DownloadButton.jsx";
+ import { useUser } from "../../../../Global/Context/User-Context/UserContext.jsx";
 
  import {useOutletContext} from "react-router-dom";
 
@@ -77,7 +78,6 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
   const fileInputRef = useRef(null);
   const hasError = touched && !remark.trim();
   const isResolved = targetStatus === "Resolved";
-  console.log("fileselected", file)
   useEffect(() => {
     setTimeout(() => textareaRef.current?.focus(), 80);
   }, []);
@@ -90,7 +90,6 @@ function StatusRemarkModal({ complaint, targetStatus, onConfirm, onCancel, loadi
   const handleConfirm = () => {
     setTouched(true);
     if (!remark.trim()) return;
-    console.log("Submitting status update:", { complaintId: complaint._id, targetStatus, remark, file });
     onConfirm(remark.trim(), file || null);
   };
 
@@ -894,7 +893,7 @@ export default function ManageSection({ addToast }) {
   }, [filters?.from, filters?.to]);
 
 
-  const user = JSON.parse(localStorage.getItem("User") || "{}");
+  const { user } = useUser();
   const actions = user?.roleId?.action || [];
   const canDelete = user.isSystemRole || actions.includes("delete");
   const canUpdate = user.isSystemRole || actions.includes("edit");
@@ -935,7 +934,6 @@ export default function ManageSection({ addToast }) {
 
   /* ── Delete ── */
   const handleDeleteConfirm = async () => {
-    console.log("Deleting complaint:", deleteModal);
     if (!deleteModal) return;
     setDeleteLoading(true);
     try {

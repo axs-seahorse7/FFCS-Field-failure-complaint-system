@@ -31,16 +31,16 @@ const ProtectedRoute = ({ requiredPermission }) => {
     if (loading) return <SkeletonDashboard />;
     if (!user) return <Navigate to="/" replace />;
 
-    const permissions = user?.roleId?.permissions || [];
+    const permissions = user?.isSystemRole ? [] : user?.roleId?.permissions || [];
 
 
-    // ✅ SYSTEM ROLE (ADMIN)
+    //  SYSTEM ROLE (ADMIN)
     if (user.isSystemRole) return <Outlet context={context} />;
 
-    // ✅ Complaint user
+    //  Complaint user
     if (permissions.includes("complaint") && !location.pathname.startsWith("/complaints")) {
         return <Navigate to="/complaints" replace />;
-        }
+    }
 
 
 

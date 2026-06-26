@@ -1,10 +1,9 @@
 // controllers/production.controller.js
 import Production from "../Database/models/Production/productions.model.js";
 import {getMonthKey} from "../helpers/TIMEZONE/getTimeZone.js";
-/* ═══════════════════════════════════════════════════════
-   POST /production/create
-   Body: { customer, commodity, month, production, fieldComplaint, warrantyComplaint }
-═══════════════════════════════════════════════════════ */
+
+
+
 export const createProduction = async (req, res) => {
   try {
     const {
@@ -20,6 +19,7 @@ export const createProduction = async (req, res) => {
 
 
     if (!customer || !location || !month) {
+      console.log("Missing required fields:", { customer, location, month });
       return res.status(400).json({
         message: "customer, location, and month are required."
       });
@@ -30,12 +30,13 @@ export const createProduction = async (req, res) => {
 
     const existing = await Production.findOne({
       customer,
+      location,
       month: monthKey,
     });
 
     if (existing) {
       return res.status(409).json({
-        message: "Production already exist for this customer and month."
+        message: "Production already exist for this customer, location, and for month."
       });
     }
 
@@ -66,19 +67,24 @@ export const createProduction = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /production/list
-   Query: customer, commodity, from, to
-═══════════════════════════════════════════════════════ */
 export const listProduction = async (req, res) => {
   try {
-    const { customer, location, year } = req.query;
+    const { customer, location, year, yearFrom, yearTo } = req.query;
+
+    const yearMatch = {};
+    if (yearFrom || yearTo) {
+      yearMatch.year = {};
+      if (yearFrom) yearMatch.year.$gte = Number(yearFrom);
+      if (yearTo)   yearMatch.year.$lte = Number(yearTo);
+    } else if (year) {
+      yearMatch.year = Number(year);
+    }
 
     const data = await Production.aggregate([
       {
         $match: {
           ...(customer && { customer }),
-          ...(location && { location }), // ✅ use location instead
+          ...(location && { location }),
         }
       },
       {
@@ -87,27 +93,12 @@ export const listProduction = async (req, res) => {
         }
       },
       {
-        $match: {
-          ...(year && { year: Number(year) })
-        }
+        $match: yearMatch
       },
       {
         $sort: { month: -1 }
       }
     ]);
-
-
-      const query = {};
-      if (customer) query.customer = customer;
-      if (location) query.location = location
-          if (year) {
-        const start = new Date(`${year}-01-01T00:00:00.000Z`);
-        const end   = new Date(`${year}-12-31T23:59:59.999Z`);
-
-        query.month = { $gte: start, $lte: end };
-      }
-
-      const datas = await Production.find(query).sort({ month: -1 });
 
     return res.json({ data });
 
@@ -117,11 +108,6 @@ export const listProduction = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   POST /production/update
-   Body: { id, production?, fieldComplaint?, warrantyComplaint? }
-   NOTE: warrantyPPM is recalculated via pre-save hook
-═══════════════════════════════════════════════════════ */
 export const updateProduction = async (req, res) => {
   try {
     const {
@@ -133,7 +119,8 @@ export const updateProduction = async (req, res) => {
       warrantyComplaint,
       location,
       customer,
-      month
+      month,
+     
     } = req.body;
 
     if (!id) {
@@ -183,10 +170,7 @@ export const updateProduction = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-/* ═══════════════════════════════════════════════════════
-   POST /production/delete
-   Body: { id }
-═══════════════════════════════════════════════════════ */
+
 export const deleteProduction = async (req, res) => {
   try {
     const { id } = req.body;
@@ -201,11 +185,6 @@ export const deleteProduction = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /production/stats
-   Aggregated summary: total produced, total warranty complaints, avg PPM
-   Optionally filter by: customer, commodity, year
-═══════════════════════════════════════════════════════ */
 export const getProductionStats = async (req, res) => {
   try {
     const { customer, commodity, year } = req.query;
@@ -248,10 +227,6 @@ export const getProductionStats = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /production/by-customer
-   Returns total production + PPM per customer
-═══════════════════════════════════════════════════════ */
 export const getProductionByCustomer = async (req, res) => {
   try {
     const { commodity, year } = req.query;
@@ -294,10 +269,6 @@ export const getProductionByCustomer = async (req, res) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════════
-   GET /production/monthly-trend
-   Month-by-month: total production + warranty PPM
-═══════════════════════════════════════════════════════ */
 export const getMonthlyProductionTrend = async (req, res) => {
   try {
     const { customer, commodity } = req.query;
