@@ -24,14 +24,6 @@ const complaintSchema = new Schema(
       type: String,
       required: [true, "Customer name is required"],
       trim: true,
-      enum: {
-        values: [
-          "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL",
-          "HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG","LG","WHIRLPOOL",
-          "DAIKIN","HITACHI","PANASONIC","CARRIER","OTHER",
-        ],
-        message: "{VALUE} is not a valid customer",
-      },
     },
 
     commodity: {
