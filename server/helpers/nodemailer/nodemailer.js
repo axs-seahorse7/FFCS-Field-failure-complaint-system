@@ -48,7 +48,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 	const { from } = getMailerConfig();
 
 	const mailOptions = {
-		from,
+		from: `PG CMS <${from}>`,
 		to,
 		subject,
 		html
@@ -57,9 +57,6 @@ export const sendEmail = async ({ to, subject, html }) => {
 	// console.log("Sending mail with:", mailOptions);
 
 	const info = await transporter.sendMail(mailOptions);
-
-	console.log("MAIL RESULT:", info);
-
 	return info;
 };
 

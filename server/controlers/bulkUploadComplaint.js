@@ -12,14 +12,17 @@ export const bulkUploadComplaints = async (req, res) => {
     const cleanedData = rawData.map((row) => {
       const newRow = {};
       for (let key in row) {
-        const cleanKey = key.trim();
-        newRow[cleanKey] = row[key];
+        newRow[key.trim()] = row[key];
       }
       return newRow;
     });
 
     const safeStr = (v) => String(v ?? "").trim();
     const safeUpper = (v) => safeStr(v).toUpperCase();
+    const toNum = (v) => {
+      const n = Number(v);
+      return isNaN(n) ? 0 : n;
+    };
 
     const parseDate = (v) => {
       if (!v) return null;
@@ -31,18 +34,51 @@ export const bulkUploadComplaints = async (req, res) => {
       return isNaN(d.getTime()) ? null : d;
     };
 
+    const patterns = [
+      { regex: /ngm\s*supa/i, label: "NGM Supa" },
+      { regex: /ngm\s*bhiwadi/i, label: "NGM Bhiwadi" },
+      { regex: /bhiwadi|bhd/i, label: "PG Bhiwadi" },
+      { regex: /supa/i, label: "PG Supa" },
+    ];
+
+    const normalizePlant = (v) => {
+      const s = safeStr(v);
+      for (const { regex, label } of patterns) {
+        if (regex.test(s)) return label;
+      }
+      return "";
+    };
+
+    const normalizeDataBase = (v) => {
+      const s = safeStr(v).toLowerCase();
+      if (s.includes("evidence")) return "Evidence";
+      if (s.includes("verification")) return "Verification";
+      if (s.includes("data")) return "Data";
+      return "";
+    };
+
     const mappedData = cleanedData.map((row) => ({
       complaintDate: parseDate(row["Complaint Date"]) || new Date(),
       customerName: safeUpper(row["Customer Name"]),
       commodity: safeUpper(row["COMODITY"]),
       replacementCategory: safeUpper(row["REPLACEMENT CATEGORY"]) || "",
       modelName: safeStr(row["Model Name"]) || "NEW MODEL",
-      purchaseDate: parseDate(row["Purchase Date"]),
+      tonage: safeStr(row["TONAGE"]),
+      serialNo: safeStr(row["Serial No"]),
+      manufacturingPlant: normalizePlant(row["Mfg. Plant (Supa / Bhiwadi)"]) ,
+      manufacturingDate: parseDate(row["Month & Year of MFG"]),
+      city: safeStr(row["Reported Location"]),
       doa: safeUpper(row["DOA"]) || "",
+      dataBase: normalizeDataBase(row["Data Base (evidence / verification / data base)"]),
       defectCategory: safeUpper(row["Defect Category"]),
       defectivePart: safeUpper(row["Defective part"]),
-      symptom: "",
       defectDetails: safeStr(row["Defects Details"]),
+      partSupplier: safeStr(row["Part supplier"]),
+      qty: toNum(row["Qty"]),
+      partModel: safeStr(row["Part Model"]),
+      defReceived: safeStr(row["Def received"]),
+      replacementFromSupplier: toNum(row["Replacement from supplier"]),
+      replacementPending: toNum(row["Replacement Pending"]),
       status: "Open",
     }));
 
@@ -55,7 +91,6 @@ export const bulkUploadComplaints = async (req, res) => {
         await doc.validate();
         valid.push(mappedData[i]);
       } catch (e) {
-        // Attach original raw row + error reason so the user can fix and re-upload
         failed.push({ ...cleanedData[i], _errorReason: e.message });
       }
     }
@@ -77,7 +112,6 @@ export const bulkUploadComplaints = async (req, res) => {
 
     await Complaint.insertMany(finalData);
 
-    // If any rows failed — return a downloadable xlsx of just those rows
     if (failed.length > 0) {
       const failedSheet = xlsx.utils.json_to_sheet(failed);
       const failedWorkbook = xlsx.utils.book_new();
@@ -88,16 +122,12 @@ export const bulkUploadComplaints = async (req, res) => {
       res.setHeader("Content-Disposition", `attachment; filename="failed_rows_${datePart}.xlsx"`);
       res.setHeader("X-Inserted-Count", String(valid.length));
       res.setHeader("X-Failed-Count", String(failed.length));
-      // Expose custom headers to the browser
       res.setHeader("Access-Control-Expose-Headers", "X-Inserted-Count, X-Failed-Count");
 
       return res.status(207).send(buffer);
     }
 
-    res.status(200).json({
-      inserted: valid.length,
-      failed: 0,
-    });
+    res.status(200).json({ inserted: valid.length, failed: 0 });
   } catch (error) {
     console.error("Bulk upload error:", error);
     res.status(500).json({ error: error.message });

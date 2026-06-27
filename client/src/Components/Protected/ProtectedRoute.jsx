@@ -2,11 +2,12 @@ import { Navigate, Outlet, useOutletContext, useLocation  } from "react-router-d
 import { useEffect, useState } from "react";
 import api from "../../services/axios-interceptore/api.js"; // your axios instance
 import SkeletonDashboard from "../Skeleto-Loader/SkeletonDashboard.jsx";
+import { useUser } from "../../Global/Context/User-Context/UserContext.jsx";
 
 const ProtectedRoute = ({ requiredPermission }) => {
     const location = useLocation();
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(null);
+    const { user, setUser } = useUser();
     const context = useOutletContext();
 
 
@@ -15,7 +16,6 @@ const ProtectedRoute = ({ requiredPermission }) => {
             try {
                 const res = await api.get("/auth/me");
                 const userData = res.data.user;
-
                 setUser(userData);
                 localStorage.setItem("User", JSON.stringify(userData));
             } catch (err) {

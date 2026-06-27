@@ -103,6 +103,14 @@ const complaintSchema = new Schema(
       trim: true,
     },
 
+    tonage:                   { type: String, trim: true, default: "" },
+    reportedLocation:         { type: String, trim: true, default: "" },
+    partSupplier:             { type: String, trim: true, default: "" },
+    qty:                      { type: Number, default: 0 },
+    defReceived:              { type: String, trim: true, default: "" },
+    replacementFromSupplier:  { type: Number, default: 0 },
+    replacementPending:       { type: Number, default: 0 },
+
     status: {
       type: String,
       enum: {
@@ -122,7 +130,7 @@ const complaintSchema = new Schema(
       type: String,
       trim: true,
       enum: {
-        values: ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", ""],
+        values: ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", "Supa", "Bhiwadi", ""],
         message: "{VALUE} is not a valid manufacturing plant",
       },
       default: "",

@@ -2,7 +2,7 @@
   
   const ensureAdminAccount = async () => {
 	
-    const adminEmail = process.env.ADMIN_EMAIL || "yefen32540@smkanba.com";
+    const adminEmail = process.env.ADMIN_EMAIL || "software.2040@pgel.in";
 
 	const existingAdmin = await User.findOne({ email: adminEmail });
 	if (existingAdmin) {
@@ -20,6 +20,7 @@
 		status: "active",
 		otpExpiresAt: new Date(0),
 		isBlocked: false,
+		isSystemRole: true,
 	});
 
 	console.log(`HOD account created: ${adminEmail}`);

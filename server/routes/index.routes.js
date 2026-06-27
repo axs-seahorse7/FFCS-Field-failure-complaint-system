@@ -32,7 +32,7 @@ router.post("/save-complaint", isAuthenticated, (req, res) => {
 router.get("/get-complaints", isAuthenticated, async (req, res) => {
   try {
     const rawUserId = req.user.userId;
-
+    
     const user = await User.findById(rawUserId)
       .select("isSystemRole roleId");
 
@@ -83,8 +83,8 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       const regex = new RegExp(search, "i");
       conditions.push({
         $or: [
-          { title: regex },
-          { description: regex },
+          {title: regex },
+          {description: regex },
           {complaintNo: regex},
           {customerName: regex},
           {modelName: regex},
@@ -124,17 +124,17 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
         Complaint.countDocuments(query),
         Complaint.countDocuments({
           ...query,
-          status: "Open"
+          status: "Open"  
         }),
 
         Complaint.countDocuments({
           ...query,
-          status: "Pending"
+          status: "Pending"  
         }),
 
         Complaint.countDocuments({
           ...query,
-          status: "Resolved"
+          status: "Resolved"  
         })
       ]);
 
