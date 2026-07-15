@@ -17,9 +17,7 @@ export const createProduction = async (req, res) => {
       warrantyComplaint
     } = req.body;
 
-
     if (!customer || !location || !month) {
-      console.log("Missing required fields:", { customer, location, month });
       return res.status(400).json({
         message: "customer, location, and month are required."
       });
@@ -28,44 +26,33 @@ export const createProduction = async (req, res) => {
     const rawDate = new Date(month);
     const monthKey = getMonthKey(rawDate);
 
-    const existing = await Production.findOne({
-      customer,
-      location,
-      month: monthKey,
-    });
+    const record = await Production.findOneAndUpdate(
+      { customer, location, month: monthKey },
+      {
+        $set: {
+          idu: Number(idu || 0),
+          odu: Number(odu || 0),
+          wac: Number(wac || 0),
+          fieldComplaint: Number(fieldComplaint || 0),
+          warrantyComplaint: Number(warrantyComplaint || 0),
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
+    );
 
-    if (existing) {
-      return res.status(409).json({
-        message: "Production already exist for this customer, location, and for month."
-      });
-    }
-
-    //  Your schema already has UNIQUE index → no need manual duplicate check
-    const record = await Production.create({
-      customer,
-      location,
-      month: monthKey,
-      idu: Number(idu || 0),
-      odu: Number(odu || 0),
-      wac: Number(wac || 0),
-      fieldComplaint: Number(fieldComplaint || 0),
-      warrantyComplaint: Number(warrantyComplaint || 0),
-    });
-
-    return res.status(201).json({ data: record });
+    return res.status(200).json({ data: record });
 
   } catch (err) {
-    // Handle duplicate error (from unique index)
     if (err.code === 11000) {
       return res.status(409).json({
         message: "Record already exists for this customer, location, and month."
       });
     }
-
     console.log("Error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
+
 
 export const listProduction = async (req, res) => {
   try {
@@ -124,7 +111,7 @@ export const updateProduction = async (req, res) => {
     } = req.body;
 
     if (!id) {
-      return res.status(400).json({ message: "id is required" });
+      return res.status(400).json({ message: "Production cannot be updated. Try again later." });
     }
 
     const record = await Production.findById(id);
@@ -154,7 +141,6 @@ export const updateProduction = async (req, res) => {
       record.month = m;
     }
 
-    //  This triggers your pre-save hook
     await record.save();
 
     return res.json({ data: record });
