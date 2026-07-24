@@ -43,7 +43,7 @@ router.post("/login", async (req, res) => {
 
         await sendEmail({ 
             to: emailInLower,
-            subject: "Your Login OTP for testing", 
+            subject: "Your Login OTP - PG CMS", 
             html  
         });
 
