@@ -3,24 +3,7 @@ import api from "../../services/axios-interceptore/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { message } from "antd";
 import axios from "axios";
-
-/* ─────────────────────────────────────────
-   CONSTANTS
-───────────────────────────────────────── */
-const CUSTOMERS = [
-  "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA","BPL",
-  "HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG","LG","WHIRLPOOL",
-  "DAIKIN","HITACHI","PANASONIC","CARRIER",
-  "ACCERPURE", 
-  "BLACK+DECKER",
-  "TCL",
-  "CELLECOR",
-  "T-SERIES",
-  "INTEX",
-  "HITACHI",
-  "OTHER",
-  "EXPORT"
-];
+import {CUSTOMERS} from "../../utils/cutomers/customers.js";
 
 const DEFECT_CATEGORIES = [
   "ELEC PART DEFECTS",
@@ -308,11 +291,6 @@ function StepDots({ current, total }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   VIDEO UPLOAD SECTION
-   Shows when "Symptom Evidence" checkbox is checked.
-   Validates max 15 seconds duration.
-───────────────────────────────────────── */
 function VideoUploadSection({ videoFile, onVideo, onRemove, videoError, setVideoError }) {
   const videoInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -448,7 +426,6 @@ function VideoUploadSection({ videoFile, onVideo, onRemove, videoError, setVideo
    MAIN COMPONENT
 ───────────────────────────────────────── */
 export default function ComplaintForm({ userEmail }) {
-  // Read optional complaint ID from URL — /complaints/form/:id
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
@@ -459,7 +436,7 @@ export default function ComplaintForm({ userEmail }) {
   const [invoiceFile, setInvoiceFile]     = useState(null);
   const [invoiceError, setInvoiceError]   = useState("");
   const [dragOver, setDragOver]           = useState(false);
-  // Symptom evidence video
+
   const [symptomEvidence, setSymptomEvidence] = useState(false);
   const [videoFile, setVideoFile]             = useState(null);
   const [videoError, setVideoError]           = useState("");
@@ -813,10 +790,6 @@ export default function ComplaintForm({ userEmail }) {
         <main style={{ padding: "20px 16px 80px", maxWidth: 1400, margin: "0 auto" }}>
           <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {/* ─────────────────────────────────────
-                EDIT-MODE BANNER
-                Shows status (read-only) and resolution remark
-            ───────────────────────────────────── */}
             {isEditMode && (
               <div className="fade-up" style={{
                 background: T.surface,

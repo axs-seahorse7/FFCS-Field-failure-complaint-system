@@ -15,17 +15,9 @@ import dayjs from "dayjs";
 import { useApiQuery } from "../Dashboard/components/useApiQuery.js";
 import api from "../../../services/axios-interceptore/api.js";
 import {useUser} from "../../../Global/Context/User-Context/UserContext.jsx";
+import {CUSTOMERS} from "../../../utils/cutomers/customers.js";
 
 const { Option } = Select;
-
-/* ── Constants ── */
-const CUSTOMERS = [
-  "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA",
-  "BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG",
-  "LG","WHIRLPOOL","DAIKIN","HITACHI","PANASONIC","CARRIER",
-  "ACCERPURE",  "BLACK+DECKER", "TCL","CELLECOR","T-SERIES", 
-  "INTEX", "HITACHI", "OTHER", "EXPORT",
-];
 
 const LOCATIONS = ["Bhiwadi", "Supa"];
 
@@ -45,6 +37,8 @@ const TABLE_STICKY_OFFSET = FILTER_TOP + FILTER_HEIGHT;
 function calcTotal(idu = 0, odu = 0, wac = 0) {
   return Math.round(((idu + odu) / 2) + wac);
 }
+
+
 function calcPPM(totalProduction, warrantyComplaints) {
   if (!totalProduction || totalProduction <= 0) return 0;
   return Math.round((warrantyComplaints / totalProduction) * 1_000_000);

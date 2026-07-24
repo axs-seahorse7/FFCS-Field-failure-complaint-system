@@ -11,6 +11,7 @@ import { fmtNum, fmtDate } from "../components/utils";
  import { DeleteOutlined, DownloadOutlined } from "@ant-design/icons";
  import DownloadButton from "../components/DownloadButton.jsx";
  import { useUser } from "../../../../Global/Context/User-Context/UserContext.jsx";
+ import {CUSTOMERS} from "../../../../utils/cutomers/customers.js";
 
  import {useOutletContext} from "react-router-dom";
 
@@ -712,17 +713,6 @@ function SearchInput({ value, onChange }) {
     </div>
   );
 }
-
-/* ─────────────────────────────────────────
-   CUSTOMER FILTER SELECT
-───────────────────────────────────────── */
-const CUSTOMERS = [
-  "GODREJ","HAIER","AMSTRAD","ONIDA","CMI","MARQ","CROMA",
-  "BPL","HYUNDAI","SANSUI","VOLTAS","BLUE STAR","SAMSUNG",
-  "LG","WHIRLPOOL","DAIKIN","HITACHI","PANASONIC","CARRIER",
-  "ACCERPURE",  "BLACK+DECKER", "TCL","CELLECOR","T-SERIES", 
-  "INTEX", "HITACHI", "OTHER", "EXPORT",
-];
 
 function CustomerSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
