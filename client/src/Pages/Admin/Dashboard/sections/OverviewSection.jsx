@@ -312,7 +312,6 @@ export default function OverviewSection({ addToast,  }) {
   const [defectDropdown, setDefectDropdown] = useState("overall");
   const { filters } = useOutletContext() || {};
 
-  console.log("OverviewSection filters:", filters);
   /* Year-scoped filters */
   const yearFilters = useMemo(() => ({
     ...filters,
@@ -1156,8 +1155,9 @@ function getComplaintPercentage(count, total, type) {
       color: "green"
     },
     {
-      label: "Backlog",
-      value: s?.current.backlog,
+      label: "Pendings",
+      // value: s?.current.backlog,
+      value: 0,
       prev: s?.previous.backlog,
       trendData: getComplaintPercentage(s?.current.backlog, s?.current.total, "complaint"),
       icon: "📦",
