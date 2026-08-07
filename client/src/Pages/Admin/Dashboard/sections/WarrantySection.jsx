@@ -1,5 +1,5 @@
 // sections/WarrantySection.jsx
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 import { Tag, Button, Space } from "antd";
@@ -90,22 +90,20 @@ const renderDoaLabel = ({ cx, cy, midAngle, outerRadius, name, value, percent })
 
 export default function WarrantySection() {
   const [preview, setPreview] = useState(null);
-  const {filters} = useOutletContext();
+  const { filters } = useOutletContext();
 
-  const params = useMemo(() => {
-      const p = {};
-      if (filters.customer) p.customerName = filters.customer;
-      if (filters.year) p.year = filters.year;
-      return p;
-    }, [filters.customer, filters.year]);
-
+  /* ═══════════════════════════════════════════════════════
+     FIX: pass the real `filters` object (from/to/year/customerName)
+     straight through as query params — no local re-mapping,
+     no double-nesting, and give each query its OWN unique key.
+  ═══════════════════════════════════════════════════════ */
   const { data, isLoading } = useBatchQuery([
-    { key: "doaData", url: "/complaints/by-doa", params: { params } },
-    { key: "stats", url: "/complaints/monthly", params: { params } },
-    { key: "byCommodity", url: "/complaints/by-commodity", params: { params } },
-    { key: "commVsCat", url: "/complaints/commodity-vs-category", params: { params } },
-    { key: "byReplacement", url: "/complaints/by-replacement", params: { params } },
-    { key: "stats", url: "/complaints/stats", params: { params } },
+    { key: "doaData",       url: "/complaints/by-doa",                params: filters },
+    { key: "monthly",       url: "/complaints/monthly",               params: filters },
+    { key: "byCommodity",   url: "/complaints/by-commodity",          params: filters },
+    { key: "commVsCat",     url: "/complaints/commodity-vs-category", params: filters },
+    { key: "byReplacement", url: "/complaints/by-replacement",        params: filters },
+    { key: "stats",         url: "/complaints/stats",                 params: filters },
   ]);
 
   const {
@@ -124,12 +122,15 @@ export default function WarrantySection() {
 
   const openPreview = (title, chart) => setPreview({ title, chart });
 
-  /* ── KPI cards ── */
+  /* ── KPI cards ──
+     NOTE: /complaints/stats returns { current, previous } — there is
+     no ppm2023/ppm2024 in the backend response, so those old cards
+     always showed 0. Fixed to read the actual response shape. */
   const kpis = [
-    { label: "Avg PPM",       value: fmtNum(stats?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: ` ${new Date().getFullYear() === filters.year ? '' : 'Previous '}Year (${filters.year})` },
-    { label: "CY 2023 PPM",   value: fmtNum(stats?.ppm2023 || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: `Calendar ${filters.year}` },
-    { label: "CY 2024 PPM",   value: fmtNum(stats?.ppm2024 || 0), color: "#d97706", bg: "#fffbeb", border: "#fde68a", icon: "📅", sub: `Calendar ${filters.year}` },
-    { label: "DOA Count",     value: fmtNum(doaData?.find(d => d._id === "DOA")?.count || 0), color: "#dc2626", bg: "#fff1f0", border: "#fecaca", icon: "⚠️", sub: "Dead on Arrival" },
+    { label: "Avg PPM (Current)",  value: fmtNum(stats?.current?.avgPpm  || 0), color: "#ef4444", bg: "#fff1f0", border: "#fecaca", icon: "📈", sub: "Selected period" },
+    { label: "Avg PPM (Previous)", value: fmtNum(stats?.previous?.avgPpm || 0), color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", icon: "📅", sub: "Prior comparable period" },
+    { label: "Resolved",           value: fmtNum(stats?.current?.resolved || 0), color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0", icon: "✅", sub: `of ${fmtNum(stats?.current?.total || 0)} total` },
+    { label: "DOA Count",          value: fmtNum(doaData?.find(d => d._id === "DOA")?.count || 0), color: "#dc2626", bg: "#fff1f0", border: "#fecaca", icon: "⚠️", sub: "Dead on Arrival" },
   ];
 
   /* ── Charts ── */
@@ -154,9 +155,12 @@ export default function WarrantySection() {
   };
 
  const PpmLine = ({ h = 320 }) => {
-  const data =  [];
+  /* FIX: was hardcoded to `[]` — now reads the actual `monthly`
+     data (from /complaints/monthly), and matches the real field
+     name `ppm` returned by that endpoint (not `avgPpm`). */
+  const data = monthly || [];
 
-  const hasPPM = data?.some(d => d.avgPpm > 0);
+  const hasPPM = data?.some(d => d.ppm > 0);
 
   if (!data.length || !hasPPM) return <ZeroData />;
 
@@ -188,7 +192,7 @@ export default function WarrantySection() {
 
         <Line
           type="monotone"
-          dataKey="avgPpm"
+          dataKey="ppm"
           name="PPM Rate"
           stroke="#e53935"
           strokeWidth={2.5}
@@ -202,7 +206,7 @@ export default function WarrantySection() {
         {/* Show labels ONLY if few points (avoid clutter) */}
         {data.length <= 6 && (
           <LabelList
-            dataKey="avgPpm"
+            dataKey="ppm"
             position="top"
             formatter={(v) => v.toLocaleString()}
             style={{ fontSize: 10 }}

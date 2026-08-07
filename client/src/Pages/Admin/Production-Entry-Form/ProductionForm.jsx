@@ -1,5 +1,5 @@
 // sections/ProductionEntryForm.jsx
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   Select, DatePicker, InputNumber, Button, Table,
@@ -154,10 +154,24 @@ export default function ProductionEntryForm() {
   const canDelete = user.isSystemRole || user.roleId?.action?.includes("delete");
   console.log("User :", user, "canEdit:", canEdit, "canDelete:", canDelete);
 
-  /* ── API ── */
+  /* ── API — now driven by the global date-range/customer filter from the top bar ── */
+  const productionQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filters?.from)         params.set("from", filters.from);
+    if (filters?.to)           params.set("to", filters.to);
+    if (filters?.customerName) params.set("customer", filters.customerName);
+    return params.toString();
+  }, [filters]);
+
   const { data: records, loading, refetch } = useApiQuery(
-    `/production/list?yearFrom=${dayjs().year() - 1}&yearTo=${dayjs().year()}`
+    `/production/list${productionQuery ? `?${productionQuery}` : ""}`
   );
+
+  // Force a refetch whenever the top-bar filter actually changes
+  useEffect(() => {
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productionQuery]);
 
   const sortedRecords = useMemo(() =>
     [...(records || [])].sort((a, b) => new Date(b.month) - new Date(a.month))

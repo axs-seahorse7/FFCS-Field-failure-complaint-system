@@ -148,11 +148,11 @@ export default function CustomersSection() {
   const {filters} = useOutletContext();
 
   const { data, isLoading } = useBatchQuery([
-    { key: "customers", url: "/complaints/by-customer", params: { year: filters.year } },
-    { key: "custVsStatus", url: "/complaints/customer-vs-status", params: { year: filters.year } },
-    { key: "custVsCat", url: "/complaints/customer-vs-category", params: { year: filters.year } },
-    { key: "production", url: "/production/list", params: { year: filters.year } },
-    { key: "productionStats", url: "/production/stats", params: { year: filters.year } },
+    { key: "customers",       url: "/complaints/by-customer",          params: filters },
+    { key: "custVsStatus",    url: "/complaints/customer-vs-status",   params: filters },
+    { key: "custVsCat",       url: "/complaints/customer-vs-category", params: filters },
+    { key: "production",      url: "/production/list",                 params: filters },
+    { key: "productionStats", url: "/production/stats",                params: filters },
   ]);
 
   const {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { useNavigate, useLocation, Outlet  } from "react-router-dom";
 import {Layout, Menu, Avatar, Button, Dropdown, Space, Tooltip, Select, DatePicker} from "antd";
 import { DashboardOutlined, BugOutlined, TeamOutlined, SafetyOutlined, MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined, FileTextOutlined, SettingOutlined, UserSwitchOutlined, UploadOutlined, FilePptOutlined, CalendarOutlined, ShopOutlined,} from "@ant-design/icons";
 import Toast from "./components/Toast";
@@ -59,6 +59,8 @@ export default function AdminDashboard({ userEmail }) {
   ]);
 
 
+   
+
   const disabledDate = (current) => {
     if (!current) return false;
     const minDate = dayjs().subtract(5, "year").startOf("year");
@@ -74,6 +76,9 @@ export default function AdminDashboard({ userEmail }) {
   const active = location.pathname.split("/")[2] || "overview";
   const meta   = SECTION_META[active] || SECTION_META["overview"];
 
+   const currentPath = location.pathname.split("/").join("/");
+   
+    console.log("currentPath", currentPath)
 
 
   const appliedFilters = useMemo(() => {
@@ -219,7 +224,7 @@ export default function AdminDashboard({ userEmail }) {
           position: "sticky", top: 0, zIndex: 100,
         }}>
 
-          {/* Left */}
+        {/* Left */}
           <div style={{ display: "flex", height: "100%", alignItems: "center", gap: 12 }}>
             <Button
               type="text"
@@ -227,8 +232,23 @@ export default function AdminDashboard({ userEmail }) {
               onClick={() => setCollapsed(c => !c)}
               style={{ color: "#64748b", fontSize: 16, width: 34, height: 34 }}
             />
-            <span className="font-semibold text-cyan-700">{meta.label}</span>
-            <span className="text-[12px] text-slate-500 max-lg:hidden">{" • "}{meta.desc}</span>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", lineHeight: 1.2 }}>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: "#e53935",
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                fontFamily: "'JetBrains Mono', monospace",
+                marginBottom: 1,
+              }}>
+                FFR (Field Failure Report)
+              </span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <span className="font-semibold text-cyan-700" style={{ fontSize: 14 }}>{meta.label}</span>
+                <span className="text-[12px] text-slate-500 max-lg:hidden">{" • "}{meta.desc}</span>
+              </div>
+            </div>
           </div>
 
           {/* Right */}
@@ -289,7 +309,7 @@ export default function AdminDashboard({ userEmail }) {
             </div>
 
             {/* ── Customer selector ── */}
-            <div style={{
+           { currentPath !== "/dashboard/manage" && <div style={{
               display: "flex", alignItems: "center", gap: 5,
               background: customer ? "#fff1f0" : "#f8fafc",
               border: `1px solid ${customer ? "#fca5a5" : "#e2e8f0"}`,
@@ -314,6 +334,7 @@ export default function AdminDashboard({ userEmail }) {
                 ))}
               </Select>
             </div>
+            }
 
             {/* User avatar */}
             <Dropdown menu={userMenu} placement="bottomRight" trigger={["click"]}>

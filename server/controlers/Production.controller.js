@@ -56,38 +56,31 @@ export const createProduction = async (req, res) => {
 
 export const listProduction = async (req, res) => {
   try {
-    const { customer, location, year, yearFrom, yearTo } = req.query;
+    const { customer, location, year, yearFrom, yearTo, from, to } = req.query;
 
-    const yearMatch = {};
-    if (yearFrom || yearTo) {
-      yearMatch.year = {};
-      if (yearFrom) yearMatch.year.$gte = Number(yearFrom);
-      if (yearTo)   yearMatch.year.$lte = Number(yearTo);
+    const match = {};
+    if (customer) match.customer = customer;
+    if (location) match.location = location;
+
+    /* Priority: explicit from/to (global date-range filter) → yearFrom/yearTo → year */
+    if (from || to) {
+      match.month = {};
+      if (from) match.month.$gte = new Date(from);
+      if (to)   match.month.$lte = new Date(to);
+    } else if (yearFrom || yearTo) {
+      match.month = {};
+      if (yearFrom) match.month.$gte = new Date(Date.UTC(Number(yearFrom), 0, 1));
+      if (yearTo)   match.month.$lte = new Date(Date.UTC(Number(yearTo), 11, 31, 23, 59, 59, 999));
     } else if (year) {
-      yearMatch.year = Number(year);
-    }
+      match.month = {
+        $gte: new Date(Date.UTC(Number(year), 0, 1)),
+        $lte: new Date(Date.UTC(Number(year), 11, 31, 23, 59, 59, 999)),
+      };
+    } 
 
-    const data = await Production.aggregate([
-      {
-        $match: {
-          ...(customer && { customer }),
-          ...(location && { location }),
-        }
-      },
-      {
-        $addFields: {
-          year: { $year: { date: "$month", timezone: "UTC" } }
-        }
-      },
-      {
-        $match: yearMatch
-      },
-      {
-        $sort: { month: -1 }
-      }
-    ]);
+    const data = await Production.find(match).sort({ month: -1 }).lean();
 
-    return res.json({ data });
+    return res.json({ data });  
 
   } catch (err) {
     console.log("Error:", err);

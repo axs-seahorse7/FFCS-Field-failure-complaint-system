@@ -310,8 +310,9 @@ export default function OverviewSection({ addToast,  }) {
   const [kpiPinned, setKpiPinned]       = useState(true);
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
   const [defectDropdown, setDefectDropdown] = useState("overall");
-  const { filters} = useOutletContext() || {};
+  const { filters } = useOutletContext() || {};
 
+  console.log("OverviewSection filters:", filters);
   /* Year-scoped filters */
   const yearFilters = useMemo(() => ({
     ...filters,

@@ -138,11 +138,10 @@ export default function DefectsSection() {
   const {filters} = useOutletContext();
 
   const params = useMemo(() => {
-    const p = {};
-    if (customer) p.customerName = customer; // reuse this
-    if (filters.year) p.year = filters.year;
+    const p = { ...filters };            // from, to (aur agar top bar se customerName set hai wo bhi) yahin se aayenge
+    if (customer) p.customerName = customer; // local dropdown selection ho toh override kar de
     return p;
-  }, [customer, filters.year]);
+  }, [customer, filters]);
 
   const { data, isLoading } = useBatchQuery([
     { key: "byCategory", url: "/complaints/by-category", params },

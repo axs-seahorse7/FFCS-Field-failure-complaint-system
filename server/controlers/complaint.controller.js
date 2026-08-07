@@ -411,12 +411,13 @@ const getYearRange = (year) => {
   };
 };
 
-const getKpiData = async (start, end) => {
+const getKpiData = async (start, end, customerName) => {
+    const complaintMatch = { complaintDate: { $gte: start, $lte: end } };
+    if (customerName) complaintMatch.customerName = customerName;
+
     const [stats] = await Complaint.aggregate([
       {
-        $match: {
-          complaintDate: { $gte: start, $lte: end }
-        }
+        $match: complaintMatch
       },
       {
         $group: {
@@ -440,7 +441,6 @@ const getKpiData = async (start, end) => {
               ]
             }
           },
-
           closed: {
             $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] }
           },
@@ -458,7 +458,6 @@ const getKpiData = async (start, end) => {
               ]
             }
           },
-
           resolvedCountForAvg: {
             $sum: {
               $cond: [
@@ -500,12 +499,11 @@ const getKpiData = async (start, end) => {
     ]);
 
     // 🏭 Production KPI
+    const productionMatch = { month: { $gte: start, $lte: end } };
+    if (customerName) productionMatch.customer = customerName; // Production model field is `customer`, not `customerName`
+
     const [prod] = await Production.aggregate([
-      {
-        $match: {
-          month: { $gte: start, $lte: end }
-        }
-      },
+      { $match: productionMatch },
       {
         $group: {
           _id: null,
@@ -533,13 +531,12 @@ const getKpiData = async (start, end) => {
           ? Math.round((total / production) * 1_000_000)
           : 0
     };
-
 }
 
 
 export const getComplaintStats = async (req, res) => {
   try {
-    const { from, to, year } = req.query;
+    const { from, to, year, customerName } = req.query;
     let currentStart, currentEnd, previousStart, previousEnd;
 
     if (from || to) {
@@ -561,8 +558,8 @@ export const getComplaintStats = async (req, res) => {
     }
 
     const [current, previous] = await Promise.all([
-      getKpiData(currentStart, currentEnd),
-      getKpiData(previousStart, previousEnd),
+      getKpiData(currentStart, currentEnd, customerName),
+      getKpiData(previousStart, previousEnd, customerName),
     ]);
 
     return res.json({
@@ -675,11 +672,30 @@ export const getProductionStats = async (req, res) => {
   }
 };
 
+/* ═══════════════════════════════════════════════════════
+   GET /complaints/monthly
+   FIX 1: removed the silent "shift to trailing 12 months
+   anchored on `to`" clamp — it was discarding the user's
+   actual `from` whenever the range exceeded 12 months.
+   Now honors the exact from/to the person picked, with a
+   generous 60-month safety cap anchored on START (not end),
+   so a huge range degrades gracefully instead of silently
+   lying about what window it's showing.
+
+   FIX 2: production is now "carried forward" per
+   customer+location combo — if a customer has a production
+   entry in May but not June, June still uses May's number
+   until a newer entry replaces it. This matches how a real
+   production line works (output doesn't reset to 0 just
+   because no one logged a new number that month), and fixes
+   PPM showing "No data" for brands whose complaints and
+   production entries don't happen to fall in the exact same
+   calendar month.
+═══════════════════════════════════════════════════════ */
 export const getMonthlyTrend = async (req, res) => {
   try {
-    const { from, to } = req.query;
+    const { from, to, customerName } = req.query;
 
-    // ---------- 1. Normalize Dates ----------
     const now = new Date();
 
     let startDate = from
@@ -691,87 +707,111 @@ export const getMonthlyTrend = async (req, res) => {
     startDate.setUTCHours(0, 0, 0, 0);
     endDate.setUTCHours(0, 0, 0, 0);
 
-    // ---------- 2. Limit to 12 Months ----------
     const startMonth = new Date(startDate);
     startMonth.setUTCDate(1);
 
     const endMonth = new Date(endDate);
     endMonth.setUTCDate(1);
 
+    // Safety cap only — 5 years is generous for a dashboard trend chart.
+    // Anchored on START, so it never silently drops the user's `from`.
+    const MAX_MONTHS = 60;
     const totalMonths =
       (endMonth.getUTCFullYear() - startMonth.getUTCFullYear()) * 12 +
       (endMonth.getUTCMonth() - startMonth.getUTCMonth()) + 1;
 
-    // If range > 12 → shift start to last 12 months
-    if (totalMonths > 12) {
-      startMonth.setTime(endMonth.getTime());
-      startMonth.setUTCMonth(endMonth.getUTCMonth() - 11);
+    if (totalMonths > MAX_MONTHS) {
+      endMonth.setTime(startMonth.getTime());
+      endMonth.setUTCMonth(startMonth.getUTCMonth() + MAX_MONTHS - 1);
     }
 
-    // ---------- 3. Aggregations ----------
-    const [complaints, production, resolvedData] = await Promise.all([
+    // Actual match upper-bound = last millisecond of endMonth's month
+    const matchEnd = new Date(endMonth);
+    matchEnd.setUTCMonth(matchEnd.getUTCMonth() + 1);
+    matchEnd.setUTCMilliseconds(-1);
+
+    const complaintFilter  = customerName ? { customerName } : {};
+    const productionFilter = customerName ? { customer: customerName } : {};
+
+    const [complaints, productionDocs, resolvedData] = await Promise.all([
       Complaint.aggregate([
         {
           $match: {
-            complaintDate: { $gte: startMonth, $lte: endMonth }
+            complaintDate: { $gte: startMonth, $lte: matchEnd },
+            ...complaintFilter
           }
         },
         {
           $group: {
-            _id: {
-              year: { $year: "$complaintDate" },
-              month: { $month: "$complaintDate" }
-            },
+            _id: { year: { $year: "$complaintDate" }, month: { $month: "$complaintDate" } },
             defects: { $sum: 1 }
           }
         }
       ]),
 
-      Production.aggregate([
-        {
-          $match: {
-            month: { $gte: startMonth, $lte: endMonth }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              year: { $year: "$month" },
-              month: { $month: "$month" }
-            },
-            production: { $sum: "$production" }
-          }
-        }
-      ]),
+      // Raw docs (not pre-aggregated) — includes anything BEFORE startMonth
+      // too, so the very first displayed month can still carry a known value.
+      Production.find(
+        { month: { $lte: matchEnd }, ...productionFilter },
+        { month: 1, location: 1, customer: 1, production: 1 }
+      ).sort({ month: 1 }).lean(),
 
       Complaint.aggregate([
         {
           $match: {
             status: "Resolved",
-            resolvedDate: { $gte: startMonth, $lte: endMonth }
+            resolvedDate: { $gte: startMonth, $lte: matchEnd },
+            ...complaintFilter
           }
         },
         {
           $group: {
-            _id: {
-              year: { $year: "$resolvedDate" },
-              month: { $month: "$resolvedDate" }
-            },
+            _id: { year: { $year: "$resolvedDate" }, month: { $month: "$resolvedDate" } },
             resolved: { $sum: 1 }
           }
         }
       ])
     ]);
 
-    // ---------- 4. Maps ----------
     const toMap = (arr, field) =>
       new Map(arr.map(d => [`${d._id.year}-${d._id.month}`, d[field]]));
 
     const cMap = toMap(complaints, "defects");
-    const pMap = toMap(production, "production");
     const rMap = toMap(resolvedData, "resolved");
 
-    // ---------- 5. Build Continuous Months ----------
+    /* ── Carry-forward production per customer+location combo ── */
+    const docsByMonthKey = new Map();
+    productionDocs.forEach(doc => {
+      const d = new Date(doc.month);
+      const key = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
+      if (!docsByMonthKey.has(key)) docsByMonthKey.set(key, []);
+      docsByMonthKey.get(key).push(doc);
+    });
+
+    const combos = new Map(); // "customer|location" -> latest known production
+
+    // Seed with anything dated BEFORE startMonth
+    productionDocs.forEach(doc => {
+      if (new Date(doc.month) < startMonth) {
+        combos.set(`${doc.customer}|${doc.location}`, doc.production || 0);
+      }
+    });
+
+    const monthlyProduction = new Map();
+    {
+      const cursor = new Date(startMonth);
+      while (cursor <= endMonth) {
+        const key = `${cursor.getUTCFullYear()}-${cursor.getUTCMonth() + 1}`;
+        (docsByMonthKey.get(key) || []).forEach(doc => {
+          combos.set(`${doc.customer}|${doc.location}`, doc.production || 0);
+        });
+        const total = [...combos.values()].reduce((s, v) => s + v, 0);
+        monthlyProduction.set(key, total);
+        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+      }
+    }
+
+    /* ── Build continuous month series ── */
     const result = [];
     const cursor = new Date(startMonth);
 
@@ -782,20 +822,14 @@ export const getMonthlyTrend = async (req, res) => {
 
       const defects = cMap.get(key) || 0;
       const resolved = rMap.get(key) || 0;
-      const productionQty = pMap.get(key) || 0;
+      const productionQty = monthlyProduction.get(key) || 0;
 
       result.push({
         m: `${y}-${String(m).padStart(2, "0")}`,
-
         production: productionQty,
         complaints: defects,
         resolved,
-
-        ppm:
-          productionQty > 0
-            ? Math.round((defects / productionQty) * 1_000_000)
-            : 0,
-
+        ppm: productionQty > 0 ? Math.round((defects / productionQty) * 1_000_000) : 0,
         backlog: defects - resolved
       });
 
@@ -808,7 +842,7 @@ export const getMonthlyTrend = async (req, res) => {
     console.error("Monthly trend error:", err);
     return res.status(500).json({ message: err.message });
   }
-};;
+};
 
 export const getWeeklyTrend = async (req, res) => {
   try {
@@ -1000,6 +1034,8 @@ export const getByPart = async (req, res) => {
 export const getByDoa = async (req, res) => {
   try {
     const dateMatch = buildDateMatch(req.query);
+    console.log("REQ PARAMS:", req.params, "REQ QUERY:", req.query);
+
     const data = await Complaint.aggregate([
       { $match: { ...dateMatch, doa: { $exists: true, $ne: "" } } },
       { $group: { _id: "$doa", count: { $sum: 1 } } },
@@ -1274,9 +1310,9 @@ export const getByUpdatedUser = async (req, res) => {
 
 export const downloadComplaints = async (req, res) => {
   try {
-    const { startDate, endDate, customer } = req.query;
+    const { startDate, endDate, customer, status } = req.query;
 
-    console.log("Download request:", { startDate, endDate, customer });
+    console.log("Download request:", { startDate, endDate, customer, status });
 
     if (!startDate || !endDate) {
       return res.status(400).json({ message: "startDate and endDate are required" });
@@ -1289,10 +1325,18 @@ export const downloadComplaints = async (req, res) => {
       return res.status(400).json({ message: "Invalid date format" });
     }
 
-    const complaints = await Complaint.find({
-      complaintDate: { $gte: start, $lte: end },
-      customerName: customer || { $exists: true, $ne: null },
-    })
+    // ── Server-side safety net: never allow >3 months in one export,
+    // even if someone calls this endpoint directly (not just via the modal).
+    const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000; // 1 calendar month max
+    if (end - start > MAX_RANGE_MS) {
+      return res.status(400).json({ message: "You can only download one month of data at a time" });
+    }
+    
+    const match = { complaintDate: { $gte: start, $lte: end } };
+    if (customer && customer !== "All") match.customerName = customer;
+    if (status   && status   !== "All") match.status       = status;
+
+    const complaints = await Complaint.find(match)
       .sort({ complaintDate: -1 })
       .lean();
 
