@@ -715,7 +715,7 @@ export default function ComplaintForm({ userEmail }) {
 
           <div style={{ lineHeight: 1 }} className="border-l-2 border-red-500 pl-5">
             <div style={{ fontSize: 14, fontWeight: 800, color: T.label, letterSpacing: "-0.3px" }}>
-              CMS <span style={{ color: T.red }} className="tracking-wider">
+              FFR <span style={{ color: T.red }} className="tracking-wider">
                 {isEditMode ? "Edit" : "Entry"}
               </span>
             </div>

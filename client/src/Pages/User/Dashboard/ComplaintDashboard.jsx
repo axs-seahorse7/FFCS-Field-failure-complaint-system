@@ -549,10 +549,10 @@ export default function ComplaintDashboard({ userEmail }) {
             </div>
             <div style={{ lineHeight: 1 }} className="hide-sm border-l-2 border-red-600 pl-4">
               <div style={{ fontSize: 15, fontWeight: 800, color: "#1C1C1E", letterSpacing: "-0.3px" }}>
-                CMS <span style={{ color: "#FF3B30" }}>Dashboard</span>
+                FFR <span style={{ color: "#FF3B30" }}>Dashboard</span>
               </div>
               <div style={{ fontSize: 10, fontWeight: 600, color: "#8E8E93", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                Complaint Monitor System
+                FIELD FAILURE REPORT
                 <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#C7C7CC", display: "inline-block" }} />
                 {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
               </div>
