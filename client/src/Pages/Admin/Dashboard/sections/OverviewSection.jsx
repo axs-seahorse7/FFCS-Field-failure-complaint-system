@@ -359,6 +359,8 @@ export default function OverviewSection({ addToast,  }) {
     catVsCust
   } = data || {};
 
+  console.log("stats:", stats)
+
   const curr = stats?.current || {};
   const prev = stats?.previous || {};
 
@@ -683,7 +685,11 @@ export default function OverviewSection({ addToast,  }) {
           stroke="#ef4444"
           fill="url(#gC)"
           strokeWidth={2}
-        />
+          dot={{ r: 3, fill: "#ef4444" }}
+          activeDot={{ r: 5 }}
+        >
+          <LabelList dataKey="complaints" position="top" style={{ fontSize: 9, fill: "#ef4444", fontWeight: 600 }} formatter={v => v || ""} />
+        </Area>
 
         {/* 🟢 Resolved */}
         <Area
@@ -693,7 +699,11 @@ export default function OverviewSection({ addToast,  }) {
           stroke="#22c55e"
           fill="url(#gR)"
           strokeWidth={2}
-        />
+          dot={{ r: 3, fill: "#22c55e" }}
+          activeDot={{ r: 5 }}
+        >
+          <LabelList dataKey="resolved" position="top" style={{ fontSize: 9, fill: "#22c55e", fontWeight: 600 }} formatter={v => v || ""} />
+        </Area>
 
         {/* 🟡 Backlog */}
         <Area
@@ -703,7 +713,11 @@ export default function OverviewSection({ addToast,  }) {
           stroke="#f59e0b"
           fill="url(#gB)"
           strokeWidth={2}
-        />
+          dot={{ r: 3, fill: "#f59e0b" }}
+          activeDot={{ r: 5 }}
+        >
+          <LabelList dataKey="backlog" position="top" style={{ fontSize: 9, fill: "#f59e0b", fontWeight: 600 }} formatter={v => v || ""} />
+        </Area>
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -1156,10 +1170,9 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "Pendings",
-      // value: s?.current.backlog,
-      value: 0,
-      prev: s?.previous.backlog,
-      trendData: getComplaintPercentage(s?.current.backlog, s?.current.total, "complaint"),
+      value: s?.current?.pending,
+      prev: s?.previous?.pending,
+      trendData: getComplaintPercentage(s?.current.pending, s?.current.total, "complaint"),
       icon: "📦",
       color: "purple"
     },

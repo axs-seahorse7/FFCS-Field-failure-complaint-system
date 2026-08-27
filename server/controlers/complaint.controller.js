@@ -280,6 +280,18 @@ export const updateComplaintStatus = async (req, res) => {
       return res.status(404).json({ message: "This complaint may have been deleted!" });
     }
 
+    /* ═══════════════════════════════════════════════════
+      RESOLVED = FINAL. Once a complaint is marked Resolved,
+      it can never move back to Open/Pending (or anywhere
+      else) — block the update here, before any file
+      uploads or writes happen.
+    ═══════════════════════════════════════════════════ */
+    if (complaint.status === "Resolved") {
+      return res.status(403).json({
+        message: "This complaint is already Resolved. Its status is final and cannot be changed.",
+      });
+    }
+
     const prevStatus = complaint.status;
 
     // ─── FILE HANDLING START ─────────────────────────

@@ -79,17 +79,44 @@ export const bulkUploadComplaints = async (req, res) => {
       defReceived: safeStr(row["Def received"]),
       replacementFromSupplier: toNum(row["Replacement from supplier"]),
       replacementPending: toNum(row["Replacement Pending"]),
-      status: "Open",
+      status: "Resolved",
     }));
 
     const valid = [];
     const failed = [];
 
     for (let i = 0; i < mappedData.length; i++) {
+      const row = mappedData[i];
       try {
-        const doc = new Complaint(mappedData[i]);
+        const doc = new Complaint(row);
         await doc.validate();
-        valid.push(mappedData[i]);
+
+        /* ═══════════════════════════════════════════════════════
+           QTY-BASED DUPLICATION
+           One Excel row with Qty = N represents N separate
+           physical-unit complaints — so instead of inserting
+           this row once, we push N independent copies into
+           `valid`. Each copy later gets its own unique
+           complaintNo (assigned below by array index) so they
+           become N distinct Complaint documents, not one.
+
+           Qty missing / 0 / negative / non-numeric → treated as
+           1 (a row always represents at least one complaint).
+
+           NOTE: each exploded copy is set to qty: 1, since it now
+           represents exactly one individual complaint. If you'd
+           rather keep the original Qty value stamped on every
+           duplicate instead, just change `qty: 1` below back to
+           `qty: row.qty`.
+        ═══════════════════════════════════════════════════════ */
+        const copies = row.qty > 0 ? row.qty : 1;
+
+        for (let c = 0; c < copies; c++) {
+          valid.push({
+            ...row,
+            qty: 1,
+          });
+        }
       } catch (e) {
         failed.push({ ...cleanedData[i], _errorReason: e.message });
       }

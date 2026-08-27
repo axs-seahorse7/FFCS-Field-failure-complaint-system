@@ -784,12 +784,31 @@ function StatusDropdown({ complaint, onSelect, disabled }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const cfg = STATUS_CFG[complaint.status] || {};
+  const isLocked = complaint.status === "Resolved"; // resolved = final, no further status change
 
   useEffect(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, []);
+
+  if (isLocked) {
+    return (
+      <Tooltip title="Resolved complaints no longer be changed">
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "4px 10px 4px 8px", borderRadius: 20,
+          background: cfg.bg || T.gray6,
+          border: `1px solid ${cfg.border || T.gray5}`,
+          fontSize: 11, fontWeight: 700, color: cfg.color || T.label2,
+          cursor: "not-allowed", whiteSpace: "nowrap", opacity: 0.85,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color || T.gray3, flexShrink: 0 }} />
+          {complaint.status}
+        </span>
+      </Tooltip>
+    );
+  }
 
   return (
     <div ref={ref} style={{ position: "relative", }} onClick={(e) => e.stopPropagation()}>
@@ -907,7 +926,7 @@ export default function ManageSection({ addToast }) {
     if (!statusModal) return;
     setStatusLoading(true);
     try {
-      const res = await api.post("/complaints/status", {
+      await api.post("/complaints/status", {
         id: statusModal.complaint._id,
         status: statusModal.targetStatus,
         remarks: remark,
@@ -916,7 +935,10 @@ export default function ManageSection({ addToast }) {
       setStatusModal(null);
       refetch();
     } catch (err) {
-      message.error(res.data.err.message);
+      // FIX: `res` didn't exist in this scope (it was declared inside the
+      // try block above) — this threw a ReferenceError and silently
+      // swallowed the real backend error message every time.
+      message.error(err?.response?.data?.message || "Failed to update status");
     } finally {
       setStatusLoading(false);
     }
@@ -927,13 +949,14 @@ export default function ManageSection({ addToast }) {
     if (!deleteModal) return;
     setDeleteLoading(true);
     try {
-      const {data} = await api.delete("/complaints/delete/" + deleteModal._id);
+      await api.delete("/complaints/delete/" + deleteModal._id);
       message.success("Complaint deleted");
       setDeleteModal(null);
       refetch();
       if (selected?._id === deleteModal._id) setSelected(null);
     } catch (err) {
-      message.error(data.err.message);
+      // Same fix here — `data` was scoped to the try block only.
+      message.error(err?.response?.data?.message || "Failed to delete complaint");
     } finally {
       setDeleteLoading(false);
     }
@@ -974,7 +997,10 @@ const columns = [
           onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.7)}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
         >
-          {v}
+          {/* Display only — strips the dashes from "PG-20260827-00206"
+              so it reads as "PG2026082700206". The underlying record
+              keeps its real complaintNo untouched. */}
+          {(v || "").replace(/-/g, "")}
         </span>
       ),
     },
