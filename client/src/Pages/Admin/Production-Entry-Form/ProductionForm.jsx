@@ -152,7 +152,6 @@ export default function ProductionEntryForm() {
   const {user}      = useUser();
   const canEdit   = user.isSystemRole || user.roleId?.action?.includes("edit");
   const canDelete = user.isSystemRole || user.roleId?.action?.includes("delete");
-  console.log("User :", user, "canEdit:", canEdit, "canDelete:", canDelete);
 
   /* ── API — now driven by the global date-range/customer filter from the top bar ── */
   const productionQuery = useMemo(() => {

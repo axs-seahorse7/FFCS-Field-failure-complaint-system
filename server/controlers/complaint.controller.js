@@ -860,22 +860,37 @@ export const getWeeklyTrend = async (req, res) => {
   try {
     const now = new Date();
 
-    //  Current month start & end (UTC safe)
-    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const endOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    // Current month start & end
+    const startOfMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+    );
 
-    //  Aggregate complaints weekly
+    const endOfMonth = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+      )
+    );
+
     const raw = await Complaint.aggregate([
       {
         $match: {
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+          complaintDate: {
+            $gte: startOfMonth,
+            $lte: endOfMonth
+          }
         }
       },
       {
         $addFields: {
           day: {
             $dayOfMonth: {
-              date: "$createdAt",
+              date: "$complaintDate",
               timezone: "Asia/Kolkata"
             }
           }
@@ -884,7 +899,9 @@ export const getWeeklyTrend = async (req, res) => {
       {
         $addFields: {
           week: {
-            $ceil: { $divide: ["$day", 7] } // 1–7 → week 1, etc.
+            $ceil: {
+              $divide: ["$day", 7]
+            }
           }
         }
       },
@@ -894,16 +911,17 @@ export const getWeeklyTrend = async (req, res) => {
           count: { $sum: 1 }
         }
       },
-      { $sort: { _id: 1 } }
+      {
+        $sort: { _id: 1 }
+      }
     ]);
 
-    //  Map for fast lookup
     const map = {};
+
     raw.forEach(r => {
       map[r._id] = r.count;
     });
 
-    // Always return 5 weeks (max possible in a month)
     const result = [];
 
     for (let week = 1; week <= 5; week++) {
@@ -1046,7 +1064,6 @@ export const getByPart = async (req, res) => {
 export const getByDoa = async (req, res) => {
   try {
     const dateMatch = buildDateMatch(req.query);
-    console.log("REQ PARAMS:", req.params, "REQ QUERY:", req.query);
 
     const data = await Complaint.aggregate([
       { $match: { ...dateMatch, doa: { $exists: true, $ne: "" } } },
@@ -1324,7 +1341,6 @@ export const downloadComplaints = async (req, res) => {
   try {
     const { startDate, endDate, customer, status } = req.query;
 
-    console.log("Download request:", { startDate, endDate, customer, status });
 
     if (!startDate || !endDate) {
       return res.status(400).json({ message: "startDate and endDate are required" });

@@ -78,8 +78,6 @@ export default function AdminDashboard({ userEmail }) {
 
    const currentPath = location.pathname.split("/").join("/");
    
-    console.log("currentPath", currentPath)
-
 
   const appliedFilters = useMemo(() => {
     if (dateRange && dateRange.length === 2) {

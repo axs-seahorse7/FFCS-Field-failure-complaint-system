@@ -44,8 +44,16 @@ export default function KpiCard({ label, value, sub, color = "blue", icon, trend
           {loading ? (
             <Skeleton.Input active size="small" style={{ width: 80, height: 28, borderRadius: 6 }} />
           ) : (
-            <div style={{ color: p.accent, fontSize: 26, fontWeight: 900, lineHeight: 1, letterSpacing: -0.5 }}>
-              {value}
+            <div
+              style={{
+                color: p.accent,
+                fontSize: 26,
+                fontWeight: 900,
+                lineHeight: 1,
+                letterSpacing: -0.5,
+              }}
+            >
+              {Number(value).toLocaleString("en-IN")}
             </div>
           )}
           {sub && !loading && (

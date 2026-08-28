@@ -341,101 +341,122 @@ export default function DefectsSection() {
     </ResponsiveContainer>
   );
 
-  const DefectTrendChart = ({ h = 220 }) => {
-    const hasDefects = defectTrendData.some(d => d.defects > 0);
-    const hasPPM = defectTrendData.some(d => d.ppm > 0);
+const DefectTrendChart = ({ h = 220 }) => {
+  const hasDefects = defectTrendData.some(d => d.defects > 0);
+  const hasPPM = defectTrendData.some(d => d.ppm > 0);
 
-    // Show Zero only if BOTH are empty
-    if (!defectTrendData.length || (!hasDefects && !hasPPM)) {
-      return <ZeroData />;
-    }
+  if (!defectTrendData.length || (!hasDefects && !hasPPM)) {
+    return <ZeroData />;
+  }
 
-    return (
-      <ResponsiveContainer width="100%" height={h}>
-        <AreaChart
-          data={defectTrendData}
-          margin={{ top: 16, right: 14, bottom: 8, left: 8 }}
-        >
-          <defs>
-            <linearGradient id="gradD" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-            </linearGradient>
+  return (
+    <ResponsiveContainer width="100%" height={h}>
+      <AreaChart
+        data={defectTrendData}
+        margin={{ top: 30, right: 14, bottom: 8, left: 8 }}
+      >
+        <defs>
+          <linearGradient id="gradD" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+          </linearGradient>
 
-            <linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-            </linearGradient>
-          </defs>
+          <linearGradient id="gradP" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+          </linearGradient>
+        </defs>
 
-          <CartesianGrid strokeDasharray="3 0" stroke="#f1f5f9" />
+        <CartesianGrid strokeDasharray="3 0" stroke="#f1f5f9" />
 
-          <XAxis
-            dataKey="m"
-            tick={{ fontSize: 10, fill: "#94a3b8" }}
+        <XAxis
+          dataKey="m"
+          tick={{ fontSize: 10, fill: "#94a3b8" }}
+          tickFormatter={(value) => {
+            const [year, month] = value.split("-");
+            return new Date(year, month - 1).toLocaleString("en-US", {
+              month: "short"
+            }) + `-${year}`;
+          }}
+        />
+
+        {hasDefects && (
+          <YAxis
+            yAxisId="left"
+            tick={{ fontSize: 10, fill: "#3b82f6" }}
+            width={32}
           />
+        )}
 
-          {/* Defects Axis */}
-          {hasDefects && (
-            <YAxis
-              yAxisId="left"
-              tick={{ fontSize: 10, fill: "#3b82f6" }}
-              width={32}
-            />
-          )}
-
-          {/* PPM Axis */}
-          {hasPPM && (
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tickFormatter={(v) => v.toLocaleString()}
-              tick={{ fontSize: 10, fill: "#f59e0b" }}
-              width={50}
-            />
-          )}
-
-          <Tooltip
-            content={<ChartTooltip />}
-            formatter={(value, name) => {
-              if (name === "PPM") return value.toLocaleString();
-              return value;
-            }}
+        {hasPPM && (
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            tickFormatter={(v) => v.toLocaleString()}
+            tick={{ fontSize: 10, fill: "#f59e0b" }}
+            width={50}
           />
+        )}
 
-          <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Tooltip
+          content={<ChartTooltip />}
+          formatter={(value, name) => {
+            if (name === "PPM") return value.toLocaleString();
+            return value;
+          }}
+        />
 
-          {/* Defects Area */}
-          {hasDefects && (
-            <Area
-              yAxisId="left"
-              type="monotone"
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+
+        {hasDefects && (
+          <Area
+            yAxisId="left"
+            type="monotone"
+            dataKey="defects"
+            name="Defects"
+            stroke="#3b82f6"
+            fill="url(#gradD)"
+            strokeWidth={2.5}
+            dot={{ r: 3 }}
+          >
+            <LabelList
               dataKey="defects"
-              name="Defects"
-              stroke="#3b82f6"
-              fill="url(#gradD)"
-              strokeWidth={2.5}
-              dot={{ r: 2 }}
+              position="top"
+              formatter={(v) => Number(v).toLocaleString()}
+              style={{
+                fontSize: 10,
+                fill: "#3b82f6"
+              }}
             />
-          )}
+          </Area>
+        )}
 
-          {/* PPM Area */}
-          {hasPPM && (
-            <Area
-              yAxisId="right"
-              type="monotone"
+        {hasPPM && (
+          <Area
+            yAxisId="right"
+            type="monotone"
+            dataKey="ppm"
+            name="PPM"
+            stroke="#f59e0b"
+            fill="url(#gradP)"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+          >
+            <LabelList
               dataKey="ppm"
-              name="PPM"
-              stroke="#f59e0b"
-              fill="url(#gradP)"
-              strokeWidth={2}
-              dot={{ r: 2 }}
+              position="top"
+              formatter={(v) => Number(v).toLocaleString()}
+              style={{
+                fontSize: 10,
+                fill: "#f59e0b"
+              }}
             />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  };
+          </Area>
+        )}
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+};
 
   const CustVsCategoryChart = ({ h = 220 }) => (
     <ResponsiveContainer width="100%" height={h}>

@@ -164,7 +164,7 @@ function MiniKpiCard({
       {/* MAIN */}
       <div style={{ flex: 1 }}>
         <div style={{
-          fontSize: 9,
+          fontSize: 10,
           color: "#64748b",
           fontWeight: 600,
           textTransform: "uppercase"
@@ -189,10 +189,10 @@ function MiniKpiCard({
             Prev: {prev ?? "-"}
           </div> */}
 
-          <Tag color="#3A8B95" size="small" variant="solid" >Prev: {prev ?? "-"}</Tag>
+          {/* <Tag color="#3A8B95" size="small" variant="solid" >Prev: {prev ?? "-"}</Tag> */}
 
             {/* TREND BADGE */}
-            {trendData && (
+            {/* {trendData && (
               <div style={{
                 background: t.bg,
                 color: t.color,
@@ -207,7 +207,7 @@ function MiniKpiCard({
                 <span>{arrow}</span>
                 <span>{trendData.percent}%</span>
               </div>
-            )}
+            )} */}
         </div>
         
       </div>
@@ -358,11 +358,6 @@ export default function OverviewSection({ addToast,  }) {
     production,
     catVsCust
   } = data || {};
-
-  console.log("stats:", stats)
-
-  const curr = stats?.current || {};
-  const prev = stats?.previous || {};
 
 
   /* ── Memos ── */
@@ -599,7 +594,7 @@ export default function OverviewSection({ addToast,  }) {
             wrapperStyle={{ fontSize: 10 }}
             formatter={(value, entry) => (
               <span style={{ color: "#1e293b" }}>
-                {value}: <strong style={{ color: entry.color }}>{entry.payload.value}</strong>
+                {value === "DOA" ? "DEAD ON ARRIVAL" : value === "IW" ? "IN-WARRANTY" : "OUT-OF-WARRANTY"}: <strong style={{ color: entry.color }}>{entry.payload.value}</strong>
                 {total > 0 && (
                   <span style={{ color: "#64748b" }}>
                     {" "}({((entry.payload.value / total) * 100).toFixed(1)}%)
@@ -622,7 +617,7 @@ export default function OverviewSection({ addToast,  }) {
       <ResponsiveContainer width="100%" height={h}>
         <PieChart style={SHADOW_STYLE}>
           <Pie data={commodityData} cx="44%" cy="48%"
-            outerRadius={h > 300 ? 95 : 68}
+            outerRadius={h > 300 ? 90 : 55}
             dataKey="value" nameKey="name" paddingAngle={3}
             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
             labelLine={{ stroke: "#cbd5e1" }}>
@@ -1054,7 +1049,7 @@ const CustomerRadial = ({ h = 200, isPopup = false }) => {
             labelLine={{ stroke: "#cbd5e1" }}>
             {allDefectsDonut.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
           </Pie>
-          <ReTooltip content={<ChartTooltip />} formatter={(v, n, p) => [`${p?.payload?.pct ?? 0}%`, n]} />
+          {/* <ReTooltip content={<ChartTooltip />} formatter={(v, n, p) => [`${p?.payload?.pct ?? 0}%`, n]} /> */}
           <Legend
               layout="horizontal"
               verticalAlign="bottom"
@@ -1146,7 +1141,7 @@ function getComplaintPercentage(count, total, type) {
   const kpis = [
     {
       label: "Total Complaints",
-      value: s?.current.total,
+      value: Number(s?.current.total).toLocaleString("en-IN"),
       prev: s?.previous.total,
       trendData: getTrend(s?.current.total, s?.previous.total, "complaint"),
       icon: "📉",
@@ -1154,7 +1149,7 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "Open Complaints",
-      value: s?.current.open,
+      value: Number(s?.current.open).toLocaleString("en-IN"),
       prev: s?.previous.open,
       trendData: getComplaintPercentage(s?.current.open, s?.current.total, "complaint"),
       icon: "📂",
@@ -1162,7 +1157,7 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "Resolved",
-      value: s?.current.resolved,
+      value: Number(s?.current.resolved).toLocaleString("en-IN"),
       prev: s?.previous.resolved,
       trendData: getComplaintPercentage(s?.current.resolved, s?.current.total, "production"),
       icon: "✅",
@@ -1170,7 +1165,7 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "Pendings",
-      value: s?.current?.pending,
+      value: Number(s?.current?.pending).toLocaleString("en-IN"),
       prev: s?.previous?.pending,
       trendData: getComplaintPercentage(s?.current.pending, s?.current.total, "complaint"),
       icon: "📦",
@@ -1178,7 +1173,7 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "Production",
-      value: s?.current.production,
+      value: Number(s?.current.production).toLocaleString("en-IN"),
       prev: s?.previous.production,
       trendData: getTrend(s?.current.production, s?.previous.production, "production"),
       icon: "🏭",
@@ -1186,7 +1181,7 @@ function getComplaintPercentage(count, total, type) {
     },
     {
       label: "PPM",
-      value: s?.current.avgPpm,
+      value: Number(s?.current.avgPpm).toLocaleString("en-IN"),
       prev: s?.previous.avgPpm,
       trendData: getTrend(s?.current.avgPpm, s?.previous.avgPpm, "complaint"),
       icon: "⚡",
@@ -1248,16 +1243,18 @@ function getComplaintPercentage(count, total, type) {
         <ChartCard title="Product Type Split (IDU vs ODU)"
           icon={<MdSettings size={15} color="#f59e0b" />}
           loading={isLoading}
-          onExpand={() => openPreview("Product Type Split", <CommodityPie h={380} />)}>
+          onExpand={() => openPreview("Product Type Split", <CommodityPie h={300} />)}>
           <CommodityPie h={200} />
         </ChartCard>
 
+         {!filters?.customerName && (
           <ChartCard title="Top 6 Brands — Complaint Share"
             icon={<TbWorldUp size={15} color="#22c55e" />}
             tag="Radial" tagColor="geekblue" loading={isLoading}
             onExpand={() => openPreview("Top 6 Brand Share", <CustomerRadial h={380} />)}>
             <CustomerRadial />
           </ChartCard>
+        )}
 
         <ChartCard title="Monthly Complaint Trend"
           icon={<MdTrendingUp size={15} color="#e53935" />}
@@ -1295,12 +1292,12 @@ function getComplaintPercentage(count, total, type) {
           <PpmTrend />
         </ChartCard>
 
-        <ChartCard title="Weekly Complaint "
+        {/* <ChartCard title="Weekly Complaint "
           icon={<MdCalendarToday size={15} color="#3b82f6" />}
           loading={isLoading}
           onExpand={() => openPreview("Weekly Complaint Pareto", <DailyParetoChart h={380} />)}>
           <DailyParetoChart />
-        </ChartCard>
+        </ChartCard> */}
 
         <ChartCard title="Top Defect Categories — 80/20 Priority View"
           icon={<MdSearch size={15} color="#8b5cf6" />}
@@ -1313,12 +1310,21 @@ function getComplaintPercentage(count, total, type) {
 
       {/* ROW E — 2 bar/pareto charts */}
       <Grid cols={3}>
-        <ChartCard title="Top Brands by Complaint Volume"
-          icon={<MdFactory size={15} color="#3b82f6" />}
-          tag="Top 10" tagColor="blue" loading={isLoading}
-          onExpand={() => openPreview("Top Brands by Complaint Volume", <CustomerParetoChart h={400} />)}>
-          <CustomerParetoChart />
-        </ChartCard>
+        { !filters?.customerName && 
+        <ChartCard title="Defect Distribution Across Brands" 
+          h={400}
+          icon={<TfiBarChartAlt size={15} color="#06b6d4" />}
+          tag="Brand-wise" tagColor="cyan"
+          headerExtra={
+            <Select size="small" value={defectDropdown} onChange={setDefectDropdown}
+              style={{ minWidth: 120, fontSize: 10 }} dropdownMatchSelectWidth={false}>
+              {defectOptions?.map(o => <Option key={o.value} value={o.value}>{o.label}</Option>)}
+            </Select>
+          }
+          loading={isLoading}
+          onExpand={() => openPreview("Defect Distribution Across Brands", <DefectBrandChart h={380} />)}>
+          <DefectBrandChart h={250} />
+        </ChartCard>}
 
 
         <ChartCard title="Defective Parts (Top 10)"
@@ -1344,25 +1350,20 @@ function getComplaintPercentage(count, total, type) {
       {/* ROW G — aging + defect donut + all defects donut = 3 donuts/charts */}
       <Grid cols={3}>
 
-        <ChartCard title="Defect Distribution Across Brands"
-          icon={<TfiBarChartAlt size={15} color="#06b6d4" />}
-          tag="Brand-wise" tagColor="cyan"
-          headerExtra={
-            <Select size="small" value={defectDropdown} onChange={setDefectDropdown}
-              style={{ minWidth: 120, fontSize: 10 }} dropdownMatchSelectWidth={false}>
-              {defectOptions?.map(o => <Option key={o.value} value={o.value}>{o.label}</Option>)}
-            </Select>
-          }
-          loading={isLoading}
-          onExpand={() => openPreview("Defect Distribution Across Brands", <DefectBrandChart h={380} />)}>
-          <DefectBrandChart h={200} />
-        </ChartCard>
+         {!filters?.customerName && <ChartCard title="Top Brands by Complaint Volume"
+              icon={<MdFactory size={15} color="#3b82f6" />}
+              tag="Top 10" tagColor="blue" loading={isLoading}
+              onExpand={() => openPreview("Top Brands by Complaint Volume", <CustomerParetoChart h={400} />)}>
+              <CustomerParetoChart h={300} />
+          </ChartCard>}
+
+       
 
         <ChartCard title="All Defect Types — Category Breakdown"
           icon={<span style={{ fontSize: 14 }}>🧩</span>}
           tag="Donut" tagColor="purple" loading={isLoading}
           onExpand={() => openPreview("All Defect Types", <AllDefectsDonut h={380} />)}>
-          <AllDefectsDonut h={200} />
+          <AllDefectsDonut h={300} />
         </ChartCard>
 
       </Grid>

@@ -143,8 +143,11 @@ export default function WarrantySection() {
         <PieChart>
           <Pie data={doaPieData} cx="45%" cy="48%"
             innerRadius={h > 400 ? 85 : 62} outerRadius={h > 400 ? 130 : 95}
-            dataKey="count" nameKey="_id" paddingAngle={4}
-            label={renderDoaLabel} labelLine={false}>
+            dataKey="count" 
+            nameKey="_id" 
+            paddingAngle={4}
+            label={renderDoaLabel} 
+            labelLine={false}>
             {doaPieData.map((d, i) => <Cell key={i} fill={DOA_COLORS[d._id] || CHART_COLORS[i]} />)}
           </Pie>
           <Tooltip content={<ChartTooltip />} formatter={fmtNum} />
@@ -154,12 +157,8 @@ export default function WarrantySection() {
     );
   };
 
- const PpmLine = ({ h = 320 }) => {
-  /* FIX: was hardcoded to `[]` — now reads the actual `monthly`
-     data (from /complaints/monthly), and matches the real field
-     name `ppm` returned by that endpoint (not `avgPpm`). */
+const PpmLine = ({ h = 320 }) => {
   const data = monthly || [];
-
   const hasPPM = data?.some(d => d.ppm > 0);
 
   if (!data.length || !hasPPM) return <ZeroData />;
@@ -168,7 +167,7 @@ export default function WarrantySection() {
     <ResponsiveContainer width="100%" height={h}>
       <LineChart
         data={data}
-        margin={{ top: 16, right: 16, bottom: 8, left: 8 }}
+        margin={{ top: 25, right: 16, bottom: 8, left: 8 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
 
@@ -201,21 +200,23 @@ export default function WarrantySection() {
             fill: "#e53935"
           }}
           activeDot={{ r: 5 }}
-        />
-
-        {/* Show labels ONLY if few points (avoid clutter) */}
-        {data.length <= 6 && (
+        >
           <LabelList
             dataKey="ppm"
             position="top"
-            formatter={(v) => v.toLocaleString()}
-            style={{ fontSize: 10 }}
+            formatter={(v) => Number(v).toLocaleString()}
+            style={{
+              fontSize: 10,
+              fill: "#64748b"
+            }}
           />
-        )}
+        </Line>
       </LineChart>
     </ResponsiveContainer>
   );
 };
+
+
   const CommodityBar = ({ h = 260 }) => {
     if (!commSorted.length) return <ZeroData />;
     return (
@@ -361,20 +362,22 @@ export default function WarrantySection() {
           onExpand={() => openPreview("Warranty Type Breakdown", <DoaDonut h={420} />)}>
           <DoaDonut />
         </ChartCard>
+
         <ChartCard title="Monthly Quality Rate (Parts Per Million)" icon="📈" tag="PPM Trend" tagColor="red" loading={isLoading}
           onExpand={() => openPreview("Monthly PPM Trend", <PpmLine h={420} />)}>
           <PpmLine />
         </ChartCard>
+
       </Grid>
 
       {/* Row 2 — Commodity bar + Comm vs Cat + Replacement */}
       <Grid cols={3}>
-        <ChartCard title="IDU vs ODU Complaint Volume" icon="📦" loading={isLoading}
+        <ChartCard title="IDU vs ODU vs WAC Complaint Volume" icon="📦" loading={isLoading}
           onExpand={() => openPreview("IDU vs ODU Split", <CommodityBar h={360} />)}>
           <CommodityBar />
         </ChartCard>
 
-        <ChartCard title="Defect Types in IDU vs ODU Units" icon="📊" tag="Stacked" tagColor="blue"
+        <ChartCard title="Defect Types in IDU vs ODU vs WAC Units" icon="📊" tag="Stacked" tagColor="blue"
           loading={!commVsCat} onExpand={() => openPreview("Defects in IDU vs ODU", <CommVsCatStacked h={360} />)}>
           <CommVsCatStacked />
         </ChartCard>

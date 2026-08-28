@@ -267,20 +267,51 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
 
   const CustomerVsCategory = ({ h = 280 }) => {
     if (!custVsCat) return <ZeroData />;
+
     const data = (custVsCat || []).slice(0, 8);
     const cats = Object.keys(data[0] || {}).filter(k => k !== "_id");
+
     return (
       <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} barCategoryGap="30%" barGap={3} margin={{ top: 20, right: 10, bottom: 10, left: 10 }}>
+        <BarChart
+          data={data}
+          barCategoryGap="30%"
+          barGap={3}
+          margin={{ top: 20, right: 10, bottom: 10, left: 10 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-          <XAxis dataKey="_id" tick={{ fontSize: 10, fill: "#94a3b8" }} angle={-30} textAnchor="end" height={64} interval={0} />
-          <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
+
+          <XAxis
+            dataKey="_id"
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+            angle={-30}
+            textAnchor="end"
+            height={64}
+            interval={0}
+          />
+
+          <YAxis
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+            width={32}
+          />
+
           <Tooltip content={<ChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
+
           {cats.map((cat, i) => (
-            <Bar key={cat} dataKey={cat} name={cat.split(" ")[0]} fill={CHART_COLORS[i]} radius={[3,3,0,0]}
-              shape={<Bar3D fill={CHART_COLORS[i]} />}>
-              <LabelList dataKey={cat} position="top" style={{ fontSize: 10, fill: "#475569" }} formatter={v => v || ""} />
+            <Bar
+              key={cat}
+              dataKey={cat}
+              name={cat.split(" ")[0]}
+              fill={CHART_COLORS[i]}
+              radius={[3, 3, 0, 0]}
+            >
+              <LabelList
+                dataKey={cat}
+                position="top"
+                style={{ fontSize: 10, fill: "#475569" }}
+                formatter={v => v || ""}
+              />
             </Bar>
           ))}
         </BarChart>
