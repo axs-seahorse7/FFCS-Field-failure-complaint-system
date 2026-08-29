@@ -5,15 +5,15 @@ import SectionCard from "../components/SectionCard";
 import StatusBadge from "../components/StatusBadge";
 import DrilldownModal from "./DrilldownModal.jsx";
 import api from "../../../../services/axios-interceptore/api";
-import { useApiQuery } from "../components/useApiQuery.js";
+import { useApiQuery, useBatchQuery } from "../components/useApiQuery.js";
 import { fmtNum, fmtDate } from "../components/utils";
- import { Image, Modal } from "antd";
- import { DeleteOutlined, DownloadOutlined } from "@ant-design/icons";
- import DownloadButton from "../components/DownloadButton.jsx";
- import { useUser } from "../../../../Global/Context/User-Context/UserContext.jsx";
- import {CUSTOMERS} from "../../../../utils/cutomers/customers.js";
+import { Image, Modal } from "antd";
+import { DeleteOutlined, DownloadOutlined } from "@ant-design/icons";
+import DownloadButton from "../components/DownloadButton.jsx";
+import { useUser } from "../../../../Global/Context/User-Context/UserContext.jsx";
+import {CUSTOMERS} from "../../../../utils/cutomers/customers.js";
 
- import {useOutletContext} from "react-router-dom";
+import {useOutletContext} from "react-router-dom";
 
 
 /* ─────────────────────────────────────────
@@ -777,6 +777,71 @@ function CustomerSelect({ value, onChange }) {
   );
 }
 
+function FilterSelect({ value, onChange, options, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", minWidth: 150 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: "100%", padding: "8px 32px 8px 12px",
+        borderRadius: 11, fontSize: 12, fontWeight: value ? 700 : 500,
+        color: value ? T.label : T.gray1,
+        border: `1.5px solid ${open ? T.blue : T.gray5}`,
+        background: open ? "#fff" : "rgba(255,255,255,0.7)",
+        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+        boxShadow: open ? `0 0 0 3px rgba(0,122,255,0.12)` : "none",
+        cursor: "pointer", outline: "none", transition: "all 0.15s", textAlign: "left", fontFamily: "inherit",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        {value || placeholder}
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {value && (
+            <span onClick={(e) => { e.stopPropagation(); onChange(""); }} style={{
+              width: 16, height: 16, borderRadius: "50%", background: T.gray3,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="8" height="8" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/>
+              </svg>
+            </span>
+          )}
+          <svg width="11" height="11" fill="none" stroke={T.gray2} strokeWidth="2.5" viewBox="0 0 24 24" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+            <path d="M6 9l6 6 6-6" strokeLinecap="round"/>
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 100,
+          background: "rgba(255,255,255,0.96)", backdropFilter: "blur(30px)", WebkitBackdropFilter: "blur(30px)",
+          borderRadius: 14, border: `1px solid ${T.gray5}`,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)", overflow: "hidden",
+          maxHeight: 240, overflowY: "auto",
+        }}>
+          {options.map((o) => (
+            <button key={o} onClick={() => { onChange(o); setOpen(false); }} style={{
+              width: "100%", padding: "8px 14px", textAlign: "left",
+              background: value === o ? "rgba(0,122,255,0.08)" : "transparent",
+              border: "none", cursor: "pointer", fontSize: 12, fontWeight: value === o ? 700 : 500,
+              color: value === o ? T.blue : T.label, fontFamily: "inherit",
+              borderBottom: `1px solid ${T.gray6}`,
+              transition: "background 0.1s",
+            }}>{o}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
 /* ─────────────────────────────────────────
    STATUS CHANGE DROPDOWN (inline in table)
 ───────────────────────────────────────── */
@@ -879,6 +944,8 @@ export default function ManageSection({ addToast }) {
   const [search, setSearch]       = useState("");
   const [statusFilter, setStatus] = useState("");
   const [custFilter, setCust]     = useState("");
+  const [catFilter, setCat]             = useState("");
+  const [commodityFilter, setCommodity] = useState("");
   const [selected, setSelected]   = useState(null);
   const [previewImg, setPreviewImg] = useState(null);
   const [videoModal, setVideoModal] = useState(null);
@@ -893,13 +960,28 @@ export default function ManageSection({ addToast }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { data, isLoading, refetch } = useApiQuery("/get-complaints",
-    { page, limit: pageSize, search, status: statusFilter, customerName: custFilter, from: filters?.from, to: filters?.to },
+    { page, limit: pageSize, search, status: statusFilter, customerName: custFilter,
+      defectCategory: catFilter, commodity: commodityFilter,
+      from: filters?.from, to: filters?.to },
     { onError: () => addToast?.("Failed to load complaints", "error") }
   );
 
   useEffect(() => {
     refetch();
   }, [filters?.from, filters?.to]);
+
+    /* ── Distinct dropdown options — cascades: customer → category → commodity ── */
+    const { data: filterOptionsData } = useBatchQuery([
+      { key: "categories",  url: "/complaints/by-category",  params: { from: filters?.from, to: filters?.to, customerName: custFilter } },
+      { key: "commodities", url: "/complaints/by-commodity", params: { from: filters?.from, to: filters?.to, customerName: custFilter, defectCategory: catFilter } },
+    ]);
+    const { categories = [], commodities = [] } = filterOptionsData || {};
+    const categoryOptions  = categories.map(d => d._id).filter(Boolean);
+    const commodityOptions = commodities.map(d => d._id).filter(Boolean);
+
+    /* ── Reset downstream filters when an upstream one changes ── */
+    useEffect(() => { setCat(""); setCommodity(""); }, [custFilter]);
+    useEffect(() => { setCommodity(""); }, [catFilter]);
 
 
   const { user } = useUser();
@@ -1277,8 +1359,20 @@ const columns = [
        <div className="flex items-center justify-between gap-2 flex-wrap">
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
+          <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
             <CustomerSelect value={custFilter} onChange={(v) => { setCust(v); setPage(1); }} />
+            <FilterSelect
+              value={catFilter}
+              onChange={(v) => { setCat(v); setPage(1); }}
+              options={categoryOptions}
+              placeholder="Defect Category"
+            />
+            <FilterSelect
+              value={commodityFilter}
+              onChange={(v) => { setCommodity(v); setPage(1); }}
+              options={commodityOptions}
+              placeholder="Commodity"
+            />
 
             {/* Refresh */}
             <button onClick={refetch} style={{
@@ -1297,9 +1391,9 @@ const columns = [
             </button>
 
             {/* Active filter indicator */}
-            {(search || statusFilter || custFilter) && (
+            {(search || statusFilter || custFilter || catFilter || commodityFilter) && (
               <button
-                onClick={() => { setSearch(""); setStatus(""); setCust(""); setPage(1); }}
+                onClick={() => { setSearch(""); setStatus(""); setCust(""); setCat(""); setCommodity(""); setPage(1); }}
                 style={{
                   display: "flex", alignItems: "center", gap: 5,
                   padding: "8px 14px", borderRadius: 11,

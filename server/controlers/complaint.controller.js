@@ -14,24 +14,32 @@ import ExcelJS from "exceljs";
    Supports: year (e.g. 2024), from + to (ISO strings)
    Priority: explicit from/to overrides year
 ═══════════════════════════════════════════════════════ */
-  function buildDateMatch(query) {
-    const { from, to, customerName } = query; 
+    function buildDateMatch(query) {
+      const { from, to, customerName, defectCategory, commodity } = query; 
 
-    const match = {};
+      const match = {};
 
-    if (from || to) {
-      match.complaintDate = {};
-      if (from) match.complaintDate.$gte = new Date(from);
-      if (to)   match.complaintDate.$lte = new Date(to);
+      if (from || to) {
+        match.complaintDate = {};
+        if (from) match.complaintDate.$gte = new Date(from);
+        if (to)   match.complaintDate.$lte = new Date(to);
+      }
+      // removed year fallback entirely
+
+      if (customerName) {
+        match.customerName = customerName;
+      }
+
+      if (defectCategory) {
+        match.defectCategory = defectCategory;
+      }
+
+      if (commodity) {
+        match.commodity = commodity;
+      }
+
+      return match;
     }
-    // removed year fallback entirely
-
-    if (customerName) {
-      match.customerName = customerName;
-    }
-
-    return match;
-  }
 /* ═══════════════════════════════════════════════════════
    HELPER — month label array
 ═══════════════════════════════════════════════════════ */
@@ -1355,7 +1363,7 @@ export const downloadComplaints = async (req, res) => {
 
     // ── Server-side safety net: never allow >3 months in one export,
     // even if someone calls this endpoint directly (not just via the modal).
-    const MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000; // 1 calendar month max
+    const MAX_RANGE_MS = 32 * 24 * 60 * 60 * 1000; // 1 calendar month max
     if (end - start > MAX_RANGE_MS) {
       return res.status(400).json({ message: "You can only download one month of data at a time" });
     }

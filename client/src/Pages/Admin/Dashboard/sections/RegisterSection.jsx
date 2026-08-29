@@ -22,14 +22,14 @@ export default function RegisterSection() {
 
   const { filters, addToast } = useOutletContext();
 
-  const { data, isLoading, refetch } = useApiQuery(
+    const { data, isLoading, refetch } = useApiQuery(
     "/get-complaints",
     {
       ...filters,
       page,
       limit: pageSize,
       search,
-      customerName: custFilter,
+      customerName: custFilter || filters?.customerName,
       defectCategory: catFilter,
     },
     {
@@ -59,48 +59,6 @@ export default function RegisterSection() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Input
-          prefix={<SearchOutlined />}
-          placeholder="Search..."
-          value={search}
-          onChange={e => {
-            setSearch(e.target.value);
-            setPage(1); // reset page
-          }}
-          allowClear
-        />
-
-        <Select
-          value={custFilter || undefined}
-          onChange={v => {
-            setCust(v || "");
-            setPage(1);
-          }}
-          allowClear
-          placeholder="Customer"
-        >
-          {["GODREJ","HAIER","AMSTRAD"].map(c => <Option key={c}>{c}</Option>)}
-        </Select>
-
-        <Select
-          value={catFilter || undefined}
-          onChange={v => {
-            setCat(v || "");
-            setPage(1);
-          }}
-          allowClear
-          placeholder="Category"
-        >
-          {["ELEC PART DEFECTS","LEAK"].map(c => <Option key={c}>{c}</Option>)}
-        </Select>
-
-        <Button onClick={refetch} icon={<ReloadOutlined />}>
-          Refresh
-        </Button>
-      </div>
 
       {/* Table */}
       <SectionCard title={`Complaint Register (${fmtNum(total)})`} icon="📋">

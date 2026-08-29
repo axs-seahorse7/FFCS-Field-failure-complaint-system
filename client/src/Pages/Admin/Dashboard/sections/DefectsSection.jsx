@@ -540,28 +540,28 @@ const DefectTrendChart = ({ h = 220 }) => {
       <Grid cols={4}>
 
         <ChartCard title="Defect Category Breakdown" icon={<MdDonutLarge color="red" />} loading={isLoading}
-          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={480} />)}>
-          <CategoryDonut />
+          onExpand={() => openPreview("Defect Category Breakdown", <CategoryDonut h={380} />)}>
+          <CategoryDonut h={270} />
         </ChartCard>
 
         <ChartCard title="Most Reported Defective Parts" icon={<MdBuild color="orange" />} tag="Top 12" tagColor="orange" loading={isLoading}
           onExpand={() => openPreview("Most Reported Parts", <TopPartsBar h={380} />)}>
-          <TopPartsBar />
+          <TopPartsBar h={270} />
         </ChartCard>
 
         <ChartCard title="Which Parts Fail Most — Radar View" icon={<MdTrendingUp color="blue" />} loading={isLoading}
           onExpand={() => openPreview("Part Frequency Radar", <PartRadarChart h={380} />)}>
-          <PartRadarChart />
+          <PartRadarChart h={270} />
         </ChartCard>
 
         <ChartCard title="Product Type Split (IDU / ODU)" icon={<MdSettings color="gray" />} loading={isLoading}
           onExpand={() => openPreview("Product Type Split", <CommodityPieChart h={380} />)}>
-          <CommodityPieChart />
+          <CommodityPieChart h={270} />
         </ChartCard>
 
         <ChartCard title="Monthly Defect Volume & Quality Rate" icon={<MdTrendingUp color="green" />} tag="12 Months" tagColor="blue" loading={isLoading}
           onExpand={() => openPreview("Monthly Defect Trend", <DefectTrendChart h={380} />)}>
-          <DefectTrendChart />
+          <DefectTrendChart  />
         </ChartCard>
 
         <ChartCard title="Defect Category Volume Map" icon={<IoSettingsOutline color="red" />} tag="Proportional" tagColor="cyan" loading={isLoading}

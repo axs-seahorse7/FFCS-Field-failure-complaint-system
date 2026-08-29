@@ -54,18 +54,31 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
     const canManage = user.isSystemRole || permissions.includes("manage");
 
     //  Query params
-    const { search, status, customerName, page = 1, limit = 50, from, to } = req.query;
+    const { search, status, customerName, defectCategory, commodity, page = 1, limit = 50, from, to } = req.query;
 
     const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 50));
     const safePage = Math.max(1, Number(page) || 1);
     const skip = (safePage - 1) * safeLimit;
 
-    //  Build query safely
-    const conditions = [];
+        /* ═══════════════════════════════════════════════════════
+       FIX: `status` (the active tab) must ONLY narrow the table
+       rows — never the pill counts. Previously the status filter
+       was baked into `conditions`, and the pill counts then did
+       { ...query, status: "Open" } etc on top of an already
+       status-locked query — an impossible AND (status can't be
+       both "Pending" and "Open"), so every pill except the active
+       tab always returned 0.
+
+       Now: `baseConditions` = everything except status (role,
+       search, customer, date-range) → drives all 4 pill counts.
+       `listConditions` = baseConditions + status (if a tab is
+       active) → drives ONLY the table rows.
+    ═══════════════════════════════════════════════════════ */
+    const baseConditions = [];
 
     // Role-based restriction
     if (!canManage) {
-      conditions.push({
+      baseConditions.push({
         $or: [
           { createdBy: new mongoose.Types.ObjectId(rawUserId) },
           { status: "resolved" }
@@ -73,15 +86,10 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    // Status filter
-    if (status) {
-      conditions.push({ status });
-    }
-
     // Search filter
     if (search) {
       const regex = new RegExp(search, "i");
-      conditions.push({
+      baseConditions.push({
         $or: [
           {title: regex },
           {description: regex },
@@ -97,12 +105,20 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
 
     if (customerName) {
       const regex = new RegExp(customerName, "i");
-      conditions.push({ customerName: regex });
+      baseConditions.push({ customerName: regex });
+    }
+
+    if (defectCategory) {
+      baseConditions.push({ defectCategory });
+    }
+
+    if (commodity) {
+      baseConditions.push({ commodity });
     }
 
     // Date range filter
     if (from && to) {
-      conditions.push({
+      baseConditions.push({
         complaintDate: {
           $gte: new Date(from),
           $lte: new Date(to)
@@ -110,32 +126,27 @@ router.get("/get-complaints", isAuthenticated, async (req, res) => {
       });
     }
 
-    // Final query
-    const query = conditions.length ? { $and: conditions } : {};
+    // Table rows — base filters + the currently active status tab
+    const listConditions = [...baseConditions];
+    if (status) {
+      listConditions.push({ status });
+    }
+    const listQuery = listConditions.length ? { $and: listConditions } : {};
+
     //  Execute queries
     const [complaints, total, totalOpen, totalPending, totalResolved] = await Promise.all([
-        Complaint.find(query)
+        Complaint.find(listQuery)
           .populate("createdBy", "email")
           .sort({ status: 1, complaintDate: -1 })
           .skip(skip)
           .limit(safeLimit)
           .lean(),
 
-        Complaint.countDocuments(query),
-        Complaint.countDocuments({
-          ...query,
-          status: "Open"  
-        }),
-
-        Complaint.countDocuments({
-          ...query,
-          status: "Pending"  
-        }),
-
-        Complaint.countDocuments({
-          ...query,
-          status: "Resolved"  
-        })
+        // Pills — base filters ONLY, never the status tab
+        Complaint.countDocuments(baseConditions.length ? { $and: baseConditions } : {}),
+        Complaint.countDocuments({ $and: [...baseConditions, { status: "Open" }] }),
+        Complaint.countDocuments({ $and: [...baseConditions, { status: "Pending" }] }),
+        Complaint.countDocuments({ $and: [...baseConditions, { status: "Resolved" }] }),
       ]);
 
     return res.status(200).json({

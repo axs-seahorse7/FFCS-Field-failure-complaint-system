@@ -18,8 +18,8 @@ const CHART_SHADOW = {
 };
 const LABEL_S = { fontSize: 10, fill: "#475569", fontWeight: 600 };
 
-const STATUS_ORDER = ["Open","Active","Pending","Resolved","Closed"];
-const STATUS_COLORS_MAP = { Open: "#3b82f6", Active: "#22c55e", Pending: "#f59e0b", Resolved: "#16a34a", Closed: "#94a3b8" };
+const STATUS_ORDER = ["Open","Pending","Resolved"];
+const STATUS_COLORS_MAP = { Open: "#3b82f6", Pending: "#f59e0b", Resolved: "#16a34a" };
 
 /* ── 3D bar ── */
 const Bar3D = ({ x, y, width, height, fill }) => {
@@ -255,9 +255,9 @@ const ComplaintsByCustomer = ({ h = 280 }) => {
           <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={32} />
           <Tooltip content={<ChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          {STATUS_ORDER.map(s => (
+            {STATUS_ORDER.map(s => (
             <Bar key={s} dataKey={s} name={s} stackId="a" fill={STATUS_COLORS_MAP[s]}>
-              <LabelList dataKey={s} position="center" style={{ fontSize: 10, fill: "#fff", fontWeight: 700 }} formatter={v => v > 10 ? v : ""} />
+              <LabelList dataKey={s} position="top" style={{ fontSize: 10, fill: "#475569", fontWeight: 600 }} formatter={v => v > 0 ? v : ""} />
             </Bar>
           ))}
         </BarChart>
