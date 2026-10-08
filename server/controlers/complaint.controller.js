@@ -63,6 +63,51 @@ export const getComplaints = async (req, res) => {
   }
 };
 
+
+// ---------- Counter model (put in models/Counter.js) ----------
+const counterSchema = new mongoose.Schema({
+  _id: String, // e.g. "SUP-2610"
+  seq: { type: Number, default: 0 },
+});
+
+export const Counter = mongoose.models.Counter || mongoose.model("Counter", counterSchema);
+
+// ---------- Helpers ----------
+const getLocation = (plantName = "") => {
+  const p = plantName.toLowerCase();
+  if (p.includes("noida")) return "Noida";
+  if (p.includes("supa")) return "Supa";
+  return "Bhiwadi";
+};
+
+// "Supa Plant" -> "SUP", "Bhiwadi Unit 2" -> "BHU", "Noida" -> "NO"
+const getPlantPrefix = (plantName = "") => {
+  const words = plantName.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "XX";
+  const firstTwo = words[0].slice(0, 2).toUpperCase();
+  const nextChar = words[1] ? words[1][0].toUpperCase() : "";
+  return firstTwo + nextChar;
+};
+
+const generateComplaintNo = async (plantName, date, session) => {
+  const prefix = getPlantPrefix(plantName);
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const serial = String(Date.now() % 100000).padStart(5, "0"); // last 5 digits of ms timestamp
+    const complaintNo = `${prefix}${yy}${mm}${serial}`; // e.g. SUP261045821
+
+    const exists = await Complaint.exists({ complaintNo }).session(session);
+    if (!exists) return complaintNo;
+
+    await new Promise((r) => setTimeout(r, 2)); // wait so the next ms value differs
+  }
+
+  throw new Error("Could not generate a unique complaint number");
+};
+
+// ---------- Controller ----------
 export const createComplaint = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -74,9 +119,9 @@ export const createComplaint = async (req, res) => {
     let videoKey = null;
 
     try {
-      if (!req.files.image[0]) {
-      } else {
-        const result = await uploadToS3(req.files.image[0]);
+      const imageFile = req.files?.image?.[0];
+      if (imageFile) {
+        const result = await uploadToS3(imageFile);
         imageUrl = result.url;
         imageKey = result.key;
       }
@@ -85,9 +130,9 @@ export const createComplaint = async (req, res) => {
     }
 
     try {
-      if (!req.files.video[0]) {
-      } else {
-        const result = await uploadToS3(req.files.video[0]);
+      const videoFile = req.files?.video?.[0];
+      if (videoFile) {
+        const result = await uploadToS3(videoFile);
         videoUrl = result.url;
         videoKey = result.key;
       }
@@ -98,10 +143,16 @@ export const createComplaint = async (req, res) => {
     // remove unwanted field
     const { image, video, ...rest } = req.body;
 
+    const complaintDate = rest.complaintDate ? new Date(rest.complaintDate) : new Date();
+    const plantName = rest.manufacturingPlant || "Unknown";
+
+    const complaintNo = await generateComplaintNo(plantName, complaintDate, session);
+
     const [complaint] = await Complaint.create(
       [
         {
           ...rest,
+          complaintNo : complaintNo,
           createdBy: req.user.userId,
           imageUrl,
           imageKey,
@@ -112,13 +163,8 @@ export const createComplaint = async (req, res) => {
       { session }
     );
 
-    const month = complaint.complaintDate || new Date();
-    const rawDate = new Date(month);
-
-    const monthKey = getMonthKey(rawDate);
-
-    const plantLocation = complaint.manufacturingPlant || "Unknown";
-    const location = plantLocation.includes("Supa") ? "Supa" : "Bhiwadi";
+    const monthKey = getMonthKey(complaintDate);
+    const location = getLocation(plantName);
 
     await User.findByIdAndUpdate(
       req.user.userId,
@@ -131,24 +177,18 @@ export const createComplaint = async (req, res) => {
       { session }
     );
 
-    try {
-      await Production.findOneAndUpdate(
-        {
-          customer: complaint.customerName.trim(),
-          location,
-          month: monthKey,
-        },
-        {
-          $inc: { fieldComplaint: 1 },
-          $setOnInsert: {
-            location,
-          },
-        },
-        { upsert: true, session }
-      );
-    } catch (err) {
-      console.error("Production update failed:", err.message);
-    }
+    await Production.findOneAndUpdate(
+      {
+        customer: complaint.customerName.trim(),
+        location,
+        month: monthKey,
+      },
+      {
+        $inc: { fieldComplaint: 1 },
+        $setOnInsert: { location },
+      },
+      { upsert: true, session }
+    );
 
     await session.commitTransaction();
 

@@ -19,7 +19,7 @@ import {CUSTOMERS} from "../../../utils/cutomers/customers.js";
 
 const { Option } = Select;
 
-const LOCATIONS = ["Bhiwadi", "Supa"];
+const LOCATIONS = ["Bhiwadi", "Supa", "NOIDA"];
 
 /* ── Sticky offsets ── */
 const KPI_TOP = 55;

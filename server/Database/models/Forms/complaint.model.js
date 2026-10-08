@@ -122,7 +122,7 @@ const complaintSchema = new Schema(
       type: String,
       trim: true,
       enum: {
-        values: ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", "Supa", "Bhiwadi", ""],
+        values: ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", "Supa", "Bhiwadi", "PG NOIDA", ""],
         message: "{VALUE} is not a valid manufacturing plant",
       },
       default: "",

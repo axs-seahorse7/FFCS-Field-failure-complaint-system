@@ -22,7 +22,7 @@ const DEFECTIVE_PARTS = [
   "WAC DISPLAY PCB","MISC",
 ];
 
-const MANUFACTURING_PLANTS = ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi"];
+const MANUFACTURING_PLANTS = ["PG Supa", "NGM Supa", "PG Bhiwadi", "NGM Bhiwadi", "PG NOIDA"];
 const DATABASE_OPTIONS      = ["Evidence", "Verification", "Data"];
 
 const DEFECT_DETAILS_MAP = {
@@ -38,6 +38,7 @@ const DEFECT_DETAILS_MAP = {
     "COMPRESSOR NOT STARTING","COMPRESSOR NOISE","COMPRESSOR TRIPPING",
     "COMPRESSOR PUMPING NG",
   ],
+
   "PART BROKEN / DAMAGED / MISSING": [
     "IDU PANEL BROKEN / DAMAGED","IDU CHASSIS DAMAGED","CFF BROKEN / DAMAGED",
     "CFF TOUCHING NOISE","EVP SUPPORT BROKEN","IDU MOTOR COVER BROKEN",
@@ -49,6 +50,7 @@ const DEFECT_DETAILS_MAP = {
     "BEARING BUSH MISSING","LOUVER NOISE","WAC PANEL BROKEN",
     "PART BROKEN / OPEN","WAC BLOWER DAMAGED",
   ],
+
   "LEAK": [
     "EVP HAIRPIN LEAK","LOW / NO GAS","SUCTION BRAZING LEAK","EVP LEAK",
     "COMPRESSOR LEAK","CONDENSER LEAK","EVP HEADER LEAK","EVP DAMAGED",
@@ -59,6 +61,7 @@ const DEFECT_DETAILS_MAP = {
     "VALVE THREAD DAMAGED","SUCTION CRACKED","FLAIR NUT LEAK",
     "DISCHARGE TUBE LEAK","LEAK NOT FOUND",
   ],
+
   "NOISE": [
     "COMPRESSOR NOISE","MOTOR NOISE","CFF TOUCHING NOISE","LOUVER NOISE",
     "AIR FLOW NOISE","ODU STRUCTURAL NOISE","TUBE / COMP VIBRATION",
@@ -443,7 +446,7 @@ export default function ComplaintForm({ userEmail }) {
 
   const fileInputRef = useRef(null);
   const navigate     = useNavigate();
-  const baseUrl      = import.meta.env.VITE_API_URI || "http://localhost:3000";
+  const baseUrl      = import.meta.env.VITE_API_URI || "http://localhost:3000/api";
 
   /* ── Generate complaint no. on new form ── */
   useEffect(() => {
@@ -861,7 +864,7 @@ export default function ComplaintForm({ userEmail }) {
                     <Input value={form.complaintNo} readOnly placeholder="Auto" />
                   </Field>
                   <Field label="Complaint Date" required error={errors.complaintDate}>
-                    <Input type="date" value={form.complaintDate} onChange={set("complaintDate")} error={!!errors.complaintDate} />
+                    <Input type="date" readOnly  value={form.complaintDate} onChange={set("complaintDate")} error={!!errors.complaintDate} />
                   </Field>
                   <Field label="Customer Complaint ID">
                     <Input value={form.customerComplaintId} onChange={set("customerComplaintId")} placeholder="e.g. CMP-2024-0012" />

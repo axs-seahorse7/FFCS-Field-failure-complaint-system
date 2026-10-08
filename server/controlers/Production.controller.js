@@ -45,7 +45,7 @@ export const createProduction = async (req, res) => {
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
-        message: "Record already exists for this customer, location, and month."
+        message: "Record already exists with this customer, location, and month."
       });
     }
     console.log("Error:", err);
