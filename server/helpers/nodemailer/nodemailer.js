@@ -1,66 +1,55 @@
+
 import nodemailer from "nodemailer";
 
 const getMailerConfig = () => {
-	const isProduction = process.env.NODE_ENV === "production";
-	console.log("IS SMT PASS AVAILABLE", process.env.SMTP_PASS_PROD || process.env.SMTP_PASS? "Yes" : "No");
+    const config = {
+        host: process.env.SMTP_HOST || "smtp.office365.com",
+        port: Number(process.env.SMTP_PORT || 587),
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+        from: process.env.SMTP_FROM,
+    };
 
-	if (isProduction) {
-		return {
-			host: process.env.SMTP_HOST ||process.env.SMTP_HOST_PROD || "smtp.office365.com",
-			port: Number(process.env.SMTP_PORT_PROD || process.env.SMTP_PORT || 587),
-			secure: String(process.env.SMTP_SECURE_PROD || process.env.SMTP_SECURE || "false") === "true",
-			auth: {
-				user: process.env.SMTP_USER_PROD || process.env.SMTP_USER,
-				pass: process.env.SMTP_PASS_PROD || process.env.SMTP_PASS,
-			},
-			from: process.env.SMTP_FROM_PROD || process.env.SMTP_FROM,
-		};
-	}
+    if (!config.user || !config.pass || !config.from) {
+        throw new Error("SMTP configuration is incomplete.");
+    }
 
-	return {
-		host: process.env.SMTP_HOST,
-		port: Number(process.env.SMTP_PORT || 587),
-		secure: String(process.env.SMTP_SECURE || "false") === "true",
-		auth: {
-			user: process.env.SMTP_USER,
-			pass: process.env.SMTP_PASS,
-		},
-		from: process.env.SMTP_FROM,
-	};
+    console.log("SMTP CONFIG:", {
+        host: config.host,
+        port: config.port,
+        userAvailable: !!config.user,
+        passwordAvailable: !!config.pass,
+        fromAvailable: !!config.from,
+    });
+
+    return config;
 };
 
 const createTransporter = () => {
-	const config = getMailerConfig();
+    const config = getMailerConfig();
 
-	if (!config.host || !config.auth.user || !config.auth.pass || !config.from) {
-		throw new Error("SMTP configuration is incomplete. Please check your .env values.");
-	}
-
-	return nodemailer.createTransport({
-		host: config.host,
-		port: config.port,
-		secure: config.secure,
-		auth: config.auth,
-	});
+    return nodemailer.createTransport({
+        host: config.host,
+        port: config.port,
+        secure: false,
+        requireTLS: true,
+        auth: {
+            user: config.user,
+            pass: config.pass,
+        },
+    });
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
-	const transporter = createTransporter();
-	const { from } = getMailerConfig();
+    const config = getMailerConfig();
+    const transporter = createTransporter();
 
-	const mailOptions = {
-		from: `PG FFR <${from}>`,
-		to,
-		subject,
-		html
-	};
-
-	// console.log("Sending mail with:", mailOptions);
-
-	const info = await transporter.sendMail(mailOptions);
-	return info;
+    return await transporter.sendMail({
+        from: `PG FFR <${config.from}>`,
+        to,
+        subject,
+        html,
+    });
 };
-
-
 
 export default createTransporter;
