@@ -43,7 +43,7 @@ router.post("/login", async (req, res) => {
 
         await sendEmail({ 
             to: emailInLower,
-            subject: "Your Login OTP - PG CMS", 
+            subject: "PG FFR - Your Login OTP", 
             html  
         });
 
@@ -52,6 +52,7 @@ router.post("/login", async (req, res) => {
             message: "OTP sent successfully",
             email: emailInLower,
         });
+        
     } catch (error) {
         console.error("Error during login:", error);
         return res.status(500).json({ message: "Internal server error" });

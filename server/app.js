@@ -30,6 +30,8 @@ app.use(
 		credentials: true,
 	})
 );
+
+
 const __dirname = path.resolve();
 
 app.use(express.json());

@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 
 const getMailerConfig = () => {
 	const isProduction = process.env.NODE_ENV === "production";
+	console.log("IS SMT PASS AVAILABLE", process.env.SMTP_PASS_PROD || process.env.SMTP_PASS? "Yes" : "No");
 
 	if (isProduction) {
 		return {
@@ -48,7 +49,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 	const { from } = getMailerConfig();
 
 	const mailOptions = {
-		from: `PG CMS <${from}>`,
+		from: `PG FFR <${from}>`,
 		to,
 		subject,
 		html

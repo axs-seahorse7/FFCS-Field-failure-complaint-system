@@ -53,8 +53,7 @@ export const getUsers = async (req, res) => {
     ]);
 
     const countMap = {};
-    complaintCounts.forEach(c => {
-      countMap[c._id.toString()] = c.count;
+    complaintCounts.forEach(c => {countMap[c._id.toString()] = c.count;
     });
 
     const data = users.map(u => ({
